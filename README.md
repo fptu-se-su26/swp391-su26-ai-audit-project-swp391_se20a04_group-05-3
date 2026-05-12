@@ -18,7 +18,7 @@
 | No | Student ID | Full Name | GitHub Username | Role | Main Responsibility |
 |---:|---|---|---|---|---|
 | 1 |  |  |  | Leader |  |
-| 2 | DE190230 | Duong Thanh Long | duonglong123 | Member |  |
+| 2 | DE190230 | Dương Thành Long | duonglong123 | Member |  |
 | 3 | DE190206 | Lê Văn Minh Phát |Hihihi13213  | Member | |
 | 4 |  |  |  | Member |  |
 | 5 |  |  |  | Member |  |
