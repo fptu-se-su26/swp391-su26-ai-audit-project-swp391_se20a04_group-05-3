@@ -4,11 +4,11 @@
 
 | Item | Description |
 |---|---|
-| Course |  |
-| Class |  |
+| Course |SWP391  |
+| Class |SE20A04  |
 | Semester | SU26 |
-| Group |  |
-| Topic |  |
+| Group |05  |
+| Topic |GreenLife – Nền tảng dịch vụ cây cảnh trực tuyến  |
 | Repository |  |
 
 ---
@@ -19,7 +19,7 @@
 |---:|---|---|---|---|---|
 | 1 |  |  |  | Leader |  |
 | 2 | DE190230 | Duong Thanh Long | duonglong123 | Member |  |
-| 3 |  |  |  | Member |  |
+| 3 | DE190206 | Lê Văn Minh Phát |Hihihi13213  | Member | |
 | 4 |  |  |  | Member |  |
 | 5 |  |  |  | Member |  |
 
