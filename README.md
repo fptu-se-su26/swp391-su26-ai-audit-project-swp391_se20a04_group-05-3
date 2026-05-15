@@ -20,7 +20,7 @@
 | 1 | DE190354 | Nguyễn Thanh Hoàng | hoang-11 | Leader |  |
 | 2 | DE190230 | Dương Thành Long | duonglong123 | Member |  |
 | 3 | DE190206 | Lê Văn Minh Phát |Hihihi13213  | Member | |
-| 4 | DE190622 | Trần Nhất Duy |  | Member |  |
+| 4 | DE190622 | Trần Nhất Duy | tranduy132005 | Member |  |
 | 5 |  |  |  | Member |  |
 
 ---
