@@ -17,13 +17,13 @@ export default function Footer() {
               Sứ mệnh của chúng tôi là mang thiên nhiên vào không gian sống của bạn, kết hợp công nghệ và tình yêu cây xanh.
             </p>
             <div className="flex items-center gap-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-accent hover:text-primary transition-all">
+              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-accent hover:text-primary transition-all">
                 <Instagram size={20} />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-accent hover:text-primary transition-all">
+              <a href="https://facebook.com" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-accent hover:text-primary transition-all">
                 <Facebook size={20} />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-accent hover:text-primary transition-all">
+              <a href="https://twitter.com" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-accent hover:text-primary transition-all">
                 <Twitter size={20} />
               </a>
             </div>
@@ -42,10 +42,10 @@ export default function Footer() {
           <div>
             <h4 className="text-white font-bold mb-6">Hỗ Trợ</h4>
             <ul className="space-y-4">
-              <li><a href="#" className="hover:text-accent transition-colors">Chính Sách Giao Hàng</a></li>
-              <li><a href="#" className="hover:text-accent transition-colors">Chính Sách Đổi Trả</a></li>
-              <li><a href="#" className="hover:text-accent transition-colors">Hướng Dẫn Thanh Toán</a></li>
-              <li><a href="#" className="hover:text-accent transition-colors">Câu Hỏi Thường Gặp</a></li>
+              <li><Link to="/" className="hover:text-accent transition-colors">Chính Sách Giao Hàng</Link></li>
+              <li><Link to="/" className="hover:text-accent transition-colors">Chính Sách Đổi Trả</Link></li>
+              <li><Link to="/" className="hover:text-accent transition-colors">Hướng Dẫn Thanh Toán</Link></li>
+              <li><Link to="/" className="hover:text-accent transition-colors">Câu Hỏi Thường Gặp</Link></li>
             </ul>
           </div>
 
@@ -71,8 +71,8 @@ export default function Footer() {
         <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500">
           <p>© 2024 GreenLife. All rights reserved.</p>
           <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-slate-300">Privacy Policy</a>
-            <a href="#" className="hover:text-slate-300">Terms of Service</a>
+            <Link to="/" className="hover:text-slate-300">Privacy Policy</Link>
+            <Link to="/" className="hover:text-slate-300">Terms of Service</Link>
           </div>
         </div>
       </div>

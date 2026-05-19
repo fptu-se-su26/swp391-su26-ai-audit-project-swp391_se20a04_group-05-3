@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Leaf, Shield, Zap, Star } from 'lucide-react';
-import { plants, services, blogPosts } from '../data';
-import PlantCard from '../components/PlantCard';
+import { plants, services, blogPosts } from '@/src/services/mockData';
+import PlantCard from '@/src/components/shop/PlantCard';
 import { Link } from 'react-router-dom';
 
 export default function Home() {
@@ -178,9 +178,9 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <button className="mt-16 py-4 px-10 bg-accent text-primary rounded-full font-bold hover:bg-nature-200 transition-all">
+            <Link to="/services" className="mt-16 inline-block py-4 px-10 bg-accent text-primary rounded-full font-bold hover:bg-nature-200 transition-all">
               Đặt lịch tư vấn ngay
-            </button>
+            </Link>
           </div>
         </div>
       </section>

@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Leaf, ShoppingCart, User, Menu, X, Search } from 'lucide-react';
+import { Leaf, ShoppingCart, User, Menu, X, Search, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn } from '@/src/utils';
+import { useStore } from '@/src/store';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { cart } = useStore();
+
+  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -61,14 +65,26 @@ export default function Navbar() {
           <button className="p-2 text-slate-600 hover:text-primary transition-colors">
             <Search size={20} />
           </button>
+          
+          <Link to="/admin" className="p-2 text-slate-600 hover:text-primary transition-colors relative" title="Dashboard Admin">
+            <ShieldCheck size={20} />
+          </Link>
+
           <Link to="/cart" className="p-2 text-slate-600 hover:text-primary transition-colors relative">
             <ShoppingCart size={20} />
-            <span className="absolute top-0 right-0 w-4 h-4 bg-accent text-[10px] font-bold text-primary flex items-center justify-center rounded-full">3</span>
+            {cartCount > 0 && (
+              <span className="absolute top-0 right-0 w-4 h-4 bg-accent text-[10px] font-bold text-primary flex items-center justify-center rounded-full">
+                {cartCount}
+              </span>
+            )}
           </Link>
-          <Link to="/auth" className="btn-primary flex items-center gap-2 !px-5 !py-2">
-            <User size={18} />
-            <span>Đăng Nhập</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/login" className="btn-secondary !px-4 !py-2 text-sm">Đăng Nhập</Link>
+            <Link to="/register" className="btn-primary flex items-center gap-2 !px-4 !py-2 text-sm">
+              <User size={16} />
+              <span>Đăng Ký</span>
+            </Link>
+          </div>
         </div>
 
         {/* Mobile Toggle */}
@@ -103,10 +119,23 @@ export default function Navbar() {
                   {link.name}
                 </Link>
               ))}
+              <Link
+                to="/admin"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-lg font-medium py-2 text-slate-600 flex items-center gap-2"
+              >
+                <ShieldCheck size={20} />
+                Dashboard Admin
+              </Link>
               <hr className="border-slate-100 my-2" />
-              <div className="flex gap-4">
-                <Link to="/auth" className="btn-primary flex-1 text-center">Đăng Nhập</Link>
-                <Link to="/cart" className="btn-secondary flex-1 text-center">Giỏ Hàng</Link>
+              <div className="flex flex-col gap-3">
+                <Link to="/cart" onClick={() => setIsMobileMenuOpen(false)} className="btn-secondary w-full text-center flex justify-center items-center gap-2">
+                  Giỏ Hàng {cartCount > 0 && <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full">{cartCount}</span>}
+                </Link>
+                <div className="flex gap-3">
+                  <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="btn-secondary flex-1 text-center">Đăng Nhập</Link>
+                  <Link to="/register" onClick={() => setIsMobileMenuOpen(false)} className="btn-primary flex-1 text-center">Đăng Ký</Link>
+                </div>
               </div>
             </div>
           </motion.div>
