@@ -50,19 +50,19 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-white font-bold mb-6">Liên Hệ</h4>
-            <ul className="space-y-4">
-              <li className="flex items-start gap-3">
-                <MapPin size={20} className="text-accent shrink-0" />
-                <span>123 Đường Cây Xanh, Quận 1, TP. Hồ Chí Minh</span>
+            <h4 className="text-white font-bold mb-6 tracking-tight">Liên Hệ</h4>
+            <ul className="space-y-4 text-slate-400">
+              <li className="flex items-start gap-3 group">
+                <MapPin size={20} className="text-accent shrink-0 group-hover:scale-110 transition-transform duration-300" />
+                <span className="group-hover:text-slate-200 transition-colors duration-300">123 Nguyễn Văn Linh, Hải Châu, Đà Nẵng</span>
               </li>
-              <li className="flex items-center gap-3">
-                <Phone size={20} className="text-accent shrink-0" />
-                <span>(028) 1234 5678</span>
+              <li className="flex items-center gap-3 group">
+                <Phone size={20} className="text-accent shrink-0 group-hover:scale-110 transition-transform duration-300" />
+                <a href="tel:02812345678" className="hover:text-slate-200 hover:underline decoration-accent/50 underline-offset-4 transition-all duration-300">(028) 1234 5678</a>
               </li>
-              <li className="flex items-center gap-3">
-                <Mail size={20} className="text-accent shrink-0" />
-                <span>contact@greenlife.vn</span>
+              <li className="flex items-center gap-3 group">
+                <Mail size={20} className="text-accent shrink-0 group-hover:scale-110 transition-transform duration-300" />
+                <a href="mailto:contact@greenlife.vn" className="hover:text-slate-200 hover:underline decoration-accent/50 underline-offset-4 transition-all duration-300">contact@greenlife.vn</a>
               </li>
             </ul>
           </div>

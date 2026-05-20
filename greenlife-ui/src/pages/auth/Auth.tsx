@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Leaf, Mail, Lock, User, ArrowRight, Github, Facebook } from 'lucide-react';
+import { Leaf, Mail, Lock, User, ArrowRight, Facebook } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface AuthProps {
   initialMode?: 'login' | 'register';
 }
+
+const GoogleIcon = () => (
+  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+  </svg>
+);
 
 export default function Auth({ initialMode = 'login' }: AuthProps) {
   const [isLogin, setIsLogin] = useState(initialMode === 'login');
@@ -24,19 +33,19 @@ export default function Auth({ initialMode = 'login' }: AuthProps) {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 flex flex-col justify-center py-20 px-6 sm:px-10 relative overflow-hidden">
+    <main className="min-h-screen bg-slate-50 flex flex-col justify-center py-10 md:py-16 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Background decorations */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute top-1/2 -left-20 w-72 h-72 bg-accent/20 rounded-full blur-3xl" />
       </div>
 
-      <div className="max-w-4xl mx-auto w-full relative z-10 flex bg-white rounded-[40px] shadow-2xl overflow-hidden">
+      <div className="max-w-4xl mx-auto w-full relative z-10 flex bg-white rounded-[32px] md:rounded-[40px] shadow-2xl overflow-hidden">
         
         {/* Left Form Section */}
-        <div className="w-full lg:w-1/2 p-8 sm:p-12">
-          <Link to="/" className="flex items-center gap-2 mb-12 group w-fit">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform">
+        <div className="w-full lg:w-1/2 p-6 sm:p-10 md:p-12 flex flex-col justify-center">
+          <Link to="/" className="flex items-center gap-2 mb-8 md:mb-12 group w-fit">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform duration-300">
               <Leaf size={24} />
             </div>
             <span className="text-xl font-bold tracking-tight text-primary">GreenLife</span>
@@ -50,16 +59,16 @@ export default function Auth({ initialMode = 'login' }: AuthProps) {
               exit={{ opacity: 0, x: isLogin ? 20 : -20 }}
               transition={{ duration: 0.3 }}
             >
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight mb-2">
                 {isLogin ? 'Chào mừng trở lại' : 'Tạo tài khoản mới'}
               </h2>
-              <p className="text-slate-500 mb-8">
+              <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8 leading-relaxed">
                 {isLogin 
                   ? 'Vui lòng đăng nhập để tiếp tục trải nghiệm mua sắm và các dịch vụ của GreenLife.'
                   : 'Tham gia cộng đồng GreenLife để nhận nhiều ưu đãi và kiến thức chăm sóc cây độc quyền.'}
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
                 {!isLogin && (
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Họ và tên</label>
@@ -69,7 +78,7 @@ export default function Auth({ initialMode = 'login' }: AuthProps) {
                         type="text" 
                         required
                         placeholder="Nguyễn Văn A"
-                        className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 bg-slate-50 focus:bg-white transition-colors"
+                        className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 bg-slate-50 focus:bg-white transition-all duration-300"
                       />
                     </div>
                   </div>
@@ -83,7 +92,7 @@ export default function Auth({ initialMode = 'login' }: AuthProps) {
                       type="email" 
                       required
                       placeholder="hello@greenlife.vn"
-                      className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 bg-slate-50 focus:bg-white transition-colors"
+                      className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 bg-slate-50 focus:bg-white transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -96,47 +105,56 @@ export default function Auth({ initialMode = 'login' }: AuthProps) {
                       type="password" 
                       required
                       placeholder="••••••••"
-                      className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 bg-slate-50 focus:bg-white transition-colors"
+                      className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 bg-slate-50 focus:bg-white transition-all duration-300"
                     />
                   </div>
                 </div>
 
                 {isLogin && (
                   <div className="flex justify-end">
-                    <a href="#" className="text-sm font-bold text-primary hover:underline">Quên mật khẩu?</a>
+                    <a href="#" className="text-sm font-bold text-primary hover:underline transition-all">Quên mật khẩu?</a>
                   </div>
                 )}
 
-                <button type="submit" className="w-full btn-primary !py-4 flex justify-center items-center gap-2 text-lg">
+                <button type="submit" className="w-full btn-primary !py-3.5 flex justify-center items-center gap-2 text-lg hover:shadow-lg hover:shadow-primary/20 active:scale-[0.99] transition-all duration-300 cursor-pointer">
                   {isLogin ? 'Đăng Nhập' : 'Đăng Ký'} <ArrowRight size={20} />
                 </button>
               </form>
 
-              <div className="mt-8">
+              <div className="mt-6 md:mt-8">
                 <div className="relative flex items-center justify-center">
                   <div className="absolute border-t border-slate-200 w-full" />
-                  <span className="bg-white px-4 text-sm text-slate-400 relative z-10">Hoặc tiếp tục với</span>
+                  <span className="bg-white px-4 text-xs md:text-sm text-slate-400 relative z-10">Hoặc tiếp tục với</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-6">
-                  <button className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors font-medium text-slate-700">
-                    <Github size={20} /> Github
-                  </button>
-                  <button className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors font-medium text-slate-700">
-                    <Facebook size={20} className="text-blue-600" /> Facebook
-                  </button>
+                <div className="grid grid-cols-2 gap-4 mt-5 md:mt-6">
+                  <motion.button 
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="button"
+                    className="flex items-center justify-center gap-2.5 py-3 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 shadow-sm hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all duration-300 font-medium text-slate-700 cursor-pointer"
+                  >
+                    <GoogleIcon /> <span className="text-sm md:text-base">Google</span>
+                  </motion.button>
+                  <motion.button 
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="button"
+                    className="flex items-center justify-center gap-2.5 py-3 rounded-2xl border border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/20 shadow-sm hover:shadow-[0_4px_20px_rgba(24,119,242,0.08)] transition-all duration-300 font-medium text-slate-700 cursor-pointer"
+                  >
+                    <Facebook size={20} className="text-[#1877F2] shrink-0" /> <span className="text-sm md:text-base">Facebook</span>
+                  </motion.button>
                 </div>
               </div>
 
-              <div className="mt-10 text-center">
-                <p className="text-slate-600">
+              <div className="mt-8 md:mt-10 text-center">
+                <p className="text-sm md:text-base text-slate-600">
                   {isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
                   <button 
                     onClick={() => {
                       setIsLogin(!isLogin);
-                      // Update URL implicitly without full reload
                       window.history.pushState({}, '', isLogin ? '/register' : '/login');
                     }} 
-                    className="font-bold text-primary hover:underline"
+                    className="font-bold text-primary hover:underline transition-all"
                   >
                     {isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
                   </button>
@@ -156,8 +174,8 @@ export default function Auth({ initialMode = 'login' }: AuthProps) {
           />
           <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-transparent flex flex-col justify-end p-12 rounded-l-[80px]">
             <div className="bg-white/10 backdrop-blur-md p-8 rounded-3xl border border-white/20">
-              <h3 className="text-white text-2xl font-bold mb-4">Mỗi Cây Xanh Là Một Món Quà</h3>
-              <p className="text-white/80 leading-relaxed">"Người trồng một cái cây là người biết yêu thương người khác." - Đăng ký tài khoản để bắt đầu hành trình xanh cùng chúng tôi.</p>
+              <h3 className="text-white text-2xl font-bold mb-4 tracking-tight">Mỗi Cây Xanh Là Một Món Quà</h3>
+              <p className="text-white/80 leading-relaxed text-sm md:text-base">"Người trồng một cái cây là người biết yêu thương người khác." - Đăng ký tài khoản để bắt đầu hành trình xanh cùng chúng tôi.</p>
             </div>
           </div>
         </div>
