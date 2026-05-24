@@ -1,0 +1,6 @@
+{
+  "name": "GreenLife - Nền tảng dịch vụ cây xanh trực tuyến",
+  "description": "Nâng tầm không gian sống xanh với sự hỗ trợ của trí tuệ nhân tạo và dịch vụ chăm sóc cây chuyên nghiệp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
