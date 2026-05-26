@@ -10,11 +10,13 @@ import { AuthView } from "./components/AuthView";
 import { CustomerDashboardView } from "./components/CustomerDashboardView";
 import { StoreDashboardView } from "./components/StoreDashboardView";
 import { AdminDashboardView } from "./components/AdminDashboardView";
+import { StoreProfileSetupView } from "./components/StoreProfileSetupView";
 import { Product, Appointment, DiagnosisLog } from "./types";
 import { useAppContext } from "./context/AppContext";
 import { useCart } from "./hooks/useCart";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { X, Trash2, ShoppingBag, Plus, Minus, ArrowRight } from "lucide-react";
+import { Chatbot } from "./components/ui/Chatbot";
 
 export default function App() {
   const {
@@ -162,10 +164,25 @@ export default function App() {
             case "store-dashboard":
               return (
                 <ProtectedRoute allowedRoles={["store", "admin"]} onPageRedirect={setCurrentPage}>
-                  <StoreDashboardView
-                    products={products}
-                    onAddProduct={addNewProduct}
-                  />
+                  {(() => {
+                    const { stores, currentUser } = useAppContext();
+                    const myStore = stores.find((s) => s.ownerEmail === currentUser?.email);
+                    if (!myStore || !myStore.verified) {
+                      return <StoreProfileSetupView />;
+                    }
+                    return (
+                      <StoreDashboardView
+                        products={products}
+                        onAddProduct={addNewProduct}
+                      />
+                    );
+                  })()}
+                </ProtectedRoute>
+              );
+            case "store-profile-setup":
+              return (
+                <ProtectedRoute allowedRoles={["store", "admin"]} onPageRedirect={setCurrentPage}>
+                  <StoreProfileSetupView />
                 </ProtectedRoute>
               );
             case "admin-dashboard":
@@ -349,6 +366,9 @@ export default function App() {
 
       {/* Prime Footer */}
       <Footer setCurrentPage={setCurrentPage} />
+
+      {/* Floating Chatbot Assistant */}
+      <Chatbot />
 
     </div>
   );

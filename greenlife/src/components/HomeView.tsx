@@ -29,9 +29,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <span>XU THẾ ECO-TECH SANG TRỌNG 2026</span>
           </div>
           
-          <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-6xl tracking-tight text-white leading-[1.1]">
+          <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-6xl tracking-tight text-stone-100 leading-[1.1]">
             Nâng tầm phong cách <br />
-            <span className="text-emerald-400">Sống Xanh Thượng Lưu</span>
+            <span className="text-emerald-600 dark:text-emerald-400">Sống Xanh Thượng Lưu</span>
           </h1>
           
           <p className="text-stone-400 text-base sm:text-lg leading-relaxed max-w-2xl">
@@ -48,7 +48,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </button>
             <button
               onClick={() => setCurrentPage("shop")}
-              className="flex items-center gap-2 px-6 py-3.5 bg-stone-800 hover:bg-stone-700 text-white border border-stone-700 rounded-xl font-medium transition-all cursor-pointer"
+              className="flex items-center gap-2 px-6 py-3.5 bg-stone-800 hover:bg-stone-750 text-stone-100 border border-stone-700 rounded-xl font-medium transition-all cursor-pointer"
             >
               Xem Cửa Hàng Organic
               <ArrowUpRight className="h-4 w-4" />
@@ -111,8 +111,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="bg-emerald-950/15 border border-emerald-900/30 p-8 rounded-3xl flex flex-col justify-between relative overflow-hidden">
           <div className="absolute -top-10 -right-10 w-44 h-44 bg-emerald-500/5 rounded-full blur-2xl" />
           <div className="max-w-md space-y-3">
-            <span className="text-xs text-emerald-400 font-mono tracking-widest uppercase">CÔNG NGHỆ CHẨN ĐOÁN</span>
-            <h3 className="text-2xl font-display font-medium text-white tracking-tight">Trạm Cấp Cứu Thực Vật AI</h3>
+            <span className="text-xs text-emerald-500 font-mono tracking-widest uppercase font-semibold">CÔNG NGHỆ CHẨN ĐOÁN</span>
+            <h3 className="text-2xl font-display font-medium text-stone-100 tracking-tight">Trạm Cấp Cứu Thực Vật AI</h3>
             <p className="text-stone-400 text-sm leading-relaxed">
               Bạn băn khoăn khi chiếc lá hồng leo quý bỗng héo rụi hoặc sen đá có đốm thâm đen? Đừng lo lắng, hãy chụp và đăng tải ảnh ngay. Trí tuệ AI sẽ phân tích sinh học và gửi phác đồ phục hồi hữu cơ sau 3 giây.
             </p>
@@ -132,8 +132,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="bg-stone-900/50 border border-stone-800 p-8 rounded-3xl flex flex-col justify-between relative overflow-hidden">
           <div className="absolute -bottom-10 -right-10 w-44 h-44 bg-stone-800 rounded-full blur-2xl" />
           <div className="max-w-md space-y-3">
-            <span className="text-xs text-stone-400 font-mono tracking-widest uppercase">CỦA CHUYÊN GIA BẢN ĐỊA</span>
-            <h3 className="text-2xl font-display font-medium text-white tracking-tight">Tư Vấn Thiết Kế Cảnh Quan</h3>
+            <span className="text-xs text-stone-500 font-mono tracking-widest uppercase font-semibold">CỦA CHUYÊN GIA BẢN ĐỊA</span>
+            <h3 className="text-2xl font-display font-medium text-stone-100 tracking-tight">Tư Vấn Thiết Kế Cảnh Quan</h3>
             <p className="text-stone-400 text-sm leading-relaxed">
               Đặt lịch tham vấn trực tuyến video hoặc gặp gỡ trực tiếp các Thạc sĩ sinh học thực vật và Kiến trúc sư hàng đầu Việt Nam để kiến tạo không gian ban công, vườn tự dưỡng sang trọng tốt lành nhất.
             </p>
@@ -154,8 +154,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <section className="space-y-6">
         <div className="flex justify-between items-end">
           <div>
-            <span className="text-xs text-emerald-500 font-mono tracking-widest uppercase">DANH MỤC CURATED</span>
-            <h2 className="text-3xl font-display font-bold text-white tracking-tight mt-1">Sản Phẩm Độc Bản Nổi Bật</h2>
+            <span className="text-xs text-emerald-500 font-mono tracking-widest uppercase font-semibold">DANH MỤC CURATED</span>
+            <h2 className="text-3xl font-display font-bold text-stone-100 tracking-tight mt-1">Sản Phẩm Độc Bản Nổi Bật</h2>
           </div>
           <button
             onClick={() => setCurrentPage("shop")}
@@ -208,7 +208,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* Brand Commitment Banner */}
       <section className="bg-stone-900/30 border border-stone-800 rounded-3xl p-8 sm:p-10 flex flex-col md:flex-row items-center gap-8 justify-between">
         <div className="max-w-lg space-y-3">
-          <h3 className="text-xl font-display font-bold text-white tracking-tight">Tôn chỉ canh tác không phát thải của GreenLife</h3>
+          <h3 className="text-xl font-display font-bold text-stone-100 tracking-tight">Tôn chỉ canh tác không phát thải của GreenLife</h3>
           <p className="text-stone-400 text-sm leading-relaxed">
             Chúng tôi tự hào là đơn vị đầu tiên áp dụng mô hình liên minh phân hủy sinh học khép kín từ khâu thu gom, ủ trùn quế sinh học, chế biến tinh chất Neem ngừa côn trùng sâu bệnh, đóng gói trong bao màng tinh bột hữu cơ Việt Nam.
           </p>

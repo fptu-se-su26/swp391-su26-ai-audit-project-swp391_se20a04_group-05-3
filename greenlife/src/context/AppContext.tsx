@@ -19,6 +19,16 @@ interface AppContextType {
   selectedProduct: Product | null;
   loading: Record<string, boolean>;
 
+  // Theme and Location settings
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+  userLocation: { city: string; district: string; address: string };
+  setUserLocation: (loc: { city: string; district: string; address: string }) => void;
+  selectedStoreId: string | null;
+  setSelectedStoreId: (id: string | null) => void;
+  updateStoreInfo: (storeId: string, updatedInfo: Partial<EcoStore>) => void;
+  addStore: (store: EcoStore) => void;
+
   // Handlers
   setCurrentPage: (page: string) => void;
   setSelectedProduct: (product: Product | null) => void;
@@ -59,6 +69,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     bookings: false,
     diagnosis: false
   });
+
+  // Theme State (default to light mode)
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    return (localStorage.getItem("theme") as "light" | "dark") || "light";
+  });
+
+  // User Location State (Default to Đà Nẵng, Hải Châu, 100 Lê Lợi)
+  const [userLocation, setUserLocationState] = useState<{ city: string; district: string; address: string }>(() => {
+    const saved = localStorage.getItem("userLocation");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return { city: "Đà Nẵng", district: "Hải Châu", address: "100 Lê Lợi, Hải Châu, Đà Nẵng" };
+  });
+
+  // Selected Store State (default to Đà Nẵng store 3)
+  const [selectedStoreId, setSelectedStoreIdState] = useState<string | null>(() => {
+    return localStorage.getItem("selectedStoreId") || "store-3";
+  });
+
+  // Theme synchronization effect
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  // Persist location
+  const setUserLocation = (loc: { city: string; district: string; address: string }) => {
+    setUserLocationState(loc);
+    localStorage.setItem("userLocation", JSON.stringify(loc));
+  };
+
+  // Persist selected store
+  const setSelectedStoreId = (id: string | null) => {
+    setSelectedStoreIdState(id);
+    if (id) {
+      localStorage.setItem("selectedStoreId", id);
+    } else {
+      localStorage.removeItem("selectedStoreId");
+    }
+  };
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  };
+
+  const updateStoreInfo = (storeId: string, updatedInfo: Partial<EcoStore>) => {
+    setStores((prev) =>
+      prev.map((s) => (s.id === storeId ? { ...s, ...updatedInfo } : s))
+    );
+  };
+
+  const addStore = (store: EcoStore) => {
+    setStores((prev) => {
+      const exists = prev.some((s) => s.id === store.id);
+      if (exists) {
+        return prev.map((s) => (s.id === store.id ? store : s));
+      }
+      return [...prev, store];
+    });
+  };
 
   // Load initial datasets from service layer
   useEffect(() => {
@@ -245,6 +322,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentPage,
         selectedProduct,
         loading,
+        theme,
+        toggleTheme,
+        userLocation,
+        setUserLocation,
+        selectedStoreId,
+        setSelectedStoreId,
+        updateStoreInfo,
+        addStore,
         setCurrentPage,
         setSelectedProduct,
         switchRole,

@@ -168,7 +168,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
       {/* Intro Section */}
       <div className="space-y-2">
         <span className="text-xs text-emerald-500 font-mono tracking-widest uppercase">TRÁM CHẨN ĐOÁN CÔNG NGHỆ CAO</span>
-        <h1 className="text-3xl sm:text-4xl font-display font-bold text-white tracking-tight flex items-center gap-2">
+        <h1 className="text-3xl sm:text-4xl font-display font-bold text-stone-100 tracking-tight flex items-center gap-2">
           <BrainCircuit className="h-8 w-8 text-emerald-400" />
           Bác Sĩ Thực Vật Trí Tuệ Nhân Tạo
         </h1>
@@ -182,7 +182,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
         
         {/* Left Module - Leaf scan terminal stage */}
         <div className="lg:col-span-5 bg-neutral-950 border border-stone-850 p-6 rounded-3xl space-y-6">
-          <h3 className="font-display font-semibold text-white text-sm tracking-wider uppercase">Console Máy Quét Thực Địa</h3>
+          <h3 className="font-display font-semibold text-stone-100 text-sm tracking-wider uppercase">Console Máy Quét Thực Địa</h3>
 
           {/* Interactive Drag Drop or File Selector Container */}
           <div
@@ -247,7 +247,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
                   onClick={() => selectPreset(preset.id)}
                   className={`text-left p-2.5 rounded-xl border text-xs transition-all flex items-center gap-3 ${
                     selectedPresetId === preset.id
-                      ? "border-emerald-500 bg-emerald-950/20 text-white"
+                      ? "border-emerald-500 bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 font-semibold"
                       : "border-stone-850 bg-stone-900/40 text-stone-400 hover:text-stone-300 hover:bg-stone-950"
                   }`}
                 >
@@ -338,7 +338,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
               <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-800/85 pb-5">
                 <div className="space-y-1">
                   <span className="text-[10px] font-mono text-emerald-500 tracking-wider">BỆNH ÁN THỰC VẬT #GL-{Math.floor(Math.random() * 8000 + 1000)}</span>
-                  <h3 className="text-2xl font-display font-medium text-white tracking-tight">{activeReport.diseaseName}</h3>
+                  <h3 className="text-2xl font-display font-medium text-stone-100 tracking-tight">{activeReport.diseaseName}</h3>
                   <p className="text-xs text-stone-400">Đối tượng phát hiện: <strong className="text-stone-200">{activeReport.plantName}</strong></p>
                 </div>
                 
@@ -422,7 +422,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
       {/* Historical diagnosis Logs tracking db */}
       {diagnosisLogs.length > 0 && (
         <div className="space-y-4 pt-4 border-t border-stone-850">
-          <h3 className="font-display font-bold text-white text-lg tracking-tight flex items-center gap-2">
+          <h3 className="font-display font-bold text-stone-100 text-lg tracking-tight flex items-center gap-2">
             <History className="h-5 w-5 text-emerald-500" />
             Lịch Sử Đã Khám Bệnh Tại Vườn Của Bạn ({diagnosisLogs.length})
           </h3>

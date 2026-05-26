@@ -28,7 +28,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         </div>
 
         <div className="space-y-2">
-          <h3 className="text-lg font-display font-bold text-white tracking-tight">Quyền Truy Cập Bị Hạn Chế</h3>
+          <h3 className="text-lg font-display font-bold text-stone-100 tracking-tight">Quyền Truy Cập Bị Hạn Chế</h3>
           <p className="text-stone-400 text-xs leading-relaxed">
             Khu vực này yêu cầu cấp đặc quyền bảo mật cấp bậc <strong className="text-rose-400 uppercase">{allowedRoles.join(" / ")}</strong>. 
             Tài khoản hiện tại của bạn là <strong className="text-stone-300 uppercase">{role}</strong> không có quyền can thiệp hệ thống này.
@@ -63,7 +63,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            className="text-stone-400 hover:text-white inline-flex items-center gap-1.5"
+            className="text-stone-400 hover:text-stone-100 inline-flex items-center gap-1.5"
             onClick={() => onPageRedirect && onPageRedirect("home")}
           >
             Quay về trang chủ an toàn

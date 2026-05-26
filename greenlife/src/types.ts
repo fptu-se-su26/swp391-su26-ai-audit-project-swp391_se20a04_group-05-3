@@ -98,6 +98,11 @@ export interface EcoStore {
   carbonOffsetKg: number;
   productsCount: number;
   verified: boolean;
+  city?: string;
+  district?: string;
+  latitude?: number;
+  longitude?: number;
+  serviceArea?: string;
 }
 
 export interface Plant {

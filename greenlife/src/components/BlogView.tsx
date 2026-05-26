@@ -50,7 +50,7 @@ export const BlogView: React.FC = () => {
       {/* Page Header */}
       <div className="space-y-2">
         <span className="text-xs text-emerald-500 font-mono tracking-widest uppercase font-semibold">TRUYỀN THÔNG & KIẾN THỨC</span>
-        <h1 className="text-3xl sm:text-4xl font-display font-bold text-white tracking-tight flex items-center gap-2">
+        <h1 className="text-3xl sm:text-4xl font-display font-bold text-stone-100 tracking-tight flex items-center gap-2">
           <Newspaper className="h-8 w-8 text-emerald-400" />
           Cẩm Nang Xanh & Cải Tạo Đất Sinh Học
         </h1>
@@ -104,7 +104,7 @@ export const BlogView: React.FC = () => {
               <div
                 key={post.id}
                 onClick={() => setActiveArticle(post)}
-                className="group bg-[#151515] border border-[#252525] hover:border-emerald-900/40 rounded-2xl overflow-hidden shadow-md flex flex-col justify-between cursor-pointer transition-all h-[420px]"
+                className="group bg-stone-950 border border-stone-850 hover:border-emerald-900/40 rounded-2xl overflow-hidden shadow-md flex flex-col justify-between cursor-pointer transition-all h-[420px]"
               >
                 {/* Image Stage */}
                 <div className="relative h-48 bg-stone-950 overflow-hidden">
@@ -156,7 +156,7 @@ export const BlogView: React.FC = () => {
       {/* Active Article Full Viewer Modal overlay */}
       {activeArticle && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/90 flex items-center justify-center p-4">
-          <div className="bg-[#121212] border border-stone-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 relative max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div className="bg-stone-950 border border-stone-850 rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 relative max-h-[90vh] overflow-y-auto shadow-2xl">
             <button
               onClick={() => setActiveArticle(null)}
               className="absolute top-5 right-5 p-2 rounded-xl bg-stone-900 border border-stone-800 text-stone-400 hover:text-white transition-colors cursor-pointer"
@@ -170,7 +170,7 @@ export const BlogView: React.FC = () => {
             </span>
 
             <div className="space-y-2">
-              <h2 className="text-xl sm:text-2xl font-display font-medium text-white tracking-tight leading-snug pr-8">
+              <h2 className="text-xl sm:text-2xl font-display font-medium text-stone-100 tracking-tight leading-snug pr-8">
                 {activeArticle.title}
               </h2>
               <div className="flex flex-wrap gap-4 text-xs font-mono text-stone-500">
