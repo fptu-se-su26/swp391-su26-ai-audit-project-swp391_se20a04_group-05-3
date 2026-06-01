@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Search, SlidersHorizontal, Leaf, Sparkles, MapPin, ChevronDown, ChevronUp } from "lucide-react";
 import { Product } from "../../types";
 import { useAppContext } from "../../context/AppContext";
@@ -9,6 +9,7 @@ interface ShopViewProps {
   products: Product[];
   onSelectProduct: (product: Product) => void;
   onAddToCart: (product: Product) => void;
+  initialSearch?: string;
 }
 
 type CategoryFilter = "all" | "plants" | "care" | "nutrients" | "smarthome";
@@ -18,9 +19,14 @@ export const ShopView: React.FC<ShopViewProps> = ({
   products,
   onSelectProduct,
   onAddToCart,
+  initialSearch = "",
 }) => {
   const { userLocation, selectedStoreId, setSelectedStoreId, stores } = useAppContext();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
+
+  useEffect(() => {
+    setSearch(initialSearch);
+  }, [initialSearch]);
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("all");
   const [sortOption, setSortOption] = useState<SortOption>("featured");
   const [showMapSection, setShowMapSection] = useState(false);

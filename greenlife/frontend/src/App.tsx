@@ -51,6 +51,7 @@ export default function App() {
   // Local Drawer Toggle & Checkout Indicator
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutComplete, setCheckoutComplete] = useState(false);
+  const [shopSearch, setShopSearch] = useState("");
 
   // Cart Handlers bridging UI events
   const handleAddToCart = (product: Product, quantity: number = 1) => {
@@ -130,6 +131,21 @@ export default function App() {
                   products={products}
                   setCurrentPage={setCurrentPage}
                   onSelectProduct={handleInspectSelectedProduct}
+                  onSearch={(query) => {
+                    setShopSearch(query);
+                    
+                    const q = query.toLowerCase().trim();
+                    const hasProductMatch = products.some(
+                      (p) => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
+                    );
+                    const isArticleSearch = q.includes("bệnh") || q.includes("nhện") || q.includes("rệp") || q.includes("sâu") || q.includes("bí quyết") || q.includes("chu trình") || q.includes("đất") || q.includes("lá") || q.includes("cẩm nang") || q.includes("vườn rau") || q.includes("chăm sóc");
+                    
+                    if (isArticleSearch && !hasProductMatch) {
+                      setCurrentPage("blog");
+                    } else {
+                      setCurrentPage("shop");
+                    }
+                  }}
                 />
               );
             case "shop":
@@ -138,6 +154,7 @@ export default function App() {
                   products={products}
                   onSelectProduct={handleInspectSelectedProduct}
                   onAddToCart={(p) => handleAddToCart(p, 1)}
+                  initialSearch={shopSearch}
                 />
               );
             case "ai-diagnosis":
@@ -171,7 +188,7 @@ export default function App() {
                 />
               );
             case "blog":
-              return <BlogView />;
+              return <BlogView initialSearch={shopSearch} />;
             case "auth":
               return (
                 <AuthView

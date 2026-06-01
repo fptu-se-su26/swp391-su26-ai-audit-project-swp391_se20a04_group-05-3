@@ -1,17 +1,50 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Newspaper, Search, Leaf, Clock, ArrowRight, X, Heart, Sparkles, BookOpen } from "lucide-react";
 import { BlogPost } from "../../types";
 import { BLOG_POSTS } from "../../data";
 
 
-export const BlogView: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+interface BlogViewProps {
+  initialSearch?: string;
+}
+
+export const BlogView: React.FC<BlogViewProps> = ({
+  initialSearch = "",
+}) => {
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [articles, setArticles] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setSearchQuery(initialSearch);
+  }, [initialSearch]);
+
+  useEffect(() => {
+    const loadArticles = async () => {
+      try {
+        const response = await fetch("/api/articles");
+        const data = await response.json();
+        if (data.success && data.articles) {
+          setArticles(data.articles);
+        } else {
+          throw new Error(data.error || "Không thể tải dữ liệu.");
+        }
+      } catch (err) {
+        console.warn("⚠️ API Cẩm nang lỗi, tự động chuyển sang chế độ Giả lập:", err);
+        setArticles(BLOG_POSTS);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadArticles();
+  }, []);
+
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [activeArticle, setActiveArticle] = useState<BlogPost | null>(null);
   const [likedArticles, setLikedArticles] = useState<string[]>([]);
 
   const filteredBlogPosts = useMemo(() => {
-    let result = [...BLOG_POSTS];
+    let result = [...articles];
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -28,7 +61,7 @@ export const BlogView: React.FC = () => {
     }
 
     return result;
-  }, [searchQuery, selectedCategory]);
+  }, [articles, searchQuery, selectedCategory]);
 
   const toggleLike = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();

@@ -7,12 +7,14 @@ interface HomeViewProps {
   products: Product[];
   setCurrentPage: (page: string) => void;
   onSelectProduct: (p: Product) => void;
+  onSearch: (query: string) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
   products,
   setCurrentPage,
   onSelectProduct,
+  onSearch,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -52,7 +54,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </h1>
 
           {/* Wireframe Mockup Search & AI Scan Bar Container */}
-          <div className="w-full max-w-lg bg-stone-950/95 border border-stone-800 rounded-full p-1.5 flex items-center shadow-xl focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/20 transition-all">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSearch(searchQuery);
+            }}
+            className="w-full max-w-lg bg-stone-950/95 border border-stone-800 rounded-full p-1.5 flex items-center shadow-xl focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/20 transition-all"
+          >
             {/* Round Logo Icon (Left) */}
             <div className="w-9 h-9 rounded-full bg-emerald-950 border border-emerald-500/30 flex items-center justify-center shrink-0 ml-1">
               <Leaf className="h-4.5 w-4.5 text-emerald-400" />
@@ -69,13 +77,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             {/* Chụp ảnh Button (Right) */}
             <button
+              type="button"
               onClick={() => setCurrentPage("ai-diagnosis")}
               className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs rounded-full transition-all cursor-pointer shadow-md shrink-0 mr-1"
             >
               <Camera className="h-3.5 w-3.5" />
               Chụp ảnh
             </button>
-          </div>
+          </form>
           
           <p className="text-zinc-200 text-xs sm:text-sm leading-relaxed max-w-2xl text-center font-sans tracking-wide">
             GreenLife kết nối công nghệ AI chẩn đoán thực vật và các sản phẩm hữu cơ sinh học cao cấp phục vụ nhà kính tự dưỡng hiện đại của bạn.

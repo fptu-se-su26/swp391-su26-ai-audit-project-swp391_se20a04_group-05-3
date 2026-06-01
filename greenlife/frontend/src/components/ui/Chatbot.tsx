@@ -316,9 +316,9 @@ export const Chatbot: React.FC = () => {
             />
             <button
               type="submit"
-              className="p-2 bg-[#6d4c41] hover:bg-[#5d4037] text-white rounded-xl cursor-pointer transition-colors"
+              className="w-8 h-8 rounded-full bg-[#6d4c41] hover:bg-[#5d4037] text-white shrink-0 flex items-center justify-center cursor-pointer transition-colors"
             >
-              <Send className="h-3.5 w-3.5" />
+              <Send className="h-3 w-3" />
             </button>
           </form>
 
@@ -334,7 +334,7 @@ export const Chatbot: React.FC = () => {
 
         <button
           onClick={handleToggle}
-          className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl cursor-pointer border relative transition-all duration-300 hover:scale-105 active:scale-95 ${
+          className={`w-11 h-11 rounded-full flex items-center justify-center shadow-2xl cursor-pointer border relative transition-all duration-300 hover:scale-105 active:scale-95 ${
             isOpen
               ? "bg-stone-950 border-stone-800 text-[#8d6e63] hover:text-[#a1887f]"
               : "bg-[#6d4c41] border-[#8d6e63]/40 text-emerald-400 hover:bg-[#5d4037]"
@@ -342,9 +342,9 @@ export const Chatbot: React.FC = () => {
           aria-label="Hỏi Trợ lý GreenLife"
         >
           {isOpen ? (
-            <ChevronDown className="h-6 w-6 text-stone-400" />
+            <ChevronDown className="h-5 w-5 text-stone-400" />
           ) : (
-            <Sprout className="h-7 w-7 text-emerald-400 animate-pulse" />
+            <Sprout className="h-5.5 w-5.5 text-emerald-400 animate-pulse" />
           )}
           
           {/* Pulsing online badge */}
