@@ -75,14 +75,16 @@ CREATE TABLE order_items (
 
 -- Bài viết cẩm nang
 CREATE TABLE articles (
-  id         INT PRIMARY KEY IDENTITY(1,1),
-  title      NVARCHAR(200),
-  category   NVARCHAR(30),   -- 'disease_signs' | 'basic_care' | 'inspiration'
-  content    NVARCHAR(MAX),
-  image_url  NVARCHAR(255),
-  created_at DATETIME DEFAULT GETDATE()
+  id           INT PRIMARY KEY IDENTITY(1,1),
+  author_name  NVARCHAR(100) NOT NULL, -- tên tác giả
+  title        NVARCHAR(250) NOT NULL,
+  category     NVARCHAR(50),      -- loại bài viết
+  summary      NVARCHAR(500),     -- Đoạn mô tả ngắn
+  content      NVARCHAR(MAX),     -- Nội dung chi tiết bài viết
+  image_url    NVARCHAR(255),
+  reading_time INT DEFAULT 5,   
+  created_at   DATE DEFAULT GETDATE()
 );
-
 -- Feedback / liên hệ
 CREATE TABLE feedbacks (
   id         INT PRIMARY KEY IDENTITY(1,1),
@@ -165,4 +167,72 @@ INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES
 (4, 12, 1, 75000),  -- Chậu gốm
 (4, 17, 1, 52000);  -- Phân hữu cơ
 -- 
-SELECT * FROM plant_groups;
+INSERT INTO articles (title, category, summary, content, image_url, reading_time, created_at) VALUES
+
+-- Danh mục: Nông Nghiệp Đô Thị (nong_nghiep_do_thi)
+
+
+(
+  N'Top loại thảo mộc cực dễ trồng chịu bóng râm tốt cho nhà phố', 
+  'nong_nghiep_do_thi', 
+  N'Bật mí danh sách các loại cây gia vị vừa làm gia vị món ăn vừa giúp thanh lọc không khí, đuổi muỗi hiệu quả mà không cần nhiều nắng.', 
+  N'Bạc hà (mint) — dễ nhất cho người mới. Rất phù hợp để trông ở nhà phố vì chỉ cần ánh sáng gián tiếp là có thể sống được, mùi thơm mát và có thể đuổi được côn trùng nhẹ.Lưu ý: tưới ngày 1 lần sáng sớm, cắt ngọn thường xuyên để cây bụi hơn. Được dùng để pha trà bạc hà hoặc ăn kèm với bún.
+  Húng quế — thơm, đa dụng. Thích ánh nắng nhẹ vào buổi sớm, chịu được bóng râm tốt. Lưu ý: không được để cây úng nước và phải thường xuyên bấm tỉa. Dùng để ăn kèm các loại rau thơm.
+  Tía tô — rất hợp khí hậu nước ta. Chịu được bóm râm tốt, ít sâu bệnh, lá mọc nhanh. Lưu ý: tưới nước mỗi ngày 1 lần. Dùng để làm thuốc giải cảm rất tốt', 
+  'thao-moc-nha-pho.jpg', 4, '2026-05-22'
+),
+
+-- Danh mục: Sống Xanh Thượng Lưu (song_xanh)
+(
+  N'Bí mật đằng sau ''Eco-Score'' và lối sống giảm thiểu dấu chân Carbon', 
+  'song_xanh', 
+  N'Đọc vị các con số tác động sinh thái trên dòng sản phẩm GreenLife và cách lựa chọn thông minh để góp phần bảo vệ hành tinh xanh...', 
+  N'Bài viết phân tích sâu về khái niệm dấu chân carbon của từng loại cây trồng, quy trình đóng gói bằng vật liệu tự hủy sinh học và cách ứng dụng tiêu chuẩn Eco-Score vào mua sắm.', 
+  'eco-score-secret.jpg', 8, '2026-05-18'
+),
+(
+  N'Nghệ thuật bài trí cây phong thủy Biophilic Design trong căn hộ Penthouse', 
+  'song_xanh', 
+  N'Đưa thiên nhiên nguyên bản vào kiến trúc cao cấp nhằm tối ưu dòng chảy năng lượng thịnh vượng và nâng tầm trải nghiệm sống xa xỉ.', 
+  N'Cách kết hợp các mảng tường rêu tự nhiên, vị trí đặt các chậu Bonsai dáng đại thế vững chãi tại phòng khách và kỹ thuật giấu đèn quang phổ giả lập ánh sáng mặt trời.', 
+  'biophilic-penthouse.jpg', 9, '2026-05-25'
+),
+(
+  N'Liệu pháp Tắm Rừng (Shinrin-yoku) ngay tại không gian sân vườn gia đình', 
+  'song_xanh', 
+  N'Khám phá phương pháp chữa lành tâm hồn, giảm cortisol căng thẳng bằng cách kết nối các giác quan với hệ thực vật phong phú tại gia.', 
+  N'Hướng dẫn cách quy hoạch một góc vườn thiền với âm thanh nước chảy, các tầng cây tạo ion âm như tùng bách, dương xỉ để tối ưu hóa không gian tĩnh tâm.', 
+  'shinrin-yoku-home.jpg', 5, '2026-05-26'
+),
+
+-- Danh mục: Y Học Bệnh Cây (y_hoc_benh_cay)
+(
+  N'Cách chẩn đoán và xử lý thối nhũn lá ở những dòng phong lan, sen đá quý hiếm', 
+  'y_hoc_benh_cay', 
+  N'Bệnh thối nhũn do vi khuẩn Erwinia carotovora gây hoang mang cho mọi tín đồ yêu cây. Tìm hiểu phác đồ điều trị sinh học hiệu quả tận gốc...', 
+  N'Hướng dẫn cô lập cây bệnh, kỹ thuật cắt bỏ mô thối bằng dụng cụ khử trùng và các bài thuốc phun xịt từ nước vôi trong hoặc chế phẩm sinh học chứa nấm đối kháng Tribac.', 
+  'thoi-nhun-lan-sen.jpg', 5, '2026-04-28'
+),
+(
+  N'Dấu hiệu thiếu hụt vi chất ở cây cảnh trong nhà và cách kê đơn chính xác', 
+  'y_hoc_benh_cay', 
+  N'Lá vàng gân xanh, cháy mép lá hay rụng chồi non? Đọc vị chính xác cây của bạn đang đói Nitơ, Kali hay Sắt để cứu cây kịp thời.', 
+  N'Bảng tra cứu biểu hiện màu sắc lá theo từng loại dinh dưỡng bị thiếu và hướng dẫn cách bón phân qua lá, bổ sung vi lượng chelate giúp phục hồi bộ rễ nhanh chóng.', 
+  'thieu-vi-chat-cay.jpg', 6, '2026-05-02'
+),
+(
+  N'Tiêu diệt rệp sáp và nhện đỏ bằng dung dịch hữu cơ tự chế an toàn', 
+  'y_hoc_benh_cay', 
+  N'Nói không với hóa chất độc hại, bảo vệ sức khỏe gia đình bằng công thức nước xịt từ tỏi, ớt và nước rửa chén sinh học cực nhạy.', 
+  N'Tỷ lệ pha chế chuẩn xác dung dịch tỏi ớt gừng, cơ chế phá hủy lớp vỏ sáp của côn trùng phá hoại và lịch trình phun xịt ngắt quãng để diệt sạch cả trứng rệp.', 
+  'diet-rep-sap-organic.jpg', 5, '2026-05-10'
+),
+(
+  N'Hội chứng nghẹt rễ ở cây trồng chậu lâu năm: Nguyên nhân và cách thay đất', 
+  'y_hoc_benh_cay', 
+  N'Khi rễ cây cuộn tròn khít chậu khiến cây còi cọc, bỏ lá. Tìm hiểu quy trình 5 bước đảo chậu, tỉa rễ và hồi sức cho cây sau sang chấn.', 
+  N'Kỹ thuật gỡ bỏ giá thể cũ bết chặt, cách cắt tỉa bớt rễ già rễ mục, lựa chọn kích thước chậu mới phù hợp và sử dụng thuốc kích rễ n3m để cây nhanh bám đất mới.', 
+  'nghet-re-thay-chau.jpg', 6, '2026-05-14'
+);
+select *from articles;
+DROP TABLE IF EXISTS articles;
