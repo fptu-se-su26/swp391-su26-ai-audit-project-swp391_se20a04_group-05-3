@@ -26,14 +26,34 @@
 
 ## 3. Project Structure
 
-```text
-src/
-docs/
-.github/
-README.md
-```
-
----
+greenlife/
+│
+├── greenlife-frontend/
+│   ├── src/
+│   ├── public/
+│   └── package.json
+│
+├── greenlife-backend/
+│   ├── src/main/java/
+│   ├── src/main/resources/
+│   └── pom.xml
+│
+├── database/
+│   ├── greenlife.sql
+│   └── migration/
+│
+├── ai-module/
+│   ├── model/
+│   ├── dataset/
+│   └── api/
+│
+├── docs/
+│   ├── AI_AUDIT_LOG.md
+│   ├── PROMPTS.md
+│   ├── CHANGELOG.md
+│   └── REFLECTION.md
+│
+└── README.md
 
 ## 4. Required AI Audit Documents
 
