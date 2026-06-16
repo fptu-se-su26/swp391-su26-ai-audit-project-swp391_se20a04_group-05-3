@@ -4,12 +4,12 @@
 
 | Item | Description |
 |---|---|
-| Course |  |
-| Class |  |
+| Course | SWP391 |
+| Class | SE20A04 |
 | Semester | SU26 |
-| Group |  |
-| Topic |  |
-| Repository |  |
+| Group | 05 |
+| Topic | GreenLife |
+| Repository | Nền tảng dịch vụ cây cảnh trực tuyến |
 
 ---
 
@@ -17,11 +17,10 @@
 
 | No | Student ID | Full Name | GitHub Username | Role | Main Responsibility |
 |---:|---|---|---|---|---|
-| 1 |  |  |  | Leader |  |
-| 2 | DE190354 | Nguyễn Thanh Hoàng | hoang-11 | Member |  |
-| 3 |  |  |  | Member |  |
-| 4 |  |  |  | Member |  |
-| 5 |  |  |  | Member |  |
+| 1 |  |  |  | Leader | Tester&Dev |
+| 2 | DE190354 | Nguyễn Thanh Hoàng | @hoang-11 | Member | Dev |
+| 3 | DE190230 | Dương Thành Long | @duonglong123 | Member | Dev |
+| 4 | |  |  | Member | Dev |
 
 ---
 
