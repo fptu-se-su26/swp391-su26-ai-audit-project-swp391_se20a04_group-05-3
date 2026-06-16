@@ -1,6 +1,0 @@
-{
-  "name": "GreenLife",
-  "description": "Premium Eco-Tech Platform for Sustainable Living, Smart Plant AI Diagnosis, and Ecological Marketplaces",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
