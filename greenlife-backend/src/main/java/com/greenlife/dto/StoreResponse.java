@@ -1,5 +1,6 @@
 package com.greenlife.dto;
 
+import com.greenlife.entity.enums.StoreStatus;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -19,7 +20,7 @@ public class StoreResponse {
     private String description;
     private String logoUrl;
     private String verificationDocument;
-    private String status;
+    private StoreStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

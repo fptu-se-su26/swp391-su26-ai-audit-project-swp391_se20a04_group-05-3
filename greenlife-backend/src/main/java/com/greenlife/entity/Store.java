@@ -1,5 +1,6 @@
 package com.greenlife.entity;
 
+import com.greenlife.entity.enums.StoreStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -45,9 +46,10 @@ public class Store {
     @Column(name = "verification_document", length = 500)
     private String verificationDocument;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default
-    private String status = "PENDING";
+    private StoreStatus status = StoreStatus.PENDING;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
