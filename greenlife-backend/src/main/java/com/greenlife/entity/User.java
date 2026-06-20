@@ -1,5 +1,6 @@
 package com.greenlife.entity;
 
+import com.greenlife.entity.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
@@ -44,13 +45,27 @@ public class User implements UserDetails {
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default
-    private String status = "ACTIVE";
+    private UserStatus status = UserStatus.PENDING_VERIFICATION;
 
     @Column(name = "email_verified", nullable = false)
     @Builder.Default
     private Boolean emailVerified = false;
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    @Builder.Default
+    private Integer failedLoginAttempts = 0;
+
+    @Column(name = "lockout_end")
+    private LocalDateTime lockoutEnd;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
+    @Column(name = "last_login_ip", length = 100)
+    private String lastLoginIp;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
@@ -82,7 +97,12 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return !"LOCKED".equalsIgnoreCase(status);
+        if (status == UserStatus.LOCKED) {
+            if (lockoutEnd == null || !lockoutEnd.isAfter(java.time.LocalDateTime.now())) {
+                return true;
+            }
+        }
+        return status != UserStatus.LOCKED;
     }
 
     @Override
@@ -92,6 +112,11 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return "ACTIVE".equalsIgnoreCase(status);
+        if (status == UserStatus.LOCKED) {
+            if (lockoutEnd == null || !lockoutEnd.isAfter(java.time.LocalDateTime.now())) {
+                return true;
+            }
+        }
+        return status == UserStatus.ACTIVE;
     }
 }

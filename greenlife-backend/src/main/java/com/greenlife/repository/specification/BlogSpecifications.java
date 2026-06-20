@@ -1,0 +1,46 @@
+package com.greenlife.repository.specification;
+
+import com.greenlife.entity.Blog;
+import com.greenlife.entity.enums.BlogCategory;
+import com.greenlife.entity.enums.BlogStatus;
+import jakarta.persistence.criteria.JoinType;
+import org.springframework.data.jpa.domain.Specification;
+
+public class BlogSpecifications {
+
+    public static Specification<Blog> fetchAuthor() {
+        return (root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("author", JoinType.LEFT);
+                query.distinct(true);
+            }
+            return null;
+        };
+    }
+
+    public static Specification<Blog> hasAuthor(Integer authorId) {
+        return (root, query, cb) -> authorId == null ? null : cb.equal(root.get("author").get("id"), authorId);
+    }
+
+    public static Specification<Blog> hasCategory(BlogCategory category) {
+        return (root, query, cb) -> category == null ? null : cb.equal(root.get("category"), category);
+    }
+
+    public static Specification<Blog> hasStatus(BlogStatus status) {
+        return (root, query, cb) -> status == null ? null : cb.equal(root.get("status"), status);
+    }
+
+    public static Specification<Blog> hasKeyword(String keyword) {
+        return (root, query, cb) -> {
+            if (keyword == null || keyword.trim().isEmpty()) {
+                return null;
+              }
+              String pattern = "%" + keyword.trim().toLowerCase() + "%";
+              return cb.or(
+                  cb.like(cb.lower(root.get("title")), pattern),
+                  cb.like(cb.lower(root.get("summary")), pattern),
+                  cb.like(cb.lower(root.get("content")), pattern)
+              );
+          };
+      }
+}
