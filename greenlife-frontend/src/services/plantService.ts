@@ -1,68 +1,102 @@
 import { Product, Plant } from "../types";
-import { PRODUCTS, MOCK_PLANTS } from "../data";
+import { MOCK_PLANTS } from "../data";
+import { HttpClient } from "./httpClient";
 
-export class PlantService {
-  private static async delay(ms = 250): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Retrieves products with search and category filters
-   */
-  public static async getProducts(
-    search?: string,
-    category?: string
-  ): Promise<Product[]> {
-    try {
-      const response = await fetch("/api/products");
-      const data = await response.json();
-      if (data.success && data.products) {
-        let list = data.products;
-
-        if (search && search.trim()) {
-          const q = search.toLowerCase();
-          list = list.filter(
-            (p: any) =>
-              p.name.toLowerCase().includes(q) ||
-              p.description.toLowerCase().includes(q)
-          );
-        }
-
-        if (category && category !== "all") {
-          list = list.filter((p: any) => p.category === category);
-        }
-
-        return list;
-      }
-      throw new Error(data.error || "Lỗi tải dữ liệu sản phẩm.");
-    } catch (err) {
-      console.warn("⚠️ API Cửa hàng lỗi, tự động chuyển sang chế độ Giả lập:", err);
-      await this.delay(200);
-      let list = [...PRODUCTS];
-
-      if (search && search.trim()) {
-        const q = search.toLowerCase();
-        list = list.filter(
-          (p) =>
-            p.name.toLowerCase().includes(q) ||
-            p.description.toLowerCase().includes(q)
-        );
-      }
-
-      if (category && category !== "all") {
-        list = list.filter((p) => p.category === category);
-      }
-
-      return list;
+export function mapBackendProductToFrontend(item: any): Product {
+  let mappedCategory: "plants" | "care" | "nutrients" | "smarthome" = "plants";
+  
+  if (item.categorySlug) {
+    const slug = item.categorySlug.toLowerCase();
+    if (
+      slug === "cay-trong-nha" ||
+      slug === "cay-ngoai-troi" ||
+      slug === "cay-thuy-sinh" ||
+      slug === "bonsai"
+    ) {
+      mappedCategory = "plants";
+    } else if (slug === "phu-kien") {
+      mappedCategory = "care";
+    } else if (slug === "phan-bon") {
+      mappedCategory = "nutrients";
+    } else if (slug === "thiet-bi-thong-minh") {
+      mappedCategory = "smarthome";
     }
   }
 
+  return {
+    id: String(item.id),
+    name: item.name || "",
+    category: mappedCategory,
+    price: item.price || 0,
+    rating: 5.0,
+    image: item.imageUrl || "https://images.unsplash.com/photo-1545241047-6083a3684587?w=600",
+    description: item.description || "",
+    ecoScore: item.ecoScore || 90,
+    details: ["Nguồn tự nhiên gieo trồng sạch", "Bao bì thân thiện môi trường"],
+    specs: {
+      "Nguồn gốc": item.storeName || "Nhà Vườn GreenLife",
+      "Dấu chân carbon": `-${item.carbonFootprint || 12}kg CO2eq`,
+      "Mức độ chăm sóc": item.careLevel || "Dễ",
+      "Ánh sáng": item.sunlight || "Ánh sáng gián tiếp",
+      "Tần suất tưới": item.waterLevel || "Tươi vừa phải"
+    },
+    stock: item.stock || 0,
+    shopId: item.storeId ? String(item.storeId) : undefined
+  };
+}
+
+export class PlantService {
+  /**
+   * Retrieves products with search and category filters from real backend
+   */
+  public static async getProducts(
+    search?: string,
+    category?: string,
+    signal?: AbortSignal
+  ): Promise<Product[]> {
+    const queryParams: Record<string, string> = {
+      size: "100" // Ensure we fetch enough products for the grid
+    };
+
+    if (search && search.trim()) {
+      queryParams.search = search.trim();
+    }
+
+    if (category && category !== "all") {
+      if (category === "care") {
+        queryParams.category = "phu-kien";
+      } else if (category === "nutrients") {
+        queryParams.category = "phan-bon";
+      } else if (category === "smarthome") {
+        queryParams.category = "thiet-bi-thong-minh";
+      }
+    }
+
+    const queryString = new URLSearchParams(queryParams).toString();
+    const data = await HttpClient.get<any>(`/api/products?${queryString}`, { signal });
+    const content = data.content || [];
+
+    let list = content.map((item: any) => mapBackendProductToFrontend(item));
+
+    if (category === "plants") {
+      list = list.filter((p: Product) => p.category === "plants");
+    }
+
+    return list;
+  }
+
+  /**
+   * Retrieves detailed product by ID
+   */
+  public static async getProductById(id: string | number, signal?: AbortSignal): Promise<Product> {
+    const item = await HttpClient.get<any>(`/api/products/${id}`, { signal });
+    return mapBackendProductToFrontend(item);
+  }
 
   /**
    * Retrieves detailed biological profile for custom botanical species
    */
   public static async getBotanicalPlants(): Promise<Plant[]> {
-    await this.delay(150);
     return MOCK_PLANTS;
   }
 
@@ -70,10 +104,9 @@ export class PlantService {
    * Performs quick eco score audits based on plant categories
    */
   public static auditCarbonOffset(product: Product): number {
-    // Computes average Life-Cycle Assessment offset dynamically
     switch (product.category) {
       case "plants":
-        return product.ecoScore * 0.4; // Average life range kg CO2 eq
+        return product.ecoScore * 0.4;
       case "nutrients":
         return product.ecoScore * 0.2;
       case "care":
@@ -85,3 +118,4 @@ export class PlantService {
     }
   }
 }
+export default PlantService;

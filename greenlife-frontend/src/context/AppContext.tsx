@@ -1,11 +1,19 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { User, Product, CartItem, Appointment, DiagnosisLog, EcoStore, BlogPost } from "../types";
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from "react";
+import toast from "react-hot-toast";
+import { User, Product, CartItem, Appointment, DiagnosisLog, EcoStore, BlogPost, NotificationItem } from "../types";
 import { AuthService } from "../services/authService";
 import { PlantService } from "../services/plantService";
 import { BookingService } from "../services/bookingService";
 import { AIDiagnosisService } from "../services/aiDiagnosisService";
 import { ArticleService } from "../services/articleService";
-import { BLOG_POSTS, MOCK_STORES } from "../data";
+import { NotificationService } from "../services/notificationService";
+import { CartService } from "../services/cartService";
+import { AddressService } from "../services/addressService";
+import { OrderService } from "../services/orderService";
+import { WishlistService } from "../services/wishlistService";
+import { ReviewService } from "../services/reviewService";
+import { MOCK_STORES } from "../data";
+import { logger } from "../utils/logger";
 
 interface AppContextType {
   currentUser: User | null;
@@ -75,6 +83,10 @@ interface AppContextType {
   updateCartQuantity: (productId: string, delta: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
+  loadCart: () => Promise<void>;
+  removeCartItem: (itemId: number) => Promise<void>;
+  checkoutCart: (payload: any) => Promise<any>;
+  toggleWishlist: (productId: number) => Promise<void>;
 
   // Event dispatchers
   bookExpert: (appointment: Omit<Appointment, "id" | "status">) => Promise<void>;
@@ -83,14 +95,31 @@ interface AppContextType {
   deleteDiagnosisRecord: (id: string) => Promise<void>;
   cancelBooking: (id: string) => Promise<void>;
   refreshArticles: () => Promise<void>;
+  loadArticles: (keyword?: string, category?: string) => Promise<void>;
 
   // Admin Navigation settings
-  adminActiveTab: "overview" | "stores" | "users" | "products" | "orders" | "blogs";
-  setAdminActiveTab: (tab: "overview" | "stores" | "users" | "products" | "orders" | "blogs") => void;
+  adminActiveTab: "overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews";
+  setAdminActiveTab: (tab: "overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews") => void;
 
   // Store Navigation settings
-  storeActiveTab: "overview" | "orders" | "products" | "settings" | "blogs";
-  setStoreActiveTab: (tab: "overview" | "orders" | "products" | "settings" | "blogs") => void;
+  storeActiveTab: "overview" | "orders" | "products" | "settings" | "blogs" | "reviews";
+  setStoreActiveTab: (tab: "overview" | "orders" | "products" | "settings" | "blogs" | "reviews") => void;
+  loadProducts: (search?: string, category?: string, signal?: AbortSignal) => Promise<void>;
+
+  // Review CRUD actions
+  createReview: (payload: { plantId?: number | null; storeId?: number | null; rating: number; comment: string }) => Promise<any>;
+  updateReview: (id: number, payload: { rating: number; comment: string }) => Promise<any>;
+  deleteReview: (id: number) => Promise<void>;
+  moderateReview: (id: number, status: "VISIBLE" | "HIDDEN") => Promise<any>;
+
+  // Notifications
+  notifications: NotificationItem[];
+  unreadCount: number;
+  loadNotifications: (page?: number, size?: number, signal?: AbortSignal) => Promise<void>;
+  loadUnreadCount: (signal?: AbortSignal) => Promise<void>;
+  markAsRead: (id: number) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  deleteNotification: (id: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -100,14 +129,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [userRole, setUserRole] = useState<"customer" | "store" | "admin">("customer");
   const [products, setProducts] = useState<Product[]>([]);
   const [stores, setStores] = useState<EcoStore[]>(MOCK_STORES);
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>(BLOG_POSTS);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [diagnosisLogs, setDiagnosisLogs] = useState<DiagnosisLog[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const [currentPage, setCurrentPageState] = useState<string>("home");
   const [selectedProduct, setSelectedProductState] = useState<Product | null>(null);
-  const [adminActiveTab, setAdminActiveTab] = useState<"overview" | "stores" | "users" | "products" | "orders" | "blogs">("overview");
-  const [storeActiveTab, setStoreActiveTab] = useState<"overview" | "orders" | "products" | "settings" | "blogs">("overview");
+  const [adminActiveTab, setAdminActiveTab] = useState<"overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews">("overview");
+  const [storeActiveTab, setStoreActiveTab] = useState<"overview" | "orders" | "products" | "settings" | "blogs" | "reviews">("overview");
   const [loading, setLoading] = useState<Record<string, boolean>>({
     auth: false,
     products: false,
@@ -147,32 +178,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [theme]);
 
   // Persist location
-  const setUserLocation = (loc: { city: string; district: string; address: string }) => {
+  const setUserLocation = useCallback((loc: { city: string; district: string; address: string }) => {
     setUserLocationState(loc);
     localStorage.setItem("userLocation", JSON.stringify(loc));
-  };
+  }, []);
 
   // Persist selected store
-  const setSelectedStoreId = (id: string | null) => {
+  const setSelectedStoreId = useCallback((id: string | null) => {
     setSelectedStoreIdState(id);
     if (id) {
       localStorage.setItem("selectedStoreId", id);
     } else {
       localStorage.removeItem("selectedStoreId");
     }
-  };
+  }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  };
+  }, []);
 
-  const updateStoreInfo = (storeId: string, updatedInfo: Partial<EcoStore>) => {
+  const updateStoreInfo = useCallback((storeId: string, updatedInfo: Partial<EcoStore>) => {
     setStores((prev) =>
       prev.map((s) => (s.id === storeId ? { ...s, ...updatedInfo } : s))
     );
-  };
+  }, []);
 
-  const addStore = (store: EcoStore) => {
+  const addStore = useCallback((store: EcoStore) => {
     setStores((prev) => {
       const exists = prev.some((s) => s.id === store.id);
       if (exists) {
@@ -180,7 +211,187 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return [...prev, store];
     });
-  };
+  }, []);
+
+  const loadProducts = useCallback(async (search?: string, category?: string, signal?: AbortSignal) => {
+    setLoading((prev) => ({ ...prev, products: true }));
+    try {
+      const loadedProducts = await PlantService.getProducts(search, category, signal);
+      setProducts(loadedProducts);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        logger.error("Lỗi tải sản phẩm:", err);
+      }
+    } finally {
+      setLoading((prev) => ({ ...prev, products: false }));
+    }
+  }, []);
+
+  const loadArticles = useCallback(async (keyword?: string, category?: string) => {
+    try {
+      const res = await ArticleService.getArticles(keyword, category, 0, 100);
+      setBlogPosts(res.content);
+    } catch (err) {
+      logger.error("Lỗi khi tải cẩm nang:", err);
+    }
+  }, []);
+
+  const loadNotifications = useCallback(async (page = 0, size = 10, signal?: AbortSignal) => {
+    if (!currentUser) return;
+    try {
+      const res = await NotificationService.getNotifications(page, size, signal);
+      setNotifications(res.content);
+    } catch (err) {
+      logger.error("Lỗi tải thông báo:", err);
+    }
+  }, [currentUser?.id]);
+
+  const loadUnreadCount = useCallback(async (signal?: AbortSignal) => {
+    if (!currentUser) return;
+    try {
+      const count = await NotificationService.getUnreadCount(signal);
+      setUnreadCount(count);
+    } catch (err) {
+      logger.error("Lỗi tải số lượng thông báo chưa đọc:", err);
+    }
+  }, [currentUser?.id]);
+
+  const markAsRead = useCallback(async (id: number) => {
+    const previousNotifications = [...notifications];
+    const previousUnreadCount = unreadCount;
+
+    setNotifications(prev =>
+      prev.map(n => (n.id === id ? { ...n, isRead: true } : n))
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
+    try {
+      await NotificationService.markAsRead(id);
+    } catch (err) {
+      logger.error(err);
+      setNotifications(previousNotifications);
+      setUnreadCount(previousUnreadCount);
+      toast.error("Không thể đánh dấu thông báo đã đọc, vui lòng thử lại.");
+    }
+  }, [notifications, unreadCount]);
+
+  const markAllAsRead = useCallback(async () => {
+    const previousNotifications = [...notifications];
+    const previousUnreadCount = unreadCount;
+
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+
+    try {
+      await NotificationService.markAllAsRead();
+    } catch (err) {
+      logger.error(err);
+      setNotifications(previousNotifications);
+      setUnreadCount(previousUnreadCount);
+      toast.error("Không thể đánh dấu tất cả đã đọc, vui lòng thử lại.");
+    }
+  }, [notifications, unreadCount]);
+
+  const deleteNotification = useCallback(async (id: number) => {
+    const previousNotifications = [...notifications];
+    const target = notifications.find(n => n.id === id);
+    const previousUnreadCount = unreadCount;
+
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    if (target && !target.isRead) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+
+    try {
+      await NotificationService.deleteNotification(id);
+    } catch (err) {
+      logger.error(err);
+      setNotifications(previousNotifications);
+      setUnreadCount(previousUnreadCount);
+      toast.error("Không thể xóa thông báo, vui lòng thử lại.");
+    }
+  }, [notifications, unreadCount]);
+
+  const unreadCountRef = useRef(unreadCount);
+  useEffect(() => {
+    unreadCountRef.current = unreadCount;
+  }, [unreadCount]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setNotifications([]);
+      setUnreadCount(0);
+      setCart([]);
+      return;
+    }
+
+    loadUnreadCount();
+    loadNotifications(0, 10);
+    loadCart();
+
+    const syncWishlist = async () => {
+      try {
+        const wishlistItems = await WishlistService.getWishlist(0, 100);
+        const savedIds = wishlistItems.map((item: any) => String(item.id));
+        setCurrentUser((prevUser) => {
+          if (!prevUser) return null;
+          const currentIds = prevUser.savedProductIds || [];
+          const hasChanged = currentIds.length !== savedIds.length ||
+            !savedIds.every((id) => currentIds.includes(id));
+          if (!hasChanged) return prevUser;
+          return {
+            ...prevUser,
+            savedProductIds: savedIds
+          };
+        });
+      } catch (err) {
+        logger.warn("Lỗi đồng bộ danh sách yêu thích:", err);
+      }
+    };
+    syncWishlist();
+
+    let intervalId: any;
+
+    const poll = async () => {
+      if (document.hidden) return;
+      try {
+        const currentCount = await NotificationService.getUnreadCount();
+        if (currentCount !== unreadCountRef.current) {
+          setUnreadCount(currentCount);
+          const res = await NotificationService.getNotifications(0, 10);
+          setNotifications(res.content);
+        }
+      } catch (err) {
+        logger.warn("Lỗi polling thông báo:", err);
+      }
+    };
+
+    const startPolling = () => {
+      clearInterval(intervalId);
+      intervalId = setInterval(poll, 30000);
+    };
+
+    const stopPolling = () => {
+      clearInterval(intervalId);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        poll();
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [currentUser?.id]);
 
   // Load initial datasets from service layer
   useEffect(() => {
@@ -188,29 +399,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setLoading((prev) => ({ ...prev, auth: true, products: true }));
       try {
         const user = await AuthService.getCurrentUser();
-        setCurrentUser(user);
-        if (user.role === "admin") {
-          setUserRole("admin");
-        } else if (user.is_seller) {
-          setUserRole("store");
-          setCurrentPageState("store-dashboard");
+        if (user) {
+          setCurrentUser(user);
+          if (user.role === "admin") {
+            setUserRole("admin");
+          } else if (user.is_seller) {
+            setUserRole("store");
+            setCurrentPageState("store-dashboard");
+          } else {
+            setUserRole(user.role);
+          }
         } else {
-          setUserRole(user.role);
+          setCurrentUser(null);
+          setUserRole("customer");
         }
 
-        const loadedProducts = await PlantService.getProducts();
-        setProducts(loadedProducts);
+        await loadProducts();
 
-        const loadedApts = await BookingService.getAppointments();
-        setAppointments(loadedApts);
+        // Bookings are fetched on-demand locally in views, not preloaded globally
+        setAppointments([]);
 
-        const loadedDiag = await AIDiagnosisService.getDiagnosisLogs();
-        setDiagnosisLogs(loadedDiag);
+        setDiagnosisLogs([]);
 
         const loadedArticles = await ArticleService.getArticles();
-        setBlogPosts(loadedArticles);
+        setBlogPosts(loadedArticles.content);
       } catch (err) {
-        console.error("Initialization failed: ", err);
+        logger.error("Initialization failed: ", err);
+        setCurrentUser(null);
+        setUserRole("customer");
       } finally {
         setLoading((prev) => ({ ...prev, auth: false, products: false }));
       }
@@ -219,55 +435,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     initializeApp();
   }, []);
 
-  // Sync current user's seller store to stores list
+  // Background token refresh scheduler
   useEffect(() => {
-    if (currentUser && currentUser.is_seller) {
-      setStores((prev) => {
-        const exists = prev.some((s) => s.ownerEmail === currentUser.email);
-        if (exists) {
-          return prev.map((s) => s.ownerEmail === currentUser.email ? {
-            ...s,
-            name: currentUser.shop_name || s.name,
-            address: currentUser.shop_address || s.address
-          } : s);
-        }
-        
-        const myStore: EcoStore = {
-          id: `store-${currentUser.id}`,
-          name: currentUser.shop_name || "Cửa hàng của tôi",
-          ownerName: currentUser.name,
-          ownerEmail: currentUser.email,
-          rating: 5.0,
-          avatar: currentUser.avatar,
-          bannerImage: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=800&auto=format&fit=crop&q=80",
-          address: currentUser.shop_address || "Chưa cập nhật địa chỉ",
-          workingHours: "08:00 - 18:00 (Hằng ngày)",
-          carbonOffsetKg: 0,
-          productsCount: 0,
-          verified: true,
-          city: "",
-          district: "",
-          serviceArea: ""
-        };
-        return [...prev, myStore];
-      });
-    }
-  }, [currentUser]);
+    if (!currentUser) return;
 
-  const setCurrentPage = (pageId: string) => {
+    // Refresh token every 10 minutes (600,000 ms)
+    const interval = setInterval(async () => {
+      try {
+        await AuthService.refreshToken();
+      } catch (err) {
+        logger.warn("Background token refresh failed:", err);
+        logout();
+      }
+    }, 10 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [currentUser?.id]);
+
+  // Sync current user's seller store - Removed for Phase 2 restricted scope lazy loading
+
+  const setCurrentPage = useCallback((pageId: string) => {
     setCurrentPageState(pageId);
     setSelectedProductState(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }, []);
 
-  const setSelectedProduct = (prod: Product | null) => {
+  const setSelectedProduct = useCallback((prod: Product | null) => {
     setSelectedProductState(prod);
     if (prod) {
       setCurrentPageState("product-detail");
     }
-  };
+  }, []);
 
-  const switchRole = async (role: "customer" | "store" | "admin") => {
+  const switchRole = useCallback(async (role: "customer" | "store" | "admin") => {
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
       if (currentUser) {
@@ -282,26 +482,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         else if (role === "admin") setCurrentPage("admin-dashboard");
       }
     } catch (err) {
-      console.error(err);
+      logger.error(err);
     } finally {
       setLoading((prev) => ({ ...prev, auth: false }));
     }
-  };
+  }, [currentUser, setCurrentPage]);
 
-  const sendOTP = async (email: string) => {
+  const sendOTP = useCallback(async (email: string) => {
     return await AuthService.sendOTP(email);
-  };
+  }, []);
 
-  const verifyOTP = async (email: string, code: string) => {
+  const verifyOTP = useCallback(async (email: string, code: string) => {
     return await AuthService.verifyOTP(email, code);
-  };
+  }, []);
 
-  const addAddress = async (address: Omit<Parameters<typeof AuthService.addAddress>[1], "userId">) => {
+  const addAddress = useCallback(async (address: Omit<Parameters<typeof AuthService.addAddress>[1], "userId">) => {
     if (!currentUser) throw new Error("Chưa đăng nhập.");
-    return await AuthService.addAddress(currentUser.id, address);
-  };
+    const created = await AddressService.createAddress(address as any);
+    return { success: true, addressId: created.address_id!, address: created };
+  }, [currentUser]);
 
-  const registerSeller = async (details: {
+  const registerSeller = useCallback(async (details: {
     shopName: string;
     shopEmail: string;
     shopPhone: string;
@@ -355,94 +556,112 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUserRole("store");
       setCurrentPage("store-dashboard");
     } catch (err) {
-      console.error("Lỗi đăng ký bán hàng:", err);
+      logger.error("Lỗi đăng ký bán hàng:", err);
       throw err;
     } finally {
       setLoading((prev) => ({ ...prev, auth: false }));
     }
-  };
+  }, [currentUser, addStore, setCurrentPage]);
 
-  const login = async (email: string, password?: string) => {
+  const login = useCallback(async (email: string, password?: string) => {
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
       const user = await AuthService.login(email, password);
       setCurrentUser(user);
       setUserRole(user.role);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       throw err;
     } finally {
       setLoading((prev) => ({ ...prev, auth: false }));
     }
-  };
+  }, []);
 
-  const loginWithGoogle = async (idToken: string) => {
+  const loginWithGoogle = useCallback(async (idToken: string) => {
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
       const user = await AuthService.googleLogin(idToken);
       setCurrentUser(user);
       setUserRole(user.role);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       throw err;
     } finally {
       setLoading((prev) => ({ ...prev, auth: false }));
     }
-  };
+  }, []);
 
-  const register = async (name: string, email: string, role: "customer" | "store" | "admin", password?: string) => {
+  const register = useCallback(async (name: string, email: string, role: "customer" | "store" | "admin", password?: string) => {
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
-      await AuthService.register(name, email, role, password);
+      await AuthService.registerRequest(name, email, role, password);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       throw err;
     } finally {
       setLoading((prev) => ({ ...prev, auth: false }));
     }
-  };
+  }, []);
 
-  const registerRequest = async (name: string, email: string, role: "customer" | "store" | "admin", password?: string) => {
+  const registerRequest = useCallback(async (name: string, email: string, role: "customer" | "store" | "admin", password?: string) => {
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
       return await AuthService.registerRequest(name, email, role, password);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       throw err;
     } finally {
       setLoading((prev) => ({ ...prev, auth: false }));
     }
-  };
+  }, []);
 
-  const verifyRegistrationOTP = async (email: string, code: string) => {
+  const verifyRegistrationOTP = useCallback(async (email: string, code: string) => {
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
-      const user = await AuthService.verifyRegistrationOTP(email, code);
-      setCurrentUser(user);
-      setUserRole(user.role);
+      await AuthService.verifyRegistrationOTP(email, code);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       throw err;
     } finally {
       setLoading((prev) => ({ ...prev, auth: false }));
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
       await AuthService.logout();
+    } catch (err) {
+      logger.error(err);
+    } finally {
       setCurrentUser(null);
       setUserRole("customer");
       setCurrentPage("home");
-    } catch (err) {
-      console.error(err);
-    } finally {
       setLoading((prev) => ({ ...prev, auth: false }));
     }
-  };
+  }, [setCurrentPage]);
 
-  const addToCart = (product: Product, quantity = 1) => {
+  const loadCart = useCallback(async () => {
+    if (!AuthService.getAccessToken()) {
+      setCart([]);
+      return;
+    }
+    try {
+      const res = await CartService.getCart();
+      setCart(res.items);
+    } catch (err) {
+      logger.error("Lỗi khi tải giỏ hàng:", err);
+    }
+  }, []);
+
+  const addToCart = useCallback(async (product: Product, quantity = 1) => {
+    if (!currentUser) {
+      setCurrentPage("auth");
+      toast.error("Vui lòng đăng nhập để sử dụng giỏ hàng.");
+      return;
+    }
+
+    const originalCart = [...cart];
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
@@ -454,140 +673,321 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return [...prev, { product, quantity }];
     });
-  };
 
-  const updateCartQuantity = (productId: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item.product.id === productId ? { ...item, quantity: item.quantity + delta } : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
-  };
-
-  const clearCart = () => {
-    setCart([]);
-  };
-
-  const bookExpert = async (appointment: Omit<Appointment, "id" | "status">) => {
-    setLoading((prev) => ({ ...prev, bookings: true }));
     try {
-      const newApt = await BookingService.bookAppointment(appointment);
-      setAppointments((prev) => [newApt, ...prev]);
+      await CartService.addToCart(Number(product.id), quantity);
+      await loadCart();
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading((prev) => ({ ...prev, bookings: false }));
+      logger.error("Lỗi khi thêm sản phẩm:", err);
+      setCart(originalCart);
+      toast.error("Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại.");
     }
-  };
+  }, [currentUser, cart, loadCart, setCurrentPage]);
 
-  const diagnosePlant = async (plantName: string, imageUrl: string) => {
+  const updateCartQuantity = useCallback(async (productId: string, delta: number) => {
+    const originalCart = [...cart];
+    const item = cart.find((i) => i.product.id === productId);
+    if (!item) return;
+
+    const newQty = item.quantity + delta;
+
+    if (newQty <= 0) {
+      setCart((prev) => prev.filter((i) => i.product.id !== productId));
+      try {
+        if (item.id) {
+          await CartService.removeCartItem(item.id);
+        } else {
+          await loadCart();
+        }
+      } catch (err) {
+        logger.error("Lỗi khi xóa sản phẩm:", err);
+        setCart(originalCart);
+        toast.error("Không thể cập nhật số lượng. Vui lòng thử lại.");
+      }
+    } else {
+      setCart((prev) =>
+        prev.map((i) => (i.product.id === productId ? { ...i, quantity: newQty } : i))
+      );
+      try {
+        if (item.id) {
+          await CartService.updateCartItem(item.id, newQty);
+        } else {
+          await loadCart();
+        }
+      } catch (err) {
+        logger.error("Lỗi khi cập nhật số lượng:", err);
+        setCart(originalCart);
+        toast.error("Không thể cập nhật số lượng. Vui lòng thử lại.");
+      }
+    }
+  }, [cart, loadCart]);
+
+  const removeFromCart = useCallback(async (productId: string) => {
+    const originalCart = [...cart];
+    const item = cart.find((i) => i.product.id === productId);
+    if (!item) return;
+
+    setCart((prev) => prev.filter((i) => i.product.id !== productId));
+
+    try {
+      if (item.id) {
+        await CartService.removeCartItem(item.id);
+      } else {
+        await loadCart();
+      }
+    } catch (err) {
+      logger.error("Lỗi khi xóa sản phẩm:", err);
+      setCart(originalCart);
+      toast.error("Không thể xóa sản phẩm. Vui lòng thử lại.");
+    }
+  }, [cart, loadCart]);
+
+  const removeCartItem = useCallback(async (itemId: number) => {
+    const originalCart = [...cart];
+    setCart((prev) => prev.filter((i) => i.id !== itemId));
+
+    try {
+      await CartService.removeCartItem(itemId);
+    } catch (err) {
+      logger.error("Lỗi khi xóa sản phẩm:", err);
+      setCart(originalCart);
+      toast.error("Không thể xóa sản phẩm. Vui lòng thử lại.");
+    }
+  }, [cart]);
+
+  const clearCart = useCallback(() => {
+    setCart([]);
+  }, []);
+
+  const checkoutCart = useCallback(async (payload: any) => {
+    const orders = await OrderService.checkoutCart(payload);
+    clearCart();
+    return orders;
+  }, [clearCart]);
+
+  const toggleWishlist = useCallback(async (productId: number) => {
+    if (!currentUser) {
+      toast.error("Vui lòng đăng nhập để lưu sản phẩm yêu thích.");
+      return;
+    }
+    const isLiked = currentUser.savedProductIds?.includes(String(productId));
+    try {
+      if (isLiked) {
+        await WishlistService.removeWishlist(productId);
+        setCurrentUser(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            savedProductIds: (prev.savedProductIds || []).filter(id => id !== String(productId))
+          };
+        });
+      } else {
+        await WishlistService.addWishlist(productId);
+        setCurrentUser(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            savedProductIds: [...(prev.savedProductIds || []), String(productId)]
+          };
+        });
+      }
+    } catch (err: any) {
+      toast.error("Lỗi cập nhật danh sách yêu thích: " + err.message);
+    }
+  }, [currentUser]);
+
+  const bookExpert = useCallback(async (appointment: Omit<Appointment, "id" | "status">) => {
+    // Handled locally within component-level services
+  }, []);
+
+  const diagnosePlant = useCallback(async (plantName: string, imageUrl: string) => {
     setLoading((prev) => ({ ...prev, diagnosis: true }));
     try {
-      const newDiag = await AIDiagnosisService.diagnosePlantLeaf(plantName, imageUrl);
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const newDiag = await AIDiagnosisService.diagnosePlantLeaf(blob);
       setDiagnosisLogs((prev) => [newDiag, ...prev]);
       return newDiag;
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       throw err;
     } finally {
       setLoading((prev) => ({ ...prev, diagnosis: false }));
     }
-  };
+  }, []);
 
-  const addNewProduct = (product: Product) => {
+  const addNewProduct = useCallback((product: Product) => {
     setProducts((prev) => [product, ...prev]);
-  };
+  }, []);
 
-  const deleteDiagnosisRecord = async (id: string) => {
-    setLoading((prev) => ({ ...prev, diagnosis: true }));
-    try {
-      const remaining = await AIDiagnosisService.deleteRecordAndFreeMemory(id);
-      setDiagnosisLogs(remaining);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading((prev) => ({ ...prev, diagnosis: false }));
-    }
-  };
+  const deleteDiagnosisRecord = useCallback(async (id: string) => {
+    return Promise.resolve();
+  }, []);
 
-  const cancelBooking = async (id: string) => {
-    setLoading((prev) => ({ ...prev, bookings: true }));
-    try {
-      const remaining = await BookingService.cancelAppointment(id);
-      setAppointments(remaining);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading((prev) => ({ ...prev, bookings: false }));
-    }
-  };
+  const cancelBooking = useCallback(async (id: string) => {
+    // Handled locally within component-level services
+  }, []);
 
-  const refreshArticles = async () => {
+  const refreshArticles = useCallback(async () => {
     try {
       const loadedArticles = await ArticleService.getArticles();
-      setBlogPosts(loadedArticles);
+      setBlogPosts(loadedArticles.content);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
     }
-  };
+  }, []);
+
+  const createReview = useCallback(async (payload: { plantId?: number | null; storeId?: number | null; rating: number; comment: string }) => {
+    return await ReviewService.createReview(payload);
+  }, []);
+
+  const updateReview = useCallback(async (id: number, payload: { rating: number; comment: string }) => {
+    return await ReviewService.updateReview(id, payload);
+  }, []);
+
+  const deleteReview = useCallback(async (id: number) => {
+    await ReviewService.deleteReview(id);
+  }, []);
+
+  const moderateReview = useCallback(async (id: number, status: "VISIBLE" | "HIDDEN") => {
+    return await ReviewService.moderateReview(id, status);
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      currentUser,
+      userRole,
+      products,
+      stores,
+      blogPosts,
+      cart,
+      appointments,
+      diagnosisLogs,
+      currentPage,
+      selectedProduct,
+      loading,
+      theme,
+      toggleTheme,
+      userLocation,
+      setUserLocation,
+      selectedStoreId,
+      setSelectedStoreId,
+      updateStoreInfo,
+      addStore,
+      setCurrentPage,
+      setSelectedProduct,
+      switchRole,
+      login,
+      loginWithGoogle,
+      register,
+      registerRequest,
+      verifyRegistrationOTP,
+      registerSeller,
+      sendOTP,
+      verifyOTP,
+      addAddress,
+      logout,
+      addToCart,
+      updateCartQuantity,
+      removeFromCart,
+      clearCart,
+      loadCart,
+      removeCartItem,
+      checkoutCart,
+      toggleWishlist,
+      bookExpert,
+      diagnosePlant,
+      addNewProduct,
+      deleteDiagnosisRecord,
+      cancelBooking,
+      refreshArticles,
+      adminActiveTab,
+      setAdminActiveTab,
+      storeActiveTab,
+      setStoreActiveTab,
+      loadProducts,
+      loadArticles,
+      notifications,
+      unreadCount,
+      loadNotifications,
+      loadUnreadCount,
+      markAsRead,
+      markAllAsRead,
+      deleteNotification,
+      createReview,
+      updateReview,
+      deleteReview,
+      moderateReview
+    }),
+    [
+      currentUser,
+      userRole,
+      products,
+      stores,
+      blogPosts,
+      cart,
+      appointments,
+      diagnosisLogs,
+      currentPage,
+      selectedProduct,
+      loading,
+      theme,
+      toggleTheme,
+      userLocation,
+      setUserLocation,
+      selectedStoreId,
+      setSelectedStoreId,
+      updateStoreInfo,
+      addStore,
+      setCurrentPage,
+      setSelectedProduct,
+      switchRole,
+      login,
+      loginWithGoogle,
+      register,
+      registerRequest,
+      verifyRegistrationOTP,
+      registerSeller,
+      sendOTP,
+      verifyOTP,
+      addAddress,
+      logout,
+      addToCart,
+      updateCartQuantity,
+      removeFromCart,
+      clearCart,
+      loadCart,
+      removeCartItem,
+      checkoutCart,
+      toggleWishlist,
+      bookExpert,
+      diagnosePlant,
+      addNewProduct,
+      deleteDiagnosisRecord,
+      cancelBooking,
+      refreshArticles,
+      adminActiveTab,
+      setAdminActiveTab,
+      storeActiveTab,
+      setStoreActiveTab,
+      loadProducts,
+      loadArticles,
+      notifications,
+      unreadCount,
+      loadNotifications,
+      loadUnreadCount,
+      markAsRead,
+      markAllAsRead,
+      deleteNotification,
+      createReview,
+      updateReview,
+      deleteReview,
+      moderateReview
+    ]
+  );
 
   return (
-    <AppContext.Provider
-      value={{
-        currentUser,
-        userRole,
-        products,
-        stores,
-        blogPosts,
-        cart,
-        appointments,
-        diagnosisLogs,
-        currentPage,
-        selectedProduct,
-        loading,
-        theme,
-        toggleTheme,
-        userLocation,
-        setUserLocation,
-        selectedStoreId,
-        setSelectedStoreId,
-        updateStoreInfo,
-        addStore,
-        setCurrentPage,
-        setSelectedProduct,
-        switchRole,
-        login,
-        loginWithGoogle,
-        register,
-        registerRequest,
-        verifyRegistrationOTP,
-        registerSeller,
-        sendOTP,
-        verifyOTP,
-        addAddress,
-        logout,
-        addToCart,
-        updateCartQuantity,
-        removeFromCart,
-        clearCart,
-        bookExpert,
-        diagnosePlant,
-        addNewProduct,
-        deleteDiagnosisRecord,
-        cancelBooking,
-        refreshArticles,
-        adminActiveTab,
-        setAdminActiveTab,
-        storeActiveTab,
-        setStoreActiveTab
-      }}
-    >
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

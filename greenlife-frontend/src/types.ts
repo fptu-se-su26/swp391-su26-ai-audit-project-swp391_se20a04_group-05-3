@@ -14,6 +14,7 @@ export interface Product {
 }
 
 export interface CartItem {
+  id?: number;
   product: Product;
   quantity: number;
 }
@@ -59,6 +60,7 @@ export interface BlogPost {
   likes?: number;
   views?: number;
   taggedProductIds?: string[];
+  status?: string;
 }
 
 export interface Expert {
@@ -79,8 +81,23 @@ export interface StoreOrder {
   customerName: string;
   date: string;
   total: number;
-  status: "pending" | "processing" | "shipped" | "cancelled";
+  status: "pending" | "processing" | "shipped" | "cancelled" | "completed";
   itemsCount: number;
+  recipientPhone?: string;
+  shippingAddress?: string;
+  note?: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  paymentUrl?: string | null;
+  items?: string;
+  backendStatus?: string;
+  itemsList?: Array<{
+    productId: string;
+    productName: string;
+    imageUrl: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
 }
 
 export interface EnergySimulation {
@@ -175,4 +192,22 @@ export interface Feedback {
   createdAt: string;
   userName?: string;
 }
+
+export interface NotificationItem {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  referenceType: "ORDER" | "PAYMENT" | "REVIEW" | "PLANT" | "STORE" | "SYSTEM" | "BOOKING";
+  referenceId: number;
+  isRead: boolean;
+  createdAt: string;
+  readAt?: string;
+}
+
+export interface BroadcastRequest {
+  title: string;
+  message: string;
+}
+
 

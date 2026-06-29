@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Search, MapPin, Phone, MessageCircle, User, X, Facebook, Mail, Sparkles, ArrowRight } from "lucide-react";
 import { EXPERTS } from "../../data";
 import { Expert } from "../../types";
+import { BookingService } from "../../services/bookingService";
+import { HttpClient } from "../../services/httpClient";
 
 // 1. ĐỊNH NGHĨA DỮ LIỆU MẪU (TypeScript Interface - Đã có trong types.ts, định nghĩa lại/re-export để đồng bộ)
 export interface ExpertDirectoryProps {
@@ -12,6 +14,104 @@ export const ExpertDirectoryView: React.FC<ExpertDirectoryProps> = ({ onBackToHo
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [activeExpert, setActiveExpert] = useState<Expert | null>(null);
+
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [services, setServices] = useState<any[]>([]);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [servicesError, setServicesError] = useState<string | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [bookingDate, setBookingDate] = useState("");
+  const [bookingTime, setBookingTime] = useState("");
+  const [serviceAddress, setServiceAddress] = useState("");
+  const [customerNote, setCustomerNote] = useState("");
+  const [submittingBooking, setSubmittingBooking] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeExpert) {
+      setShowBookingForm(false);
+      return;
+    }
+    const controller = new AbortController();
+    const fetchServices = async () => {
+      setLoadingServices(true);
+      setServicesError(null);
+      try {
+        const data = await HttpClient.get("/api/services?page=0&size=50", {
+          signal: controller.signal
+        });
+        const content = data.content || [];
+        setServices(content);
+        if (content.length > 0) {
+          setSelectedServiceId(String(content[0].id));
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          setServicesError(err.message || "Lỗi tải dịch vụ");
+        }
+      } finally {
+        setLoadingServices(false);
+      }
+    };
+
+    fetchServices();
+    return () => controller.abort();
+  }, [activeExpert]);
+
+  const handleBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBookingError(null);
+
+    if (!selectedServiceId) {
+      setBookingError("Vui lòng chọn dịch vụ.");
+      return;
+    }
+    if (!bookingDate || !bookingTime) {
+      setBookingError("Vui lòng chọn đầy đủ ngày và giờ.");
+      return;
+    }
+    if (!serviceAddress.trim()) {
+      setBookingError("Địa chỉ dịch vụ không được để trống.");
+      return;
+    }
+    if (customerNote.length > 500) {
+      setBookingError("Ghi chú không được vượt quá 500 ký tự.");
+      return;
+    }
+
+    const scheduledDateTimeStr = `${bookingDate}T${bookingTime}:00`;
+    const scheduledDate = new Date(scheduledDateTimeStr);
+    const minAllowedDate = new Date(Date.now() + 2 * 60 * 65 * 1000); // 2 hours
+    if (scheduledDate < minAllowedDate) {
+      setBookingError("Thời gian đặt hẹn phải cách thời điểm hiện tại ít nhất 2 giờ.");
+      return;
+    }
+
+    setSubmittingBooking(true);
+    try {
+      await BookingService.createBooking({
+        serviceId: Number(selectedServiceId),
+        scheduledAt: scheduledDateTimeStr,
+        serviceAddress: serviceAddress.trim(),
+        customerNote: customerNote.trim()
+      });
+      setBookingSuccess(true);
+      setBookingDate("");
+      setBookingTime("");
+      setServiceAddress("");
+      setCustomerNote("");
+      setTimeout(() => {
+        setBookingSuccess(false);
+        setShowBookingForm(false);
+        setActiveExpert(null);
+      }, 2500);
+    } catch (err: any) {
+      setBookingError(err.message || "Đã xảy ra lỗi khi tạo lịch hẹn.");
+    } finally {
+      setSubmittingBooking(false);
+    }
+  };
 
   // Lấy danh sách các khu vực độc nhất từ dữ liệu chuyên gia để làm bộ lọc nhanh
   const locations = useMemo(() => {
@@ -234,68 +334,204 @@ export const ExpertDirectoryView: React.FC<ExpertDirectoryProps> = ({ onBackToHo
                 </div>
               </div>
 
-              {/* CTA Contact Links Area */}
-              <div className="space-y-3 pt-4 border-t border-stone-850">
-                <span className="text-[10px] text-stone-500 font-mono uppercase tracking-wider block">
-                  Phương thức kết nối trực tiếp
-                </span>
-
-                <div className="grid grid-cols-1 gap-2.5">
-                  {/* Gọi điện */}
-                  <a
-                    href={`tel:${activeExpert.phone}`}
-                    className="w-full flex items-center justify-between px-4 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Phone className="h-4 w-4 shrink-0" />
-                      <span>Gọi điện trực tiếp</span>
-                    </div>
-                    <span className="font-mono text-[11px] tracking-wide bg-black/10 px-2 py-0.5 rounded">
-                      {activeExpert.phone}
-                    </span>
-                  </a>
-
-                  {/* Nhắn Zalo */}
-                  <a
-                    href={activeExpert.zaloLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full flex items-center justify-between px-4 py-3.5 bg-stone-950 hover:bg-stone-850 border border-stone-800 hover:border-stone-750 text-stone-200 font-semibold rounded-xl transition-all text-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <MessageCircle className="h-4 w-4 text-sky-400 shrink-0" />
-                      <span>Nhắn tin qua Zalo</span>
-                    </div>
-                    <span className="text-[10px] text-stone-400 font-mono">Chat Zalo</span>
-                  </a>
-
-                  {/* Kết nối Facebook */}
-                  <a
-                    href={activeExpert.facebookLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full flex items-center justify-between px-4 py-3.5 bg-stone-950 hover:bg-stone-850 border border-stone-800 hover:border-stone-750 text-stone-200 font-semibold rounded-xl transition-all text-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Facebook className="h-4 w-4 text-blue-500 shrink-0" />
-                      <span>Liên hệ Facebook cá nhân</span>
-                    </div>
-                    <span className="text-[10px] text-stone-400 font-mono">Trang cá nhân</span>
-                  </a>
-
-                  {/* Hỗ trợ qua email */}
-                  <a
-                    href={`mailto:expert-${activeExpert.id}@greenlife.vn?subject=Yêu cầu tham vấn GreenLife`}
-                    className="w-full flex items-center justify-between px-4 py-3.5 bg-stone-950 hover:bg-stone-850 border border-stone-800 hover:border-stone-750 text-stone-200 font-semibold rounded-xl transition-all text-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Mail className="h-4 w-4 text-emerald-500 shrink-0" />
-                      <span>Gửi email yêu cầu</span>
-                    </div>
-                    <span className="text-[10px] text-stone-400 font-mono">Email</span>
-                  </a>
-                </div>
+              {/* Toggle Booking Form / Contact Info */}
+              <div className="pt-2">
+                <button
+                  onClick={() => setShowBookingForm(!showBookingForm)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-500/30 text-emerald-400 font-bold rounded-xl transition-all text-xs shadow-sm hover:shadow cursor-pointer"
+                >
+                  {showBookingForm ? "Xem thông tin liên hệ trực tiếp 📞" : "Đặt lịch dịch vụ khảo sát chuyên gia 🌿"}
+                </button>
               </div>
+
+              {showBookingForm ? (
+                <form onSubmit={handleBookingSubmit} className="space-y-4 pt-4 border-t border-stone-850">
+                  <h4 className="text-[10px] text-stone-500 font-mono uppercase tracking-wider block">
+                    Đăng ký dịch vụ khảo sát
+                  </h4>
+
+                  {bookingSuccess && (
+                    <div className="p-3 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded-xl text-xs font-medium text-center">
+                      Đặt lịch khảo sát thành công! Hệ thống đang xử lý và chuyển hướng...
+                    </div>
+                  )}
+
+                  {bookingError && (
+                    <div className="p-3 bg-red-950/20 text-red-400 border border-red-900/30 rounded-xl text-xs font-medium text-center">
+                      {bookingError}
+                    </div>
+                  )}
+
+                  {/* Service selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-stone-400 uppercase font-mono tracking-wider block">
+                      Chọn gói dịch vụ
+                    </label>
+                    {loadingServices ? (
+                      <div className="h-10 bg-stone-950 border border-stone-800 rounded-xl animate-pulse"></div>
+                    ) : servicesError ? (
+                      <p className="text-[10px] text-red-450">Không thể tải dịch vụ: {servicesError}</p>
+                    ) : services.length === 0 ? (
+                      <p className="text-[10px] text-stone-500">Chưa có dịch vụ nào khả dụng trên hệ thống.</p>
+                    ) : (
+                      <select
+                        value={selectedServiceId}
+                        onChange={(e) => setSelectedServiceId(e.target.value)}
+                        className="w-full text-xs p-3 bg-stone-950 border border-stone-850 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent text-stone-200"
+                        required
+                      >
+                        {services.map((svc) => (
+                          <option key={svc.id} value={svc.id}>
+                            {svc.name} ({svc.storeName}) - {svc.price.toLocaleString("vi-VN")}₫
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Date & Time fields */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-stone-400 uppercase font-mono tracking-wider block">
+                        Chọn ngày
+                      </label>
+                      <input
+                        type="date"
+                        value={bookingDate}
+                        onChange={(e) => setBookingDate(e.target.value)}
+                        className="w-full text-xs p-3 bg-stone-950 border border-stone-850 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent text-stone-200"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-stone-400 uppercase font-mono tracking-wider block">
+                        Chọn giờ
+                      </label>
+                      <input
+                        type="time"
+                        value={bookingTime}
+                        onChange={(e) => setBookingTime(e.target.value)}
+                        className="w-full text-xs p-3 bg-stone-950 border border-stone-850 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent text-stone-200"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Service Address */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-stone-400 uppercase font-mono tracking-wider block">
+                      Địa chỉ khảo sát
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Nhập địa chỉ nhà vườn / ban công của bạn..."
+                      value={serviceAddress}
+                      onChange={(e) => setServiceAddress(e.target.value)}
+                      className="w-full text-xs p-3 bg-stone-950 border border-stone-850 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent text-stone-200"
+                      required
+                    />
+                  </div>
+
+                  {/* Customer Note */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] text-stone-400 uppercase font-mono tracking-wider block">
+                        Ghi chú yêu cầu
+                      </label>
+                      <span className="text-[9px] text-stone-500 font-mono">
+                        {customerNote.length}/500 ký tự
+                      </span>
+                    </div>
+                    <textarea
+                      placeholder="Ví dụ: Cần thiết kế giàn hoa giấy leo ban công chung cư lầu 15, tưới nước tự động..."
+                      value={customerNote}
+                      onChange={(e) => setCustomerNote(e.target.value)}
+                      maxLength={500}
+                      className="w-full text-xs p-3 bg-stone-950 border border-stone-850 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent text-stone-200 h-20 resize-none"
+                    />
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2 justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowBookingForm(false)}
+                      className="px-4 py-2.5 bg-stone-850 hover:bg-stone-800 border border-stone-800 text-stone-300 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                    >
+                      Hủy bỏ
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingBooking || loadingServices || services.length === 0}
+                      className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black text-xs font-bold rounded-xl transition-all cursor-pointer"
+                    >
+                      {submittingBooking ? "Đang gửi đăng ký..." : "Gửi yêu cầu đặt lịch"}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-3 pt-4 border-t border-stone-850">
+                  <span className="text-[10px] text-stone-500 font-mono uppercase tracking-wider block">
+                    Phương thức kết nối trực tiếp
+                  </span>
+
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {/* Gọi điện */}
+                    <a
+                      href={`tel:${activeExpert.phone}`}
+                      className="w-full flex items-center justify-between px-4 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl transition-all text-xs shadow-sm hover:shadow"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Phone className="h-4 w-4 shrink-0" />
+                        <span>Gọi điện trực tiếp</span>
+                      </div>
+                      <span className="font-mono text-[11px] tracking-wide bg-black/10 px-2 py-0.5 rounded">
+                        {activeExpert.phone}
+                      </span>
+                    </a>
+
+                    {/* Nhắn Zalo */}
+                    <a
+                      href={activeExpert.zaloLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full flex items-center justify-between px-4 py-3.5 bg-stone-950 hover:bg-stone-850 border border-stone-800 hover:border-stone-750 text-stone-200 font-semibold rounded-xl transition-all text-xs"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <MessageCircle className="h-4 w-4 text-sky-400 shrink-0" />
+                        <span>Nhắn tin qua Zalo</span>
+                      </div>
+                      <span className="text-[10px] text-stone-400 font-mono">Chat Zalo</span>
+                    </a>
+
+                    {/* Kết nối Facebook */}
+                    <a
+                      href={activeExpert.facebookLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full flex items-center justify-between px-4 py-3.5 bg-stone-950 hover:bg-stone-850 border border-stone-800 hover:border-stone-750 text-stone-200 font-semibold rounded-xl transition-all text-xs"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Facebook className="h-4 w-4 text-blue-500 shrink-0" />
+                        <span>Liên hệ Facebook cá nhân</span>
+                      </div>
+                      <span className="text-[10px] text-stone-400 font-mono">Trang cá nhân</span>
+                    </a>
+
+                    {/* Hỗ trợ qua email */}
+                    <a
+                      href={`mailto:expert-${activeExpert.id}@greenlife.vn?subject=Yêu cầu tham vấn GreenLife`}
+                      className="w-full flex items-center justify-between px-4 py-3.5 bg-stone-950 hover:bg-stone-850 border border-stone-800 hover:border-stone-750 text-stone-200 font-semibold rounded-xl transition-all text-xs"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Mail className="h-4 w-4 text-emerald-500 shrink-0" />
+                        <span>Gửi email yêu cầu</span>
+                      </div>
+                      <span className="text-[10px] text-stone-400 font-mono">Email</span>
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer warning */}

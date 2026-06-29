@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { 
   ShieldCheck, 
@@ -34,9 +34,18 @@ import {
   Tag
 } from "lucide-react";
 import { useAppContext } from "../../context/AppContext";
-import { INITIAL_ORDERS } from "../../data";
 import { ArticleService } from "../../services/articleService";
 import { BlogPost, Product } from "../../types";
+import toast from "react-hot-toast";
+import { DashboardSkeleton, TableSkeleton } from "../common/Skeleton";
+import { EmptyState } from "../common/EmptyState";
+import { useEffect } from "react";
+import { AdminUserService } from "../../services/adminUserService";
+import { AdminStoreService } from "../../services/adminStoreService";
+import { AdminOrderService } from "../../services/adminOrderService";
+import { ReviewService, ReviewResponse } from "../../services/reviewService";
+import { MessageSquare, ShieldAlert } from "lucide-react";
+import { AdminSecurityService, AdminLoginAuditResponse } from "../../services/adminSecurityService";
 
 export const AdminDashboardView: React.FC = () => {
   const { 
@@ -56,8 +65,7 @@ export const AdminDashboardView: React.FC = () => {
   const activeTab = adminActiveTab;
   const setActiveTab = setAdminActiveTab;
 
-  // Local state for orders to simulate real-time admin workflow updates
-  const [localOrders, setLocalOrders] = useState(INITIAL_ORDERS);
+  // Real-time database orders state loaded via API
 
   // Search & Filter States
   const [storeTab, setStoreTab] = useState<"pending" | "active">("pending");
@@ -81,6 +89,323 @@ export const AdminDashboardView: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
 
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingReports, setLoadingReports] = useState(true);
+
+  // Integration States for Phase 3A.1
+  const [dbUsers, setDbUsers] = useState<any[]>([]);
+  const [dbPendingStores, setDbPendingStores] = useState<any[]>([]);
+  const [dbOrders, setDbOrders] = useState<any[]>([]);
+  const [fallbackWarning, setFallbackWarning] = useState<string | null>(null);
+
+  // State for storing loaded details of active/selected order
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState<any[] | null>(null);
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
+
+  // Integration States for Review Moderation (Phase 3A.2.1)
+  const [dbReviews, setDbReviews] = useState<ReviewResponse[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewsError, setReviewsError] = useState("");
+  const [reviewsPage, setReviewsPage] = useState(0);
+  const [reviewsTotalPages, setReviewsTotalPages] = useState(0);
+  const [moderatingId, setModeratingId] = useState<number | null>(null);
+
+  // Integration States for Security Login Logs (Phase 3A.2.2)
+  const [audits, setAudits] = useState<AdminLoginAuditResponse[]>([]);
+  const [auditsLoading, setAuditsLoading] = useState(false);
+  const [auditsError, setAuditsError] = useState("");
+  const [auditsPage, setAuditsPage] = useState(0);
+  const [auditsTotalPages, setAuditsTotalPages] = useState(0);
+  const [auditFilterMode, setAuditFilterMode] = useState<"all" | "failed">("all");
+  const [auditUserIdFilter, setAuditUserIdFilter] = useState("");
+  const [appliedUserIdFilter, setAppliedUserIdFilter] = useState<number | null>(null);
+
+  const fetchUsers = useCallback(async (signal?: AbortSignal) => {
+    setLoadingUsers(true);
+    try {
+      const usersData = await AdminUserService.getUsers({ page: 0, size: 50 }, signal);
+      const mapped = usersData.content.map(u => {
+        let statusStr = "Active";
+        if (u.status === "LOCKED") statusStr = "Locked";
+        else if (u.status === "DISABLED") statusStr = "Disabled";
+        else if (u.status === "PENDING_VERIFICATION") statusStr = "Pending";
+
+        let roleStr = "customer";
+        if (u.role === "ADMIN") roleStr = "admin";
+        else if (u.role === "STORE_OWNER") roleStr = "store";
+
+        return {
+          id: u.id.toString(),
+          name: u.fullName || "N/A",
+          email: u.email,
+          role: roleStr,
+          date: u.createdAt ? new Date(u.createdAt).toLocaleDateString("vi-VN") : "N/A",
+          phone: u.phone || "N/A",
+          carbonSaved: 0,
+          credits: 0,
+          status: statusStr
+        };
+      });
+      setDbUsers(mapped);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("Error fetching users:", err);
+        setDbUsers([]);
+        throw err;
+      }
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
+
+  const fetchPendingStores = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const pendingData = await AdminStoreService.getPendingStores(signal);
+      const mapped = pendingData.map(s => ({
+        id: s.id.toString(),
+        name: s.name,
+        ownerName: s.ownerName,
+        ownerEmail: s.phone || "N/A",
+        rating: 5.0,
+        avatar: s.logoUrl || "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=100",
+        bannerImage: "",
+        address: s.address,
+        workingHours: "08:00 - 18:00",
+        carbonOffsetKg: 0,
+        productsCount: 0,
+        verified: false,
+        city: s.city || "",
+        district: s.district || "",
+        verificationDocument: s.verificationDocument
+      }));
+      setDbPendingStores(mapped);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("Error fetching pending stores:", err);
+        setDbPendingStores([]);
+        throw err;
+      }
+    }
+  }, []);
+
+  const fetchOrders = useCallback(async (signal?: AbortSignal) => {
+    setLoadingReports(true);
+    try {
+      const ordersData = await AdminOrderService.getAllOrders(signal);
+      const mapped = ordersData.map(o => ({
+        id: o.id.toString(),
+        customerName: o.recipientName || "N/A",
+        date: o.createdAt ? new Date(o.createdAt).toLocaleDateString("vi-VN") : "N/A",
+        total: o.totalAmount,
+        status: o.status ? o.status.toLowerCase() : "pending",
+        itemsCount: o.details ? o.details.reduce((sum, d) => sum + d.quantity, 0) : 0,
+        phone: o.recipientPhone || "N/A",
+        address: o.shippingAddress || "N/A",
+        paymentMethod: o.paymentMethod || "N/A",
+        paymentStatus: o.paymentStatus || "N/A",
+        note: o.note || ""
+      }));
+      setDbOrders(mapped);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("Error fetching orders:", err);
+        setDbOrders([]);
+        throw err;
+      }
+    } finally {
+      setLoadingReports(false);
+    }
+  }, []);
+
+  const loadAllData = useCallback(async (signal?: AbortSignal) => {
+    setLoadingUsers(true);
+    setLoadingReports(true);
+    setFallbackWarning(null);
+    let hasError = false;
+    try {
+      await Promise.all([
+        fetchUsers(signal).catch((err) => { if (err.name !== "AbortError") throw err; }),
+        fetchPendingStores(signal).catch((err) => { if (err.name !== "AbortError") throw err; }),
+        fetchOrders(signal).catch((err) => { if (err.name !== "AbortError") throw err; })
+      ]);
+    } catch (err) {
+      hasError = true;
+    }
+    if (hasError) {
+      setFallbackWarning("Không thể đồng bộ toàn bộ dữ liệu từ máy chủ. Vui lòng thử lại sau.");
+    }
+    setLoadingUsers(false);
+    setLoadingReports(false);
+  }, [fetchUsers, fetchPendingStores, fetchOrders]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    if (activeTab === "overview") {
+      loadAllData(controller.signal);
+    } else if (activeTab === "users") {
+      fetchUsers(controller.signal).catch(() => {});
+    } else if (activeTab === "stores") {
+      fetchPendingStores(controller.signal).catch(() => {});
+    } else if (activeTab === "orders") {
+      fetchOrders(controller.signal).catch(() => {});
+    }
+    return () => {
+      controller.abort();
+    };
+  }, [loadAllData, fetchUsers, fetchPendingStores, fetchOrders, activeTab]);
+
+  // Load order details on selection
+  useEffect(() => {
+    if (!selectedOrder) {
+      setSelectedOrderDetails(null);
+      return;
+    }
+
+    const orderId = parseInt(selectedOrder.id);
+    if (isNaN(orderId)) {
+      setSelectedOrderDetails([]);
+      return;
+    }
+
+    let active = true;
+    const fetchDetails = async () => {
+      setLoadingOrderDetails(true);
+      try {
+        const orderData = await AdminOrderService.getOrderDetail(orderId);
+        if (active) {
+          const mappedDetails = orderData.details ? orderData.details.map(d => ({
+            name: d.productName || "Sản phẩm",
+            qty: d.quantity,
+            price: d.unitPrice,
+            img: "https://images.unsplash.com/photo-1545241047-6083a3684587?w=100&auto=format&fit=crop&q=80"
+          })) : [];
+          setSelectedOrderDetails(mappedDetails);
+        }
+      } catch (err) {
+        console.error("Error fetching order details:", err);
+        if (active) {
+          setSelectedOrderDetails([]);
+        }
+      } finally {
+        if (active) setLoadingOrderDetails(false);
+      }
+    };
+
+    fetchDetails();
+    return () => {
+      active = false;
+    };
+  }, [selectedOrder]);
+
+  const fetchReviews = useCallback(async (page: number, signal?: AbortSignal) => {
+    setLoadingReviews(true);
+    setReviewsError("");
+    try {
+      const data = await ReviewService.getAllReviewsForAdmin(page, 10, signal);
+      setDbReviews(data.content || []);
+      setReviewsTotalPages(data.totalPages || 0);
+      setReviewsPage(data.number || 0);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("Error fetching reviews:", err);
+        setReviewsError("Không thể tải danh sách đánh giá từ hệ thống.");
+      }
+    } finally {
+      setLoadingReviews(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "reviews") return;
+    const controller = new AbortController();
+    fetchReviews(0, controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [activeTab, fetchReviews]);
+
+  const handleModerateReview = async (id: number, currentStatus: "VISIBLE" | "HIDDEN") => {
+    setModeratingId(id);
+    const targetStatus = currentStatus === "VISIBLE" ? "HIDDEN" : "VISIBLE";
+    try {
+      await ReviewService.moderateReview(id, targetStatus);
+      toast.success("Cập nhật trạng thái kiểm duyệt thành công!");
+      await fetchReviews(reviewsPage);
+    } catch (err) {
+      console.error("Error moderating review:", err);
+      toast.error("Không thể thay đổi trạng thái kiểm duyệt.");
+    } finally {
+      setModeratingId(null);
+    }
+  };
+
+  // Integration Handlers/Effects for Security Login Logs (Phase 3A.2.2)
+  const fetchLoginAudits = useCallback(async (page: number, signal?: AbortSignal) => {
+    setAuditsLoading(true);
+    setAuditsError("");
+    try {
+      let data;
+      if (appliedUserIdFilter !== null) {
+        data = await AdminSecurityService.getUserLoginAudits(appliedUserIdFilter, page, 20, signal);
+      } else if (auditFilterMode === "failed") {
+        data = await AdminSecurityService.getFailedLoginAudits(page, 20, signal);
+      } else {
+        data = await AdminSecurityService.getAllLoginAudits(page, 20, signal);
+      }
+      setAudits(data.content || []);
+      setAuditsTotalPages(data.totalPages || 0);
+      setAuditsPage(data.number || 0);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("Error fetching login audits:", err);
+        setAuditsError("Không thể tải nhật ký bảo mật hệ thống.");
+      }
+    } finally {
+      setAuditsLoading(false);
+    }
+  }, [auditFilterMode, appliedUserIdFilter]);
+
+  useEffect(() => {
+    if (activeTab !== "security-logs") return;
+    const controller = new AbortController();
+    fetchLoginAudits(0, controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [activeTab, fetchLoginAudits]);
+
+  const handleSearchUserId = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auditUserIdFilter.trim()) {
+      setAppliedUserIdFilter(null);
+      return;
+    }
+    const parsedId = parseInt(auditUserIdFilter, 10);
+    if (isNaN(parsedId)) {
+      toast.error("Vui lòng nhập mã User ID là chữ số hợp lệ.");
+      return;
+    }
+    setAppliedUserIdFilter(parsedId);
+  };
+
+  const handleResetUserId = () => {
+    setAuditUserIdFilter("");
+    setAppliedUserIdFilter(null);
+  };
+
+  const getFailureReasonLabel = (reason: string | null) => {
+    if (!reason) return "Không xác định";
+    const mapping: Record<string, string> = {
+      INVALID_CREDENTIALS: "Sai tài khoản hoặc mật khẩu",
+      ACCOUNT_LOCKED: "Tài khoản đang bị khóa",
+      ACCOUNT_DISABLED: "Tài khoản bị vô hiệu hóa",
+      EMAIL_NOT_VERIFIED: "Email chưa được xác thực",
+      TOKEN_ERROR: "Lỗi mã Token bảo mật",
+      UNKNOWN: "Lỗi không xác định"
+    };
+    return mapping[reason] || reason;
+  };
+
   // Add Product Form state
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -95,80 +420,95 @@ export const AdminDashboardView: React.FC = () => {
   });
 
   // Recharts carbon reduction mock dataset
-  const offsetHistory = [
+  const offsetHistory = useMemo(() => [
     { year: "2021", LamDong: 80, HaNoi: 20, DaNang: 12 },
     { year: "2022", LamDong: 150, HaNoi: 45, DaNang: 30 },
     { year: "2023", LamDong: 220, HaNoi: 95, DaNang: 65 },
     { year: "2024", LamDong: 380, HaNoi: 160, DaNang: 110 },
     { year: "2025", LamDong: 540, HaNoi: 280, DaNang: 190 },
     { year: "2026", LamDong: 720, HaNoi: 450, DaNang: 320 }
-  ];
+  ], []);
 
   // Filtering stores
-  const pendingStores = stores.filter((s) => !s.verified);
-  const approvedStores = stores.filter((s) => s.verified);
+  const pendingStores = useMemo(() => {
+    return dbPendingStores.length > 0 ? dbPendingStores : stores.filter((s) => !s.verified);
+  }, [dbPendingStores, stores]);
 
-  const filteredApprovedStores = approvedStores.filter((store) => {
-    const matchesSearch = store.name.toLowerCase().includes(storeSearch.toLowerCase()) || 
-                          store.ownerName.toLowerCase().includes(storeSearch.toLowerCase()) ||
-                          store.ownerEmail.toLowerCase().includes(storeSearch.toLowerCase());
-    const matchesCity = storeCityFilter === "" || store.city === storeCityFilter;
-    return matchesSearch && matchesCity;
-  });
+  const approvedStores = useMemo(() => stores.filter((s) => s.verified), [stores]);
 
-  // Mock users list
-  const mockUsers = [
-    { id: "usr-1", name: "Nguyễn Hoàng Long", email: "vip.customer@greenlife.vn", role: "customer", date: "2025-01-10", phone: "0905 123 456", carbonSaved: 342.5, credits: 4250, status: "Active" },
-    { id: "usr-2", name: "Lê Minh Dương", email: "nursery.partner@greenlife.vn", role: "store", date: "2024-06-15", phone: "0914 987 654", carbonSaved: 705.0, credits: 12800, status: "Active" },
-    { id: "usr-3", name: "TS. Nguyễn Thành Trung", email: "ecology.root@greenlife.vn", role: "admin", date: "2023-10-01", phone: "0988 555 777", carbonSaved: 1490.0, credits: 99999, status: "Active" },
-    { id: "usr-4", name: "Trần Xuân Sơn", email: "dalat.succulent@greenlife.vn", role: "store", date: "2025-02-18", phone: "0902 444 888", carbonSaved: 1250.0, credits: 11200, status: "Active" },
-    { id: "usr-5", name: "Phạm Thúy Hằng", email: "sontra.plant@greenlife.vn", role: "customer", date: "2025-03-22", phone: "0935 111 222", carbonSaved: 120.4, credits: 1800, status: "Blocked" }
-  ];
+  const filteredApprovedStores = useMemo(() => {
+    return approvedStores.filter((store) => {
+      const matchesSearch = store.name.toLowerCase().includes(storeSearch.toLowerCase()) || 
+                            store.ownerName.toLowerCase().includes(storeSearch.toLowerCase()) ||
+                            store.ownerEmail.toLowerCase().includes(storeSearch.toLowerCase());
+      const matchesCity = storeCityFilter === "" || store.city === storeCityFilter;
+      return matchesSearch && matchesCity;
+    });
+  }, [approvedStores, storeSearch, storeCityFilter]);
 
-  const filteredUsers = mockUsers.filter((u) => {
-    const matchesSearch = u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
-                          u.email.toLowerCase().includes(userSearch.toLowerCase());
-    const matchesRole = userRoleFilter === "" || u.role === userRoleFilter;
-    return matchesSearch && matchesRole;
-  });
+  const filteredUsers = useMemo(() => {
+    return dbUsers.filter((u) => {
+      const matchesSearch = (u.name || "").toLowerCase().includes(userSearch.toLowerCase()) || 
+                            (u.email || "").toLowerCase().includes(userSearch.toLowerCase());
+      const matchesRole = userRoleFilter === "" || u.role === userRoleFilter;
+      return matchesSearch && matchesRole;
+    });
+  }, [dbUsers, userSearch, userRoleFilter]);
 
-  const handleApproveStore = (storeId: string) => {
-    updateStoreInfo(storeId, { verified: true });
-    alert("Duyệt hồ sơ kinh doanh của Nhà Vườn thành công! Đối tác đã chính thức hoạt động trên GreenLife.");
-  };
-
-  const handleRejectStore = (storeId: string) => {
-    if (confirm("Bạn có chắc chắn muốn từ chối hồ sơ này?")) {
-      updateStoreInfo(storeId, { verified: false, name: `${stores.find(s=>s.id === storeId)?.name} (Bị từ chối)` });
-      alert("Đã từ chối hồ sơ đăng ký kinh doanh.");
+  const handleApproveStore = useCallback(async (storeId: string) => {
+    const numericId = parseInt(storeId);
+    try {
+      await AdminStoreService.approveStore(numericId);
+      toast.success("Duyệt hồ sơ kinh doanh của Nhà Vườn thành công!");
+      updateStoreInfo(storeId, { verified: true });
+      loadAllData();
+    } catch (err: any) {
+      toast.error(`Không thể duyệt hồ sơ: ${err.message || err}`);
     }
-  };
+  }, [updateStoreInfo, loadAllData]);
+
+  const handleRejectStore = useCallback(async (storeId: string) => {
+    if (!confirm("Bạn có chắc chắn muốn từ chối hồ sơ này?")) return;
+
+    const numericId = parseInt(storeId);
+    const reason = prompt("Nhập lý do từ chối:") || "Không đáp ứng tiêu chuẩn sinh thái";
+    try {
+      await AdminStoreService.rejectStore(numericId, reason);
+      toast.success("Đã từ chối hồ sơ đăng ký kinh doanh.");
+      updateStoreInfo(storeId, { verified: false, name: `${stores.find(s=>s.id === storeId)?.name} (Bị từ chối)` });
+      loadAllData();
+    } catch (err: any) {
+      toast.error(`Không thể từ chối hồ sơ: ${err.message || err}`);
+    }
+  }, [stores, updateStoreInfo, loadAllData]);
 
   // Product Filtering logic
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
-                          p.description.toLowerCase().includes(productSearch.toLowerCase());
-    const matchesCategory = productCategoryFilter === "" || p.category === productCategoryFilter;
-    
-    let matchesStock = true;
-    if (productStockFilter === "out") matchesStock = p.stock === 0;
-    else if (productStockFilter === "low") matchesStock = p.stock > 0 && p.stock < 15;
-    else if (productStockFilter === "good") matchesStock = p.stock >= 15;
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
+                            p.description.toLowerCase().includes(productSearch.toLowerCase());
+      const matchesCategory = productCategoryFilter === "" || p.category === productCategoryFilter;
+      
+      let matchesStock = true;
+      if (productStockFilter === "out") matchesStock = p.stock === 0;
+      else if (productStockFilter === "low") matchesStock = p.stock > 0 && p.stock < 15;
+      else if (productStockFilter === "good") matchesStock = p.stock >= 15;
 
-    return matchesSearch && matchesCategory && matchesStock;
-  });
+      return matchesSearch && matchesCategory && matchesStock;
+    });
+  }, [products, productSearch, productCategoryFilter, productStockFilter]);
 
   // Order Filtering logic
-  const filteredOrders = localOrders.filter((o) => {
-    const matchesSearch = o.customerName.toLowerCase().includes(orderSearch.toLowerCase()) || 
-                          o.id.toLowerCase().includes(orderSearch.toLowerCase());
-    const matchesStatus = orderStatusFilter === "" || o.status === orderStatusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredOrders = useMemo(() => {
+    return dbOrders.filter((o) => {
+      const matchesSearch = (o.customerName || "").toLowerCase().includes(orderSearch.toLowerCase()) || 
+                            (o.id || "").toLowerCase().includes(orderSearch.toLowerCase());
+      const matchesStatus = orderStatusFilter === "" || o.status === orderStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [dbOrders, orderSearch, orderStatusFilter]);
 
-
-
-  const getOrderStatusLabel = (status: string) => {
+  const getOrderStatusLabel = useCallback((status: string) => {
     switch (status) {
       case "processing": return "Đang gói hàng";
       case "shipped": return "Đang giao";
@@ -176,9 +516,9 @@ export const AdminDashboardView: React.FC = () => {
       case "cancelled": return "Đã hủy đơn";
       default: return "Chờ xử lý";
     }
-  };
+  }, []);
 
-  const getOrderStatusColor = (status: string) => {
+  const getOrderStatusColor = useCallback((status: string) => {
     switch (status) {
       case "processing": return "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30";
       case "shipped": return "bg-indigo-100 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/30";
@@ -186,44 +526,18 @@ export const AdminDashboardView: React.FC = () => {
       case "cancelled": return "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-400 border border-rose-250 dark:border-rose-900/30";
       default: return "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-250 dark:border-stone-700";
     }
-  };
-
-  // Mock product mapping for orders
-  const getOrderItems = (orderId: string) => {
-    if (orderId === "GL-9524") {
-      return [
-        { name: "Sen Đá Đô La Cẩm Thạch (Premium)", qty: 1, price: 120000, img: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=100&auto=format&fit=crop&q=80" },
-        { name: "Phân Trùn Quế Cao Cấp GreenLife Organic", qty: 2, price: 95000, img: "https://images.unsplash.com/photo-1599599810769-bcde5a160d32?w=100&auto=format&fit=crop&q=80" },
-        { name: "Chế Phẩm Sinh Học Trừ Sâu Neem Ép Lạnh", qty: 1, price: 150000, img: "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=100&auto=format&fit=crop&q=80" }
-      ];
-    }
-    if (orderId === "GL-9523") {
-      return [
-        { name: "Sen Đá Đô La Cẩm Thạch (Premium)", qty: 1, price: 120000, img: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=100&auto=format&fit=crop&q=80" }
-      ];
-    }
-    if (orderId === "GL-9522") {
-      return [
-        { name: "Cây Trầu Bà Đế Vương Xanh (Noble Green)", qty: 2, price: 320000, img: "https://images.unsplash.com/photo-1545241047-6083a3684587?w=100&auto=format&fit=crop&q=80" },
-        { name: "Cảm Biến Độ Ẩm Smart-Grow IoT", qty: 1, price: 410000, img: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=100&auto=format&fit=crop&q=80" }
-      ];
-    }
-    return [
-      { name: "Hệ Thống Đèn LED Solar Sun-Mimic 120W", qty: 1, price: 300000, img: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=100&auto=format&fit=crop&q=80" }
-    ];
-  };
-
-  const handleUpdateOrderStatus = (orderId: string, newStatus: string) => {
-    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus as any } : o));
-    setSelectedOrder(prev => prev && prev.id === orderId ? { ...prev, status: newStatus } : prev);
-  };
+  }, []);
 
 
 
-  const handleAddProductSubmit = (e: React.FormEvent) => {
+  const handleUpdateOrderStatus = useCallback((orderId: string, newStatus: string) => {
+    toast.error("Quyền cập nhật trạng thái đơn hàng thuộc về Nhà Vườn (Store Owner).");
+  }, []);
+
+  const handleAddProductSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!newProduct.name || !newProduct.price || !newProduct.stock) {
-      alert("Vui lòng nhập đầy đủ tên sản phẩm, đơn giá và số lượng kho.");
+      toast.error("Vui lòng nhập đầy đủ tên sản phẩm, đơn giá và số lượng kho.");
       return;
     }
 
@@ -242,7 +556,7 @@ export const AdminDashboardView: React.FC = () => {
     };
 
     addNewProduct(createdProd);
-    alert("Đã khởi tạo và đưa sản phẩm sinh thái mới lên sàn giao dịch thành công!");
+    toast.success("Đã khởi tạo và đưa sản phẩm sinh thái mới lên sàn giao dịch thành công!");
     setShowAddProductModal(false);
     // Reset form
     setNewProduct({
@@ -256,17 +570,32 @@ export const AdminDashboardView: React.FC = () => {
       details: ["Xuất xứ: Lâm Đồng hữu cơ", "Chuẩn đóng gói: Túi tự hủy sinh học"],
       specs: { "Chất liệu": "Bao bì Organic", "Dấu chân Carbon": "Thấp (-10kg CO2eq)" }
     });
-  };
+  }, [newProduct, addNewProduct]);
 
   // Calculated values
-  const totalEcoStores = stores.length;
-  const verifiedStoresCount = approvedStores.length;
-  const totalCarbonOffset = approvedStores.reduce((sum, s) => sum + s.carbonOffsetKg, 0);
-  const totalOrderRevenue = localOrders.filter(o => o.status !== "cancelled").reduce((sum, o) => sum + o.total, 0);
+  const statsMetrics = useMemo(() => {
+    const totalEcoStores = stores.length;
+    const verifiedStoresCount = approvedStores.length;
+    const totalCarbonOffset = approvedStores.reduce((sum, s) => sum + s.carbonOffsetKg, 0);
+    const totalOrderRevenue = dbOrders.filter(o => o.status !== "cancelled").reduce((sum, o) => sum + o.total, 0);
+    return {
+      totalEcoStores,
+      verifiedStoresCount,
+      totalCarbonOffset,
+      totalOrderRevenue
+    };
+  }, [stores, approvedStores, dbOrders]);
 
   return (
     <div className="space-y-8 pb-24 text-stone-850 dark:text-stone-100">
       
+      {fallbackWarning && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl text-xs flex items-center gap-2.5 animate-badge-pop">
+          <AlertCircle className="h-4.5 w-4.5 text-amber-500 shrink-0 animate-pulse" />
+          <span className="font-semibold">{fallbackWarning}</span>
+        </div>
+      )}
+
       {/* Intro Portal header with green luxury accent */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 p-6 rounded-3xl bg-linear-to-br from-emerald-500/5 via-stone-950/20 to-transparent border border-stone-200/50 dark:border-stone-850/40 shadow-xs backdrop-blur-md">
         <div className="space-y-2">
@@ -311,20 +640,23 @@ export const AdminDashboardView: React.FC = () => {
       
       {/* 1. OVERVIEW TAB */}
       {activeTab === "overview" && (
-        <div className="space-y-8 animate-slide-down">
+        loadingReports ? (
+          <DashboardSkeleton />
+        ) : (
+          <div className="space-y-8 animate-slide-down">
           {/* Stats metrics scoreboard */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { 
-                title: `${totalEcoStores} Nhà Vườn`, 
+                title: `${statsMetrics.totalEcoStores} Nhà Vườn`, 
                 desc: "Đại lý liên kết", 
                 icon: Store, 
-                sub: `${verifiedStoresCount} vườn đã duyệt hoạt động`,
+                sub: `${statsMetrics.verifiedStoresCount} vườn đã duyệt hoạt động`,
                 color: "from-teal-500/10 to-emerald-500/5",
                 badge: "Eco-Hub"
               },
               { 
-                title: `${totalCarbonOffset.toLocaleString("vi-VN")} kg`, 
+                title: `${statsMetrics.totalCarbonOffset.toLocaleString("vi-VN")} kg`, 
                 desc: "Carbon Khử Tích Lũy", 
                 icon: Leaf, 
                 sub: "Hấp thụ xanh toàn hệ thống",
@@ -341,7 +673,7 @@ export const AdminDashboardView: React.FC = () => {
                 badge: "Bio-Catalog"
               },
               { 
-                title: `${totalOrderRevenue.toLocaleString("vi-VN")}₫`, 
+                title: `${statsMetrics.totalOrderRevenue.toLocaleString("vi-VN")}₫`, 
                 desc: "Thanh khoản hệ thống", 
                 icon: Coins, 
                 sub: "Giao dịch phát sinh tháng này",
@@ -516,6 +848,7 @@ export const AdminDashboardView: React.FC = () => {
             </div>
           </div>
         </div>
+        )
       )}
 
       {/* 2. STORE APPROVALS */}
@@ -547,9 +880,11 @@ export const AdminDashboardView: React.FC = () => {
           {storeTab === "pending" ? (
             <div className="space-y-4">
               {pendingStores.length === 0 ? (
-                <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-12 text-center text-stone-500 text-xs rounded-3xl shadow-xs">
-                  🌱 Không có hồ sơ nhà vườn nào đang xếp hàng chờ duyệt. Hệ sinh thái đang ở trạng thái ổn định!
-                </div>
+                <EmptyState
+                  icon={Sprout}
+                  title="Không có yêu cầu duyệt"
+                  description="🌱 Không có hồ sơ nhà vườn nào đang xếp hàng chờ duyệt. Hệ sinh thái đang ở trạng thái ổn định!"
+                />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {pendingStores.map((store) => (
@@ -647,7 +982,13 @@ export const AdminDashboardView: React.FC = () => {
                   <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
                     {filteredApprovedStores.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-stone-400">Không tìm thấy nhà vườn nào khớp điều kiện tìm kiếm.</td>
+                        <td colSpan={6} className="p-8">
+                          <EmptyState
+                            icon={Sprout}
+                            title="Không tìm thấy nhà vườn"
+                            description="Không tìm thấy nhà vườn nào khớp với điều kiện tìm kiếm."
+                          />
+                        </td>
                       </tr>
                     ) : (
                       filteredApprovedStores.map((store) => (
@@ -741,7 +1082,24 @@ export const AdminDashboardView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
-                {filteredUsers.map((u, idx) => (
+                {loadingUsers ? (
+                  <tr>
+                    <td colSpan={6} className="p-4">
+                      <TableSkeleton rows={5} cols={6} />
+                    </td>
+                  </tr>
+                ) : filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8">
+                      <EmptyState
+                        icon={Users}
+                        title="Không tìm thấy thành viên"
+                        description="Không tìm thấy thành viên nào phù hợp."
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((u, idx) => (
                   <tr key={idx} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
                     <td className="p-4.5 font-semibold text-stone-900 dark:text-stone-100">
                       <div className="flex items-center gap-2.5">
@@ -788,7 +1146,8 @@ export const AdminDashboardView: React.FC = () => {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -875,7 +1234,13 @@ export const AdminDashboardView: React.FC = () => {
               <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-stone-400">Không tìm thấy sản phẩm nào phù hợp bộ lọc.</td>
+                    <td colSpan={6} className="p-8">
+                      <EmptyState
+                        icon={Sprout}
+                        title="Không tìm thấy sản phẩm"
+                        description="Không tìm thấy sản phẩm nào phù hợp bộ lọc."
+                      />
+                    </td>
                   </tr>
                 ) : (
                   filteredProducts.map((p) => {
@@ -921,7 +1286,7 @@ export const AdminDashboardView: React.FC = () => {
                         </td>
                         <td className="p-4.5 text-right">
                           <button 
-                            onClick={() => alert("Sản phẩm demo an toàn không được xóa trực tiếp tại đây.")}
+                            onClick={() => toast.error("Sản phẩm demo an toàn không được xóa trực tiếp tại đây.")}
                             className="p-2 text-stone-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg cursor-pointer transition-colors"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -995,7 +1360,13 @@ export const AdminDashboardView: React.FC = () => {
               <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
                 {filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-stone-400">Không tìm thấy mã đơn hàng phù hợp bộ lọc.</td>
+                    <td colSpan={7} className="p-8">
+                      <EmptyState
+                        icon={ShoppingBag}
+                        title="Không tìm thấy đơn hàng"
+                        description="Không tìm thấy mã đơn hàng phù hợp bộ lọc."
+                      />
+                    </td>
                   </tr>
                 ) : (
                   filteredOrders.map((o) => (
@@ -1039,6 +1410,307 @@ export const AdminDashboardView: React.FC = () => {
           currentUser={currentUser}
           refreshArticles={refreshArticles}
         />
+      )}
+
+      {/* 8. REVIEW MODERATION TAB */}
+      {activeTab === "reviews" && (
+        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down">
+          <div>
+            <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase">
+              Kiểm Duyệt Đánh Giá Khách Hàng
+            </h3>
+            <p className="text-[10px] text-stone-400">Giám sát và kiểm duyệt các đánh giá của người dùng đối với sản phẩm/nhà vườn.</p>
+          </div>
+
+          <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
+            <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
+              <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+                <tr>
+                  <th className="p-4.5">Người đánh giá</th>
+                  <th className="p-4.5">Đối tượng</th>
+                  <th className="p-4.5 text-center">Đánh giá</th>
+                  <th className="p-4.5">Bình luận</th>
+                  <th className="p-4.5 text-center">Thời gian</th>
+                  <th className="p-4.5 text-center">Trạng thái</th>
+                  <th className="p-4.5 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+                {loadingReviews ? (
+                  <tr>
+                    <td colSpan={7} className="p-4">
+                      <TableSkeleton rows={5} cols={7} />
+                    </td>
+                  </tr>
+                ) : reviewsError ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-rose-500 font-medium font-mono">
+                      {reviewsError}
+                    </td>
+                  </tr>
+                ) : dbReviews.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8">
+                      <EmptyState
+                        icon={MessageSquare}
+                        title="Không có đánh giá"
+                        description="Hệ thống chưa ghi nhận đánh giá nào."
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  dbReviews.map((r) => (
+                    <tr key={r.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
+                      <td className="p-4.5 font-semibold text-stone-900 dark:text-stone-100">
+                        {r.customerDisplayName || "Khách Hàng ẩn danh"}
+                      </td>
+                      <td className="p-4.5 font-mono text-[10px]">
+                        {r.plantId ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">Sản phẩm (ID: {r.plantId})</span>
+                        ) : r.storeId ? (
+                          <span className="text-teal-600 dark:text-teal-400">Nhà vườn (ID: {r.storeId})</span>
+                        ) : (
+                          <span className="text-stone-400">Không rõ</span>
+                        )}
+                      </td>
+                      <td className="p-4.5 text-center font-mono text-amber-500 font-bold">
+                        {"★".repeat(r.rating || 5)}{"☆".repeat(5 - (r.rating || 5))}
+                      </td>
+                      <td className="p-4.5 max-w-xs truncate" title={r.comment}>
+                        {r.comment || <em className="text-stone-400">Không có nội dung</em>}
+                      </td>
+                      <td className="p-4.5 text-center font-mono text-[10px] text-stone-450 dark:text-stone-400">
+                        {r.createdAt ? new Date(r.createdAt).toLocaleString("vi-VN") : "N/A"}
+                      </td>
+                      <td className="p-4.5 text-center font-mono">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
+                          r.status === "VISIBLE" ? "bg-emerald-950 text-emerald-400 border border-emerald-500/20" : "bg-rose-950/60 text-rose-400 border border-rose-500/20"
+                        }`}>
+                          {r.status === "VISIBLE" ? "Đang Hiện" : "Đã Ẩn"}
+                        </span>
+                      </td>
+                      <td className="p-4.5 text-right">
+                        <button
+                          disabled={moderatingId === r.id}
+                          onClick={() => handleModerateReview(r.id, r.status)}
+                          className={`py-1 px-3 rounded-lg text-[10px] font-semibold transition-all border cursor-pointer ${
+                            r.status === "VISIBLE"
+                              ? "bg-rose-950/20 hover:bg-rose-950/40 text-rose-450 border-rose-550/20"
+                              : "bg-emerald-950/20 hover:bg-emerald-950/40 text-emerald-450 border-emerald-550/20"
+                          } disabled:opacity-50`}
+                        >
+                          {moderatingId === r.id ? "Đang xử lý..." : r.status === "VISIBLE" ? "Ẩn Đánh Giá" : "Hiện Đánh Giá"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          {reviewsTotalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t border-stone-200 dark:border-stone-850">
+              <span className="text-[10px] text-stone-400">
+                Trang {reviewsPage + 1} / {reviewsTotalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  disabled={reviewsPage === 0 || loadingReviews}
+                  onClick={() => fetchReviews(reviewsPage - 1)}
+                  className="p-1 px-3 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-200 dark:disabled:hover:bg-stone-900 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-stone-250 dark:border-stone-800"
+                >
+                  Trước
+                </button>
+                <button
+                  disabled={reviewsPage >= reviewsTotalPages - 1 || loadingReviews}
+                  onClick={() => fetchReviews(reviewsPage + 1)}
+                  className="p-1 px-3 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-200 dark:disabled:hover:bg-stone-900 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-stone-250 dark:border-stone-800"
+                >
+                  Sau
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 9. SECURITY LOGIN LOGS TAB */}
+      {activeTab === "security-logs" && (
+        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-6 shadow-xs animate-slide-down">
+          
+          {/* Title Block */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5 text-amber-500" />
+                Nhật Ký Bảo Mật Hệ Thống
+              </h3>
+              <p className="text-[10px] text-stone-400">Giám sát các hoạt động đăng nhập thành công và nỗ lực truy cập thất bại.</p>
+            </div>
+          </div>
+
+          {/* Filter & Controls Panel */}
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-stone-100/50 dark:bg-stone-900/40 p-4 rounded-2xl border border-stone-250 dark:border-stone-800 text-xs">
+            {/* Mode Tabs */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setAuditFilterMode("all"); handleResetUserId(); }}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer border ${
+                  auditFilterMode === "all" && appliedUserIdFilter === null
+                    ? "bg-emerald-950 text-emerald-450 border-emerald-500/25"
+                    : "text-stone-400 hover:text-stone-250 border-stone-700/30 bg-stone-200/50 dark:bg-stone-900"
+                }`}
+              >
+                Tất cả đăng nhập
+              </button>
+              <button
+                onClick={() => { setAuditFilterMode("failed"); handleResetUserId(); }}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer border ${
+                  auditFilterMode === "failed" && appliedUserIdFilter === null
+                    ? "bg-rose-950/40 text-rose-455 border-rose-500/25"
+                    : "text-stone-400 hover:text-stone-250 border-stone-700/30 bg-stone-200/50 dark:bg-stone-900"
+                }`}
+              >
+                Nỗ lực thất bại
+              </button>
+            </div>
+
+            {/* User ID Query Input */}
+            <form onSubmit={handleSearchUserId} className="flex gap-2 items-center w-full md:w-auto">
+              <input
+                type="text"
+                placeholder="Nhập mã User ID..."
+                value={auditUserIdFilter}
+                onChange={(e) => setAuditUserIdFilter(e.target.value)}
+                className="w-full md:w-48 bg-stone-200 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 text-stone-800 dark:text-stone-250 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-500/50 text-xs"
+              />
+              <button
+                type="submit"
+                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-lg cursor-pointer transition-all shrink-0"
+              >
+                Lọc
+              </button>
+              {appliedUserIdFilter !== null && (
+                <button
+                  type="button"
+                  onClick={handleResetUserId}
+                  className="px-2.5 py-1.5 bg-stone-700 hover:bg-stone-600 text-stone-250 rounded-lg cursor-pointer transition-all shrink-0"
+                >
+                  Hủy
+                </button>
+              )}
+            </form>
+          </div>
+
+          {/* Data Table */}
+          <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
+            <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
+              <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+                <tr>
+                  <th className="p-4.5">Thời gian</th>
+                  <th className="p-4.5">Tài khoản (Email)</th>
+                  <th className="p-4.5 text-center">User ID</th>
+                  <th className="p-4.5 text-center">Sự kiện</th>
+                  <th className="p-4.5 text-center">Trạng thái</th>
+                  <th className="p-4.5">Lý do lỗi</th>
+                  <th className="p-4.5">Địa chỉ IP</th>
+                  <th className="p-4.5">Thiết bị (User Agent)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+                {auditsLoading ? (
+                  <tr>
+                    <td colSpan={8} className="p-4">
+                      <TableSkeleton rows={5} cols={8} />
+                    </td>
+                  </tr>
+                ) : auditsError ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-rose-500 font-medium font-mono">
+                      {auditsError}
+                    </td>
+                  </tr>
+                ) : audits.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-8">
+                      <EmptyState
+                        icon={ShieldAlert}
+                        title="Không có bản ghi"
+                        description="Không tìm thấy nhật ký bảo mật nào phù hợp."
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  audits.map((a) => (
+                    <tr key={a.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
+                      <td className="p-4.5 font-mono text-[10px]">
+                        {a.timestamp ? new Date(a.timestamp).toLocaleString("vi-VN") : "N/A"}
+                      </td>
+                      <td className="p-4.5 font-semibold text-stone-900 dark:text-stone-100">
+                        {a.email}
+                      </td>
+                      <td className="p-4.5 text-center font-mono text-[10px]">
+                        {a.userId !== null ? a.userId : <span className="text-stone-500">Khách</span>}
+                      </td>
+                      <td className="p-4.5 text-center font-semibold text-stone-700 dark:text-stone-400 font-mono text-[10px]">
+                        Login
+                      </td>
+                      <td className="p-4.5 text-center font-mono">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
+                          a.success 
+                            ? "bg-emerald-950 text-emerald-450 border border-emerald-500/20" 
+                            : "bg-rose-950/60 text-rose-455 border border-rose-500/20"
+                        }`}>
+                          {a.success ? "Thành công" : "Thất bại"}
+                        </span>
+                      </td>
+                      <td className="p-4.5">
+                        {a.success ? (
+                          <span className="text-stone-500">-</span>
+                        ) : (
+                          <span className="text-rose-500/80 font-medium">{getFailureReasonLabel(a.failureReason)}</span>
+                        )}
+                      </td>
+                      <td className="p-4.5 font-mono text-[10px] text-stone-500 dark:text-stone-400">
+                        {a.ipAddress || "N/A"}
+                      </td>
+                      <td className="p-4.5 max-w-[200px] truncate text-stone-500 dark:text-stone-400" title={a.userAgent}>
+                        {a.userAgent || "N/A"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          {auditsTotalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t border-stone-200 dark:border-stone-850">
+              <span className="text-[10px] text-stone-400">
+                Trang {auditsPage + 1} / {auditsTotalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  disabled={auditsPage === 0 || auditsLoading}
+                  onClick={() => fetchLoginAudits(auditsPage - 1)}
+                  className="p-1 px-3 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-200 dark:disabled:hover:bg-stone-900 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-stone-250 dark:border-stone-800"
+                >
+                  Trước
+                </button>
+                <button
+                  disabled={auditsPage >= auditsTotalPages - 1 || auditsLoading}
+                  onClick={() => fetchLoginAudits(auditsPage + 1)}
+                  className="p-1 px-3 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-200 dark:disabled:hover:bg-stone-900 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-stone-250 dark:border-stone-800"
+                >
+                  Sau
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ==================== MODALS & POPUPS SYSTEM ==================== */}
@@ -1235,7 +1907,7 @@ export const AdminDashboardView: React.FC = () => {
               <div className="flex gap-3 w-full pt-2">
                 <button
                   onClick={() => {
-                    alert("Cấp thành công chứng thư danh dự sinh thái 500 CPT Credits tặng thành viên!");
+                    toast.success("Cấp thành công chứng thư danh dự sinh thái 500 CPT Credits tặng thành viên!");
                     setSelectedUser(null);
                   }}
                   className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl text-[10px] uppercase font-mono tracking-wider transition-all cursor-pointer"
@@ -1243,13 +1915,39 @@ export const AdminDashboardView: React.FC = () => {
                   Tặng Carbon Credits
                 </button>
                 <button
-                  onClick={() => {
-                    alert(`Đã thực hiện cập nhật trạng thái hạn chế tài khoản thành viên.`);
+                  disabled={selectedUser.status === "Pending" || selectedUser.status === "Disabled"}
+                  onClick={async () => {
+                    const userId = parseInt(selectedUser.id);
+                    const isCurrentlyActive = selectedUser.status === "Active";
+                    const isLocked = selectedUser.status === "Locked" || selectedUser.status === "Blocked";
+
+                    // Removed local mock guard
+
+                    const actionWord = isCurrentlyActive ? "khóa" : "mở khóa";
+                    try {
+                      if (isCurrentlyActive) {
+                        await AdminUserService.lockUser(userId);
+                      } else if (isLocked) {
+                        await AdminUserService.unlockUser(userId);
+                      }
+                      toast.success(`Đã ${actionWord} tài khoản của ${selectedUser.name} thành công.`);
+                      loadAllData();
+                    } catch (err: any) {
+                      toast.error(`Không thể ${actionWord} tài khoản: ${err.message || err}`);
+                    }
                     setSelectedUser(null);
                   }}
-                  className="py-2.5 px-4 bg-rose-955/20 text-rose-500 hover:bg-rose-955/40 font-semibold rounded-xl text-[10px] uppercase font-mono tracking-wider transition-all border border-rose-900/30 cursor-pointer"
+                  className={`py-2.5 px-4 font-semibold rounded-xl text-[10px] uppercase font-mono tracking-wider transition-all border ${
+                    (selectedUser.status === "Pending" || selectedUser.status === "Disabled")
+                      ? "bg-stone-900/50 text-stone-500 border-stone-850 cursor-not-allowed opacity-50"
+                      : "bg-rose-955/20 text-rose-500 hover:bg-rose-955/40 border-rose-900/30 cursor-pointer"
+                  }`}
                 >
-                  {selectedUser.status === "Active" ? "Khóa acc" : "Kích hoạt"}
+                  {selectedUser.status === "Active" 
+                    ? "KHÓA TÀI KHOẢN" 
+                    : (selectedUser.status === "Locked" || selectedUser.status === "Blocked") 
+                      ? "MỞ KHÓA" 
+                      : "KÍCH HOẠT"}
                 </button>
               </div>
             </div>
@@ -1282,20 +1980,26 @@ export const AdminDashboardView: React.FC = () => {
             <div className="my-5 space-y-3.5 max-h-52 overflow-y-auto pr-1">
               <span className="text-[9px] text-stone-500 font-mono uppercase block tracking-wider">Danh mục giỏ hàng thanh khoản</span>
               
-              {getOrderItems(selectedOrder.id).map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center gap-4 bg-stone-900/40 p-2.5 rounded-xl border border-stone-850 text-xs">
-                  <div className="flex items-center gap-2.5">
-                    <img src={item.img} alt={item.name} className="w-8 h-8 object-cover rounded-md" />
-                    <div>
-                      <span className="font-semibold text-stone-200 block max-w-xs truncate">{item.name}</span>
-                      <span className="text-[10px] text-stone-500 font-mono block">Số lượng: x{item.qty}</span>
+              {loadingOrderDetails ? (
+                <div className="text-center text-xs text-stone-500 font-mono py-6 animate-pulse">Đang tải chi tiết đơn hàng...</div>
+              ) : selectedOrderDetails && selectedOrderDetails.length > 0 ? (
+                selectedOrderDetails.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center gap-4 bg-stone-900/40 p-2.5 rounded-xl border border-stone-850 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <img src={item.img} alt={item.name} className="w-8 h-8 object-cover rounded-md" />
+                      <div>
+                        <span className="font-semibold text-stone-200 block max-w-xs truncate">{item.name}</span>
+                        <span className="text-[10px] text-stone-500 font-mono block">Số lượng: x{item.qty}</span>
+                      </div>
                     </div>
+                    <span className="font-mono font-bold text-stone-100">
+                      {(item.price * item.qty).toLocaleString("vi-VN")}₫
+                    </span>
                   </div>
-                  <span className="font-mono font-bold text-stone-100">
-                    {(item.price * item.qty).toLocaleString("vi-VN")}₫
-                  </span>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-center text-xs text-stone-500 font-mono py-6">Không tìm thấy chi tiết đơn hàng.</div>
+              )}
             </div>
 
             {/* Cost breakdown metrics & CO2 offset weight */}
@@ -1318,9 +2022,9 @@ export const AdminDashboardView: React.FC = () => {
               </div>
             </div>
 
-            {/* Action Area: Update transaction routing path */}
+            {/* Action Area: Update transaction routing path (Read Only) */}
             <div className="mt-6 pt-4 border-t border-stone-850 flex flex-col gap-3">
-              <span className="text-[9px] text-stone-500 font-mono uppercase block">Điều chỉnh lộ trình giao vận</span>
+              <span className="text-[9px] text-stone-500 font-mono uppercase block">Trạng thái lộ trình giao vận (Chỉ đọc)</span>
               
               <div className="flex flex-wrap gap-2">
                 {[
@@ -1333,11 +2037,11 @@ export const AdminDashboardView: React.FC = () => {
                   return (
                     <button
                       key={st.key}
-                      onClick={() => handleUpdateOrderStatus(selectedOrder.id, st.key)}
-                      className={`py-1.5 px-3 rounded-lg text-[9px] font-mono uppercase tracking-wider font-semibold cursor-pointer transition-all ${
+                      disabled
+                      className={`py-1.5 px-3 rounded-lg text-[9px] font-mono uppercase tracking-wider font-semibold cursor-not-allowed opacity-50 transition-all ${
                         isCurrent 
-                          ? "bg-emerald-500 text-black font-bold border border-emerald-400" 
-                          : "bg-stone-900 hover:bg-stone-850 text-stone-400 border border-stone-850"
+                          ? "bg-emerald-500/20 text-emerald-450 border border-emerald-500/30" 
+                          : "bg-stone-900 text-stone-550 border border-stone-850"
                       }`}
                     >
                       {st.label}
@@ -1385,15 +2089,36 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
   const [errorMsg, setErrorMsg] = useState("");
   const [dragActive, setDragActive] = useState(false);
 
-  // Filter all posts for admin view
-  const storeArticles = useMemo(() => {
-    return blogPosts.filter((post) => {
-      const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            post.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            post.author.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
-    });
-  }, [blogPosts, searchTerm]);
+  // Admin articles local states
+  const [adminArticles, setAdminArticles] = useState<BlogPost[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [loading, setLoading] = useState(false);
+
+  const loadAdminArticles = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    try {
+      const res = await ArticleService.getAdminArticles(
+        searchTerm || undefined,
+        undefined, // category
+        statusFilter === "all" ? undefined : statusFilter,
+        0,
+        100, // retrieve more items for admin dashboard
+        signal
+      );
+      setAdminArticles(res.content);
+    } catch (err) {
+      console.error("Failed to load admin articles:", err);
+      toast.error("Không thể tải danh sách bài viết từ hệ thống.");
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, statusFilter]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadAdminArticles(controller.signal);
+    return () => controller.abort();
+  }, [loadAdminArticles]);
 
   // Handle drag and drop image upload
   const handleDrag = (e: React.DragEvent) => {
@@ -1471,8 +2196,51 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
     return products.filter(p => p.name.toLowerCase().includes(tagSearch.toLowerCase()));
   }, [products, tagSearch]);
 
+  const handlePublish = async (id: string | number) => {
+    try {
+      const res = await ArticleService.publishArticle(id);
+      if (res.success) {
+        toast.success(res.message);
+        await loadAdminArticles();
+        await refreshArticles();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Không thể xuất bản bài viết.");
+    }
+  };
+
+  const handleArchive = async (id: string | number) => {
+    try {
+      const res = await ArticleService.archiveArticle(id);
+      if (res.success) {
+        toast.success(res.message);
+        await loadAdminArticles();
+        await refreshArticles();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Không thể lưu trữ bài viết.");
+    }
+  };
+
+  const handleRevertToDraft = async (id: string | number) => {
+    try {
+      const res = await ArticleService.revertArticleToDraft(id);
+      if (res.success) {
+        toast.success(res.message);
+        await loadAdminArticles();
+        await refreshArticles();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Không thể chuyển bài viết thành bản nháp.");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser || !currentUser.id) {
+      setErrorMsg("Bạn cần đăng nhập với tư cách Quản trị viên để đăng bài viết.");
+      return;
+    }
     if (!title.trim() || !content.trim()) {
       setErrorMsg("Tiêu đề và Nội dung bài viết không được để trống.");
       return;
@@ -1488,13 +2256,18 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
         summary: summary || (content.substring(0, 120) + "..."),
         content,
         image,
-        authorId: currentUser?.id || "user-3", // default admin user id
+        authorId: currentUser.id,
         taggedProductIds: selectedProductIds
       });
 
       if (res.success) {
         setSuccessMsg(res.message);
-        await refreshArticles();
+        try {
+          await loadAdminArticles();
+          await refreshArticles();
+        } catch (fetchErr) {
+          toast.error("Đăng bài thành công nhưng không thể cập nhật danh sách hiển thị.");
+        }
         // Reset states
         setTitle("");
         setSummary("");
@@ -1574,36 +2347,61 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
         <div className="space-y-6">
           
           {/* Search bar & Filter */}
-          <div className="flex items-center gap-3 bg-stone-100 dark:bg-stone-900/50 p-2 rounded-2xl border border-stone-200 dark:border-stone-850 max-w-md">
-            <Search className="h-4 w-4 text-stone-400 shrink-0 ml-2" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm tiêu đề, tác giả..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-transparent border-none text-xs w-full text-stone-800 dark:text-stone-100 focus:outline-none placeholder-stone-500"
-            />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 bg-stone-100 dark:bg-stone-900/50 p-2 rounded-2xl border border-stone-200 dark:border-stone-850 max-w-md w-full sm:w-80">
+              <Search className="h-4 w-4 text-stone-400 shrink-0 ml-2" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm tiêu đề, tác giả..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-transparent border-none text-xs w-full text-stone-800 dark:text-stone-100 focus:outline-none placeholder-stone-500"
+              />
+            </div>
+
+            {/* Status Filter Tabs */}
+            <div className="flex flex-wrap gap-1.5 p-1 bg-stone-100 dark:bg-stone-900/50 border border-stone-200 dark:border-stone-850 rounded-2xl">
+              {[
+                { id: "all", label: "Tất cả" },
+                { id: "draft", label: "Bản nháp" },
+                { id: "published", label: "Đã xuất bản" },
+                { id: "archived", label: "Lưu trữ" }
+              ].map((tab) => {
+                const isActive = statusFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setStatusFilter(tab.id)}
+                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all tracking-wider cursor-pointer ${
+                      isActive
+                        ? "bg-emerald-500 text-black font-extrabold shadow-sm"
+                        : "text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {storeArticles.length === 0 ? (
-            <div className="py-16 text-center bg-stone-100 dark:bg-stone-900/20 border border-dashed border-stone-250 dark:border-stone-850 rounded-3xl space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-stone-800 flex items-center justify-center text-stone-550">
-                <BookOpen className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-stone-700 dark:text-stone-300 font-semibold text-sm">Chưa có bài viết cẩm nang nào</p>
-                <p className="text-stone-500 dark:text-stone-550 text-xs">Biên soạn cẩm nang đầu tiên dưới quyền Ban Biên Tập GreenLife để cung cấp kiến thức thực nghiệm xanh!</p>
-              </div>
-              <button
-                onClick={() => setIsCreating(true)}
-                className="px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-450 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1"
-              >
-                <Plus className="h-3.5 w-3.5" /> Bắt đầu viết bài
-              </button>
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <Clock className="animate-spin h-6 w-6 text-emerald-500" />
             </div>
+          ) : adminArticles.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="Chưa có bài viết cẩm nang nào"
+              description="Biên soạn cẩm nang đầu tiên dưới quyền Ban Biên Tập GreenLife để cung cấp kiến thức thực nghiệm xanh!"
+              action={{
+                label: "Bắt đầu viết bài",
+                onClick: () => setIsCreating(true)
+              }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {storeArticles.map((post) => {
+              {adminArticles.map((post) => {
                 const categoryNames = {
                   "plant-care": "Y Học Bệnh Cây",
                   "urban-farming": "Nông Nghiệp Đô Thị",
@@ -1626,6 +2424,17 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
                       <span className={`absolute top-3 left-3 px-2 py-0.5 rounded text-[8px] font-bold tracking-wider border font-mono uppercase ${categoryColors[post.category] || "bg-stone-700 text-stone-300"}`}>
                         {categoryNames[post.category] || post.category}
                       </span>
+                      {post.status && (
+                        <span className={`absolute top-3 right-3 px-2 py-0.5 rounded text-[8px] font-bold tracking-wider border font-mono uppercase ${
+                          post.status === "PUBLISHED" 
+                            ? "bg-emerald-500/10 text-emerald-450 border-emerald-500/20" 
+                            : post.status === "DRAFT"
+                            ? "bg-amber-500/10 text-amber-455 border-amber-500/20"
+                            : "bg-stone-500/10 text-stone-400 border-stone-500/20"
+                        }`}>
+                          {post.status === "PUBLISHED" ? "Đã xuất bản" : post.status === "DRAFT" ? "Bản nháp" : "Lưu trữ"}
+                        </span>
+                      )}
                     </div>
 
                     <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
@@ -1667,6 +2476,57 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
                             <Eye className="w-3.5 h-3.5 text-stone-450" /> {post.views || 0}
                           </span>
                         </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2 border-t border-stone-200 dark:border-stone-850/40">
+                        {(!post.status || post.status === "DRAFT") && (
+                          <>
+                            <button
+                              onClick={() => handlePublish(post.id)}
+                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-emerald-500/20 bg-emerald-500/10 text-emerald-450 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                            >
+                              Xuất bản
+                            </button>
+                            <button
+                              onClick={() => handleArchive(post.id)}
+                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-stone-500/20 bg-stone-500/10 text-stone-400 hover:bg-stone-500/20 transition-all cursor-pointer"
+                            >
+                              Lưu trữ
+                            </button>
+                          </>
+                        )}
+                        {post.status === "PUBLISHED" && (
+                          <>
+                            <button
+                              onClick={() => handleRevertToDraft(post.id)}
+                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-amber-500/20 bg-amber-500/10 text-amber-455 hover:bg-amber-500/20 transition-all cursor-pointer"
+                            >
+                              Hạ nháp
+                            </button>
+                            <button
+                              onClick={() => handleArchive(post.id)}
+                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-stone-500/20 bg-stone-500/10 text-stone-400 hover:bg-stone-500/20 transition-all cursor-pointer"
+                            >
+                              Lưu trữ
+                            </button>
+                          </>
+                        )}
+                        {post.status === "ARCHIVED" && (
+                          <>
+                            <button
+                              onClick={() => handleRevertToDraft(post.id)}
+                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-amber-500/20 bg-amber-500/10 text-amber-455 hover:bg-amber-500/20 transition-all cursor-pointer"
+                            >
+                              Khôi phục về nháp
+                            </button>
+                            <button
+                              onClick={() => handlePublish(post.id)}
+                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-emerald-500/20 bg-emerald-500/10 text-emerald-450 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                            >
+                              Xuất bản lại
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1838,7 +2698,11 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
 
                 <div className="overflow-y-auto space-y-2 pr-1 flex-1 py-1">
                   {filteredTaggableProducts.length === 0 ? (
-                    <p className="text-[10px] text-stone-500 font-mono text-center py-4">Không có sản phẩm nào phù hợp.</p>
+                    <EmptyState
+                      icon={ShoppingBag}
+                      title="Không tìm thấy sản phẩm"
+                      description="Không có sản phẩm nào phù hợp."
+                    />
                   ) : (
                     filteredTaggableProducts.map((prod) => {
                       const isChecked = selectedProductIds.includes(prod.id);

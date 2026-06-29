@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { logger } from "../../utils/logger";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { 
   Landmark, 
@@ -29,12 +30,32 @@ import {
   Tag,
   ChevronLeft,
   UploadCloud,
-  BookOpen
+  BookOpen,
+  X
 } from "lucide-react";
 import { StoreOrder, Product, BlogPost } from "../../types";
-import { INITIAL_ORDERS } from "../../data";
 import { useAppContext } from "../../context/AppContext";
+import { OrderService } from "../../services/orderService";
 import { ArticleService } from "../../services/articleService";
+import { CategoryService } from "../../services/categoryService";
+import { ReviewService, ReviewResponse, RatingSummaryResponse } from "../../services/reviewService";
+import { Star, MessageSquare } from "lucide-react";
+import { AuthService } from "../../services/authService";
+import { HttpClient } from "../../services/httpClient";
+import toast from "react-hot-toast";
+import { DashboardSkeleton, ListSkeleton } from "../common/Skeleton";
+import { EmptyState } from "../common/EmptyState";
+
+const getAuthToken = (): string | null => {
+  return AuthService.getAccessToken();
+};
+
+const getCustomerInitials = (name: string): string => {
+  if (!name) return "KH";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
 interface StoreDashboardViewProps {
   products: Product[];
@@ -45,14 +66,21 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
   products,
   onAddProduct,
 }) => {
-  const { stores, updateStoreInfo, currentUser, storeActiveTab, setStoreActiveTab, blogPosts, refreshArticles } = useAppContext();
+  const { stores, updateStoreInfo, currentUser, storeActiveTab, setStoreActiveTab, blogPosts, refreshArticles, loadProducts } = useAppContext();
 
   // Active tab state connected directly to global context
   const activeTab = storeActiveTab;
   const setActiveTab = setStoreActiveTab;
 
-  // Local state for orders to simulate live status updates in the portal
-  const [localOrders, setLocalOrders] = useState<StoreOrder[]>(INITIAL_ORDERS);
+  // Local state for orders fetched from backend
+  const [orders, setOrders] = useState<StoreOrder[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [ordersError, setOrdersError] = useState("");
+
+  // Detailed Order states
+  const [selectedOrder, setSelectedOrder] = useState<StoreOrder | null>(null);
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState<StoreOrder["itemsList"] | null>(null);
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
 
   // Form states for listing new product
   const [productName, setProductName] = useState("");
@@ -68,26 +96,102 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
   const [orderSearch, setOrderSearch] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("");
 
-  // Identify the specific store belonging to this store owner
-  const myStore = useMemo(() => {
-    return stores.find((s) => s.ownerEmail === currentUser?.email) || stores[0] || {
-      id: "store-3",
-      name: "Nhà Vườn Thảo Mộc Đô Thị GreenLife",
-      ownerName: currentUser?.name || "Đối tác Nhà Vườn",
-      ownerEmail: currentUser?.email || "nursery.partner@greenlife.vn",
-      rating: 5.0,
-      avatar: "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=150",
-      bannerImage: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=1000",
-      address: "120 Hoàng Diệu, Hải Châu, Đà Nẵng, Việt Nam",
-      workingHours: "08:00 - 18:00 (Hằng ngày)",
-      carbonOffsetKg: 705,
-      productsCount: 15,
-      verified: true,
-      city: "Đà Nẵng",
-      district: "Hải Châu",
-      serviceArea: "Hải Châu, Đà Nẵng"
+  const [myStore, setMyStore] = useState<any>(null);
+  const [loadingStore, setLoadingStore] = useState(true);
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+  const [rawProducts, setRawProducts] = useState<any[]>([]);
+
+  const fetchStoreOrders = useCallback(async (signal?: AbortSignal) => {
+    setLoadingOrders(true);
+    setOrdersError("");
+    try {
+      const data = await OrderService.getStoreOwnerOrders(signal);
+      setOrders(data);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        logger.error("Lỗi khi tải đơn hàng cửa hàng:", err);
+        setOrdersError("Không thể tải danh sách đơn hàng từ hệ thống.");
+      }
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchStoreProfile = async () => {
+      const token = getAuthToken();
+      if (!token) {
+        setLoadingStore(false);
+        return;
+      }
+      try {
+        const data = await HttpClient.get<any>("/api/store/profile", { signal: controller.signal });
+        if (data) {
+          setMyStore({
+            id: String(data.id),
+            name: data.name,
+            ownerName: data.ownerName,
+            ownerEmail: currentUser?.email || "",
+            rating: 5.0,
+            avatar: data.logoUrl || currentUser?.avatar || "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=150",
+            bannerImage: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=1000",
+            address: data.address,
+            workingHours: "08:00 - 18:00 (Hằng ngày)",
+            carbonOffsetKg: 0,
+            productsCount: 0,
+            verified: data.status === "APPROVED",
+            city: data.city || "",
+            district: data.district || "",
+            serviceArea: "Bán kính 10km"
+          });
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          logger.error("Lỗi khi tải thông tin cửa hàng:", err);
+        }
+      } finally {
+        setLoadingStore(false);
+      }
     };
-  }, [stores, currentUser]);
+
+    const fetchCategories = async () => {
+      try {
+        const cats = await CategoryService.getCategories(controller.signal);
+        setCategoriesList(cats);
+      } catch (e: any) {
+        if (e.name !== "AbortError") {
+          logger.error("Lỗi tải danh mục:", e);
+        }
+      }
+    };
+
+    const fetchRawProducts = async () => {
+      try {
+        const data = await HttpClient.get<any>("/api/products?size=100", { signal: controller.signal });
+        if (data && data.content) {
+          setRawProducts(data.content);
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          logger.error("Lỗi khi tải danh sách sản phẩm thô:", err);
+        }
+      }
+    };
+
+    fetchStoreProfile();
+    fetchCategories();
+    fetchRawProducts();
+    fetchStoreOrders(controller.signal);
+    if (loadProducts) {
+      loadProducts("", "", controller.signal);
+    }
+
+    return () => {
+      controller.abort();
+    };
+  }, [currentUser?.id, fetchStoreOrders, loadProducts]);
 
   // Form states for Store settings
   const [storeName, setStoreName] = useState(myStore?.name || "");
@@ -112,7 +216,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
     }
   }, [myStore]);
 
-  const handleStoreSettingsSubmit = (e: React.FormEvent) => {
+  const handleStoreSettingsSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!myStore) return;
 
@@ -128,9 +232,9 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
     setSettingsSuccess(true);
     setTimeout(() => setSettingsSuccess(false), 3000);
-  };
+  }, [myStore, storeName, storeCity, storeDistrict, storeAddress, storeServiceArea, storeLat, storeLng, updateStoreInfo]);
 
-  const handleAddNewProductSubmit = (e: React.FormEvent) => {
+  const handleAddNewProductSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!productName.trim()) return;
 
@@ -148,7 +252,8 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
         "Nguồn gốc": myStore?.name || "Nhà Vườn Thảo Mộc Đô Thị GreenLife",
         "Dấu chân carbon": "-18kg CO2eq"
       },
-      stock: productStock
+      stock: productStock,
+      shopId: myStore?.id
     };
 
     onAddProduct(newProd);
@@ -158,17 +263,56 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
     setProductDescription("");
     setProductSuccess(true);
     setTimeout(() => setProductSuccess(false), 4000);
-  };
+  }, [productName, productCategory, productPrice, productDescription, myStore?.name, myStore?.id, productStock, onAddProduct]);
 
-  const handleUpdateOrderStatus = (orderId: string, newStatus: "processing" | "shipped" | "completed") => {
-    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-    alert(`Đã cập nhật trạng thái đơn hàng ${orderId} sang: ${
-      newStatus === "processing" ? "Đang Gói Hàng" : newStatus === "shipped" ? "Đang Giao Hàng" : "Đã Hoàn Tất"
-    }`);
-  };
+  const handleUpdateOrderStatus = useCallback(async (orderId: string, newStatus: "processing" | "shipped" | "completed" | "cancelled") => {
+    let backendStatus = "";
+    if (newStatus === "processing") backendStatus = "CONFIRMED";
+    else if (newStatus === "shipped") backendStatus = "SHIPPING";
+    else if (newStatus === "completed") backendStatus = "DELIVERED";
+    else if (newStatus === "cancelled") backendStatus = "CANCELLED";
+
+    if (!backendStatus) return;
+
+    try {
+      await OrderService.updateStoreOwnerOrderStatus(orderId, backendStatus);
+      toast.success(`Đã cập nhật trạng thái đơn hàng ${orderId} thành công.`);
+      
+      // Reload list
+      await fetchStoreOrders();
+
+      // If drawer is open, update selectedOrder status
+      setSelectedOrder(prev => {
+        if (prev && prev.id === orderId) {
+          return { ...prev, status: newStatus, backendStatus: backendStatus };
+        }
+        return prev;
+      });
+    } catch (err: any) {
+      logger.error("Lỗi cập nhật trạng thái đơn hàng:", err);
+      toast.error(err.message || "Không thể cập nhật trạng thái đơn hàng.");
+    }
+  }, [fetchStoreOrders]);
+
+  const handleOpenOrderDetail = useCallback(async (order: StoreOrder) => {
+    setSelectedOrder(order);
+    setLoadingOrderDetails(true);
+    setSelectedOrderDetails(null);
+    try {
+      const detail = await OrderService.getStoreOwnerOrderDetail(order.id);
+      if (detail && detail.itemsList) {
+        setSelectedOrderDetails(detail.itemsList);
+      }
+    } catch (err: any) {
+      logger.error("Lỗi khi tải chi tiết đơn hàng:", err);
+      toast.error("Không thể tải chi tiết đơn hàng.");
+    } finally {
+      setLoadingOrderDetails(false);
+    }
+  }, []);
 
   // Recharts Sales performance weekly dataset
-  const chartData = [
+  const chartData = useMemo(() => [
     { name: "Thứ 2", DoanhThuVnd: 1200000, CarbonOffsetKg: 45 },
     { name: "Thứ 3", DoanhThuVnd: 1850000, CarbonOffsetKg: 60 },
     { name: "Thứ 4", DoanhThuVnd: 2400000, CarbonOffsetKg: 85 },
@@ -176,29 +320,46 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
     { name: "Thứ 6", DoanhThuVnd: 3800000, CarbonOffsetKg: 120 },
     { name: "Thứ 7", DoanhThuVnd: 4200000, CarbonOffsetKg: 150 },
     { name: "Chủ Nhật", DoanhThuVnd: 5120000, CarbonOffsetKg: 195 }
-  ];
+  ], []);
 
   // Filtering products
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
-                          p.description.toLowerCase().includes(productSearch.toLowerCase());
-    const matchesCategory = productCategoryFilter === "" || p.category === productCategoryFilter;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
+                            p.description.toLowerCase().includes(productSearch.toLowerCase());
+      const matchesCategory = productCategoryFilter === "" || p.category === productCategoryFilter;
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, productSearch, productCategoryFilter]);
 
   // Filter products owned by this store specifically
-  const myProducts = filteredProducts.filter((p) => p.specs && p.specs["Nguồn gốc"] === myStore?.name);
-  const otherProducts = filteredProducts.filter((p) => !p.specs || p.specs["Nguồn gốc"] !== myStore?.name);
+  const myProducts = useMemo(() => {
+    return filteredProducts.filter((p) => String(p.shopId) === String(myStore?.id));
+  }, [filteredProducts, myStore?.id]);
+
+  const otherProducts = useMemo(() => {
+    return filteredProducts.filter((p) => String(p.shopId) !== String(myStore?.id));
+  }, [filteredProducts, myStore?.id]);
+
+  const activeProductCount = useMemo(() => {
+    return myProducts.filter((p) => {
+      const raw = rawProducts.find((rp) => String(rp.id) === String(p.id));
+      const status = raw ? raw.status : (p as any).status;
+      return status === "ACTIVE" || !status;
+    }).length;
+  }, [myProducts, rawProducts]);
 
   // Filtering orders
-  const filteredOrders = localOrders.filter((o) => {
-    const matchesSearch = o.customerName.toLowerCase().includes(orderSearch.toLowerCase()) || 
-                          o.id.toLowerCase().includes(orderSearch.toLowerCase());
-    const matchesStatus = orderStatusFilter === "" || o.status === orderStatusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => {
+      const matchesSearch = o.customerName.toLowerCase().includes(orderSearch.toLowerCase()) || 
+                            o.id.toLowerCase().includes(orderSearch.toLowerCase());
+      const matchesStatus = orderStatusFilter === "" || o.status === orderStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [orders, orderSearch, orderStatusFilter]);
 
-  const getOrderStatusLabel = (status: string) => {
+  const getOrderStatusLabel = useCallback((status: string) => {
     switch (status) {
       case "processing": return "Đang đóng gói";
       case "shipped": return "Đang vận chuyển";
@@ -206,9 +367,9 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       case "cancelled": return "Đã hủy đơn";
       default: return "Chờ xử lý";
     }
-  };
+  }, []);
 
-  const getOrderStatusColor = (status: string) => {
+  const getOrderStatusColor = useCallback((status: string) => {
     switch (status) {
       case "processing": return "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30";
       case "shipped": return "bg-indigo-100 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/30";
@@ -216,7 +377,85 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       case "cancelled": return "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-400 border border-rose-250 dark:border-rose-900/30";
       default: return "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-250 dark:border-stone-700";
     }
-  };
+  }, []);
+
+  const totalRevenue = useMemo(() => {
+    return orders
+      .filter(o => o.backendStatus === "DELIVERED")
+      .reduce((sum, o) => sum + o.total, 0);
+  }, [orders]);
+
+  const newOrdersCount = useMemo(() => orders.filter(o => o.status === "pending").length, [orders]);
+  const shippingOrdersCount = useMemo(() => orders.filter(o => o.status === "processing" || o.status === "shipped").length, [orders]);
+  const completedOrdersCount = useMemo(() => orders.filter(o => o.status === "completed").length, [orders]);
+
+  const statsMetrics = useMemo(() => [
+    { 
+      title: `${totalRevenue.toLocaleString("vi-VN")}₫`, 
+      desc: "Doanh Thu Hoàn Tất", 
+      icon: Landmark, 
+      color: "text-emerald-500 dark:text-emerald-450",
+      bg: "bg-emerald-500/5 dark:bg-emerald-500/5 border-emerald-500/20",
+      badge: "Doanh Thu"
+    },
+    { 
+      title: `${newOrdersCount} đơn`, 
+      desc: "Chờ Tiếp Nhận", 
+      icon: Clock, 
+      color: "text-amber-500 dark:text-amber-455",
+      bg: "bg-amber-500/5 dark:bg-amber-500/5 border-amber-500/20",
+      badge: "Đơn Mới"
+    },
+    { 
+      title: `${shippingOrdersCount} đơn`, 
+      desc: "Đang Vận Chuyển", 
+      icon: Truck, 
+      color: "text-indigo-500 dark:text-indigo-455",
+      bg: "bg-indigo-500/5 dark:bg-indigo-500/5 border-indigo-500/20",
+      badge: "Đang Giao"
+    },
+    { 
+      title: `${completedOrdersCount} đơn`, 
+      desc: "Giao Thành Công", 
+      icon: CheckCircle2, 
+      color: "text-blue-500 dark:text-blue-450",
+      bg: "bg-blue-500/5 dark:bg-blue-500/5 border-blue-500/20",
+      badge: "Đã Giao"
+    },
+    { 
+      title: `${myProducts.length} sản phẩm`, 
+      desc: "Tổng Sản Phẩm", 
+      icon: Sprout, 
+      color: "text-teal-500 dark:text-teal-450",
+      bg: "bg-teal-500/5 dark:bg-teal-500/5 border-teal-500/20",
+      badge: "Sản Phẩm"
+    },
+    { 
+      title: `${myStore?.rating || 5.0} ★`, 
+      desc: "Đánh Giá Cửa Hàng", 
+      icon: Star, 
+      color: "text-yellow-500 dark:text-yellow-450",
+      bg: "bg-yellow-500/5 dark:bg-yellow-500/5 border-yellow-500/20",
+      badge: "Đánh Giá"
+    }
+  ], [totalRevenue, newOrdersCount, shippingOrdersCount, completedOrdersCount, myProducts.length, myStore?.rating]);
+
+  if (loadingStore) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <DashboardSkeleton />
+      </div>
+    );
+  }
+
+  if (!myStore) {
+    return (
+      <div className="max-w-md mx-auto text-center py-16 bg-stone-900 border border-stone-800 rounded-3xl space-y-4 my-12 text-xs">
+        <p className="text-stone-300 font-semibold text-sm">Bạn chưa đăng ký hồ sơ cửa hàng.</p>
+        <p className="text-stone-500 text-xs px-6">Vui lòng đăng ký thông tin đối tác nhà vườn để bắt đầu kinh doanh.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-24 text-stone-850 dark:text-stone-100">
@@ -258,6 +497,57 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
           </div>
         </div>
       </div>
+      {/* Quick Actions Area */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-3xl bg-linear-to-br from-emerald-500/5 via-stone-950/20 to-transparent border border-stone-200/50 dark:border-stone-850/40 shadow-xs backdrop-blur-md">
+        <button
+          onClick={() => setActiveTab("orders")}
+          className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+        >
+          <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
+            <Inbox className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Đơn Hàng Mới</span>
+            <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Xử lý yêu cầu mua</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("products")}
+          className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+        >
+          <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
+            <Sprout className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Kho Sản Phẩm</span>
+            <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Danh mục và tồn kho</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("reviews")}
+          className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+        >
+          <div className="p-2 rounded-xl bg-purple-500/10 text-purple-500">
+            <MessageSquare className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Đánh Giá</span>
+            <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Khách hàng phản hồi</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("settings")}
+          className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+        >
+          <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
+            <Settings className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Cấu Hình Vườn</span>
+            <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Địa chỉ & vị trí GIS</span>
+          </div>
+        </button>
+      </div>
 
       {/* RENDER ACTIVE TAB VIEW */}
 
@@ -265,59 +555,24 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       {activeTab === "overview" && (
         <div className="space-y-8 animate-slide-down">
           {/* Metrics score row */}
-          <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              { 
-                title: "20,070,000₫", 
-                desc: "Tổng Doanh Thu Tuần", 
-                icon: Landmark, 
-                sub: "+15.2% so với tháng trước",
-                color: "from-teal-500/10 to-emerald-500/5",
-                badge: "Revenue Flow"
-              },
-              { 
-                title: `${myStore?.carbonOffsetKg || 705} kg CO₂`, 
-                desc: "Carbon Đã Tích Lũy Bù Đắp", 
-                icon: Sprout, 
-                sub: "Được quy đổi thăng hạng chứng chỉ",
-                color: "from-emerald-500/10 to-lime-500/5",
-                badge: "CO2 Offset",
-                trend: "+12.4%"
-              },
-              { 
-                title: `${myProducts.length || 3} Dòng Cây`, 
-                desc: "Sản Phẩm Niêm Yết Của Vườn", 
-                icon: ShoppingBag, 
-                sub: "100% đạt chuẩn Eco-Score > 85%",
-                color: "from-green-500/10 to-teal-500/5",
-                badge: "Bio-Catalog"
-              }
-            ].map((stat, idx) => {
+          <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {statsMetrics.map((stat, idx) => {
               const Icon = stat.icon;
               return (
-                <div key={idx} className="group bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-5 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+                <div key={idx} className={`group bg-stone-50 dark:bg-stone-950 border ${stat.bg} p-4.5 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300`}>
                   <div className="flex justify-between items-start">
                     <span className="px-2 py-0.5 rounded text-[8px] bg-stone-200 dark:bg-stone-900 text-stone-500 dark:text-stone-400 font-mono tracking-wider font-bold">
                       {stat.badge}
                     </span>
-                    <div className="p-2 rounded-lg bg-stone-200/50 dark:bg-stone-900 text-stone-600 dark:text-stone-400 group-hover:text-emerald-500 group-hover:bg-emerald-500/10 transition-colors">
+                    <div className={`p-2 rounded-lg bg-stone-205 dark:bg-stone-900/60 ${stat.color} transition-colors`}>
                       <Icon className="h-4.5 w-4.5" />
                     </div>
                   </div>
                   <div className="mt-4">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold font-display text-stone-900 dark:text-stone-100 tracking-tight">{stat.title}</span>
-                      {stat.trend && (
-                        <span className="text-[10px] text-emerald-500 font-bold flex items-center font-mono">
-                          <TrendingUp className="h-3 w-3 inline mr-0.5" />
-                          {stat.trend}
-                        </span>
-                      )}
+                      <span className="text-xl font-bold font-display text-stone-900 dark:text-stone-100 tracking-tight">{stat.title}</span>
                     </div>
-                    <span className="text-xs text-stone-400 dark:text-stone-500 mt-0.5 block">{stat.desc}</span>
-                  </div>
-                  <div className="border-t border-stone-200/60 dark:border-stone-850/50 mt-4 pt-2.5 flex items-center justify-between text-[10px] text-stone-500 dark:text-stone-400 font-mono">
-                    <span>{stat.sub}</span>
+                    <span className="text-[10px] text-stone-400 dark:text-stone-500 mt-0.5 block">{stat.desc}</span>
                   </div>
                 </div>
               );
@@ -394,81 +649,224 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                 <select
                   value={orderStatusFilter}
                   onChange={(e) => setOrderStatusFilter(e.target.value)}
-                  className="w-full sm:w-48 pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono cursor-pointer"
+                  className="w-full sm:w-48 pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-850 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono cursor-pointer"
                 >
                   <option value="">Tất cả trạng thái</option>
+                  <option value="pending">Chờ xử lý</option>
                   <option value="processing">Đang đóng gói</option>
                   <option value="shipped">Đang vận chuyển</option>
                   <option value="completed">Đã hoàn thành</option>
+                  <option value="cancelled">Đã hủy đơn</option>
                 </select>
               </div>
             </div>
           </div>
-
-          <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
-            <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-              <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-880 text-stone-500 uppercase font-mono text-[9px]">
-                <tr>
-                  <th className="p-4.5">Mã Đơn</th>
-                  <th className="p-4.5">Khách Hàng</th>
-                  <th className="p-4.5">Ngày Mua</th>
-                  <th className="p-4.5 text-center">Số Món</th>
-                  <th className="p-4.5 text-center">Tổng Giá Trị</th>
-                  <th className="p-4.5">Trạng Thái</th>
-                  <th className="p-4.5 text-right">Điều Phối Hoạt Động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+          
+          {loadingOrders ? (
+            <div className="p-8"><ListSkeleton count={4} /></div>
+          ) : ordersError ? (
+            <div className="p-8 text-center text-rose-500 font-medium font-mono">{ordersError}</div>
+          ) : (
+            <>
+              {/* Mobile View: Card-based responsive list (visible on screens < md) */}
+              <div className="block md:hidden space-y-4">
                 {filteredOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-stone-400">Không tìm thấy đơn hàng nào khớp điều kiện tìm kiếm.</td>
-                  </tr>
+                  <EmptyState
+                    icon={ShoppingBag}
+                    title="Không tìm thấy đơn hàng"
+                    description="Không tìm thấy đơn hàng nào khớp với điều kiện tìm kiếm."
+                  />
                 ) : (
                   filteredOrders.map((ord) => (
-                    <tr key={ord.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
-                      <td className="p-4.5 font-mono font-bold text-stone-900 dark:text-stone-100">{ord.id}</td>
-                      <td className="p-4.5">{ord.customerName}</td>
-                      <td className="p-4.5 font-mono">{ord.date}</td>
-                      <td className="p-4.5 text-center font-mono">{ord.itemsCount}</td>
-                      <td className="p-4.5 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                        {ord.total.toLocaleString("vi-VN")}₫
-                      </td>
-                      <td className="p-4.5">
+                    <div key={ord.id} className="bg-stone-55 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-850 p-4.5 rounded-2xl space-y-3.5 shadow-xs">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <span className="text-[9px] text-stone-400 font-mono block">MÃ ĐƠN HÀNG</span>
+                          <span className="font-mono font-bold text-stone-900 dark:text-stone-100 text-xs">{ord.id}</span>
+                        </div>
                         <span className={`inline-flex px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${getOrderStatusColor(ord.status)}`}>
                           {getOrderStatusLabel(ord.status)}
                         </span>
-                      </td>
-                      <td className="p-4.5 text-right">
-                        <div className="flex gap-1.5 justify-end">
-                          {ord.status === "processing" && (
-                            <button
-                              onClick={() => handleUpdateOrderStatus(ord.id, "shipped")}
-                              className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-black font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
-                              title="Chuyển sang vận chuyển"
-                            >
-                              <Truck className="h-3 w-3" /> Giao Hàng
-                            </button>
-                          )}
-                          {ord.status === "shipped" && (
-                            <button
-                              onClick={() => handleUpdateOrderStatus(ord.id, "completed")}
-                              className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
-                              title="Hoàn tất đơn hàng"
-                            >
-                              <Check className="h-3 w-3" /> Hoàn Tất
-                            </button>
-                          )}
-                          {ord.status === "completed" && (
-                            <span className="text-[10px] text-stone-400 dark:text-stone-500 font-mono italic">Đã giao thành công</span>
-                          )}
+                      </div>
+
+                      <div className="flex items-center gap-2.5 pt-2.5 border-t border-stone-200/50 dark:border-stone-850/40">
+                        <div className="w-8 h-8 rounded-full bg-linear-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-xs shrink-0 select-none">
+                          {getCustomerInitials(ord.customerName)}
                         </div>
-                      </td>
-                    </tr>
+                        <div>
+                          <span className="text-[9px] text-stone-450 dark:text-stone-500 block font-mono">Khách hàng</span>
+                          <span className="text-xs font-semibold text-stone-900 dark:text-stone-100">{ord.customerName}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 py-1 text-[10px] font-mono text-stone-500">
+                        <div>
+                          <span className="block text-[8px] uppercase text-stone-400">Ngày đặt</span>
+                          <span className="font-medium text-stone-750 dark:text-stone-300">{ord.date}</span>
+                        </div>
+                        <div className="text-center">
+                          <span className="block text-[8px] uppercase text-stone-400">Số món</span>
+                          <span className="font-semibold text-stone-750 dark:text-stone-300">{ord.itemsCount} món</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="block text-[8px] uppercase text-stone-400">Tổng tiền</span>
+                          <span className="font-bold text-emerald-650 dark:text-emerald-400">{ord.total.toLocaleString("vi-VN")}₫</span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-2.5 border-t border-stone-200/50 dark:border-stone-850/40 justify-end">
+                        <button
+                          onClick={() => handleOpenOrderDetail(ord)}
+                          className="px-2.5 py-1.5 bg-stone-200 dark:bg-stone-800 hover:bg-stone-300 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> Chi Tiết
+                        </button>
+                        {ord.status === "pending" && (
+                          <>
+                            <button
+                              onClick={() => handleUpdateOrderStatus(ord.id, "processing")}
+                              className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-450 text-black font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                            >
+                              <Check className="w-3.5 h-3.5" /> Nhận
+                            </button>
+                            <button
+                              onClick={() => handleUpdateOrderStatus(ord.id, "cancelled")}
+                              className="px-2.5 py-1.5 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 font-bold rounded-lg border border-rose-500/25 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Hủy
+                            </button>
+                          </>
+                        )}
+                        {ord.status === "processing" && (
+                          <button
+                            onClick={() => handleUpdateOrderStatus(ord.id, "shipped")}
+                            className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-black font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                          >
+                            <Truck className="w-3.5 h-3.5" /> Giao
+                          </button>
+                        )}
+                        {ord.status === "shipped" && (
+                          <button
+                            onClick={() => handleUpdateOrderStatus(ord.id, "completed")}
+                            className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-450 text-black font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                          >
+                            <Check className="w-3.5 h-3.5" /> Hoàn Tất
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+
+              {/* Desktop View: Polished table (visible on screens >= md) */}
+              <div className="hidden md:block overflow-x-auto text-xs rounded-2xl border border-stone-200 dark:border-stone-850">
+                <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
+                  <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-850 text-stone-500 uppercase font-mono text-[9px]">
+                    <tr>
+                      <th className="p-4.5">Mã Đơn</th>
+                      <th className="p-4.5">Khách Hàng</th>
+                      <th className="p-4.5">Ngày Mua</th>
+                      <th className="p-4.5 text-center">Số Món</th>
+                      <th className="p-4.5 text-center">Tổng Giá Trị</th>
+                      <th className="p-4.5">Trạng Thái</th>
+                      <th className="p-4.5 text-right">Điều Phối Hoạt Động</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+                    {filteredOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8">
+                          <EmptyState
+                            icon={ShoppingBag}
+                            title="Không tìm thấy đơn hàng"
+                            description="Không tìm thấy đơn hàng nào khớp với điều kiện tìm kiếm."
+                          />
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredOrders.map((ord) => (
+                        <tr key={ord.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
+                          <td className="p-4.5 font-mono font-bold text-stone-900 dark:text-stone-100">{ord.id}</td>
+                          <td className="p-4.5">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-full bg-linear-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-[10px] shrink-0 select-none">
+                                {getCustomerInitials(ord.customerName)}
+                              </div>
+                              <span className="font-semibold text-stone-900 dark:text-stone-100">{ord.customerName}</span>
+                            </div>
+                          </td>
+                          <td className="p-4.5 font-mono">{ord.date}</td>
+                          <td className="p-4.5 text-center font-mono">{ord.itemsCount}</td>
+                          <td className="p-4.5 text-center font-mono font-bold text-emerald-650 dark:text-emerald-400">
+                            {ord.total.toLocaleString("vi-VN")}₫
+                          </td>
+                          <td className="p-4.5">
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${getOrderStatusColor(ord.status)}`}>
+                              {getOrderStatusLabel(ord.status)}
+                            </span>
+                          </td>
+                          <td className="p-4.5 text-right">
+                            <div className="flex gap-1.5 justify-end">
+                              <button
+                                onClick={() => handleOpenOrderDetail(ord)}
+                                className="px-2 py-1 bg-stone-200 dark:bg-stone-800 hover:bg-stone-300 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                title="Xem chi tiết đơn hàng"
+                              >
+                                <Eye className="h-3 w-3" /> Chi Tiết
+                              </button>
+                              {ord.status === "pending" && (
+                                <>
+                                  <button
+                                    onClick={() => handleUpdateOrderStatus(ord.id, "processing")}
+                                    className="px-2 py-1 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                    title="Nhận đơn hàng & đóng gói"
+                                  >
+                                    <Check className="h-3 w-3" /> Nhận
+                                  </button>
+                                  <button
+                                    onClick={() => handleUpdateOrderStatus(ord.id, "cancelled")}
+                                    className="px-2 py-1 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 font-semibold rounded-lg border border-rose-500/20 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                    title="Hủy đơn hàng"
+                                  >
+                                    <Trash2 className="h-3 w-3" /> Hủy
+                                  </button>
+                                </>
+                              )}
+                              {ord.status === "processing" && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(ord.id, "shipped")}
+                                  className="px-2 py-1 bg-indigo-500 hover:bg-indigo-400 text-black font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                  title="Chuyển sang vận chuyển"
+                                >
+                                  <Truck className="h-3 w-3" /> Giao
+                                </button>
+                              )}
+                              {ord.status === "shipped" && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(ord.id, "completed")}
+                                  className="px-2 py-1 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                  title="Hoàn tất đơn hàng"
+                                >
+                                  <Check className="h-3 w-3" /> Hoàn Tất
+                                </button>
+                              )}
+                              {ord.status === "completed" && (
+                                <span className="text-[10px] text-stone-400 dark:text-stone-500 font-mono italic">Đã hoàn tất</span>
+                              )}
+                              {ord.status === "cancelled" && (
+                                <span className="text-[10px] text-rose-455 font-mono italic">Đã hủy</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -487,7 +885,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
               
               <div className="flex gap-2">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-stone-400" />
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-stone-450" />
                   <input
                     type="text"
                     placeholder="Tìm tên cây..."
@@ -499,50 +897,76 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
               </div>
             </div>
 
-            <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
-              <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-                <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
-                  <tr>
-                    <th className="p-3">Sản phẩm</th>
-                    <th className="p-3">Danh Mục</th>
-                    <th className="p-3 text-center">Đơn giá</th>
-                    <th className="p-3 text-center">Tồn kho</th>
-                    <th className="p-3 text-center">Eco-Score</th>
-                    <th className="p-3 text-right">Hành Động</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
-                  {myProducts.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="p-8 text-center text-stone-400">Chưa có sản phẩm nào do vườn của bạn đăng bán. Hãy sử dụng form bên cạnh để niêm yết!</td>
-                    </tr>
-                  ) : (
-                    myProducts.map((p) => (
-                      <tr key={p.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            <img src={p.image} alt={p.name} className="w-8 h-8 object-cover rounded-lg border border-stone-200 dark:border-stone-850" />
-                            <div>
-                              <span className="font-semibold text-stone-900 dark:text-stone-100 block line-clamp-1">{p.name}</span>
-                              <span className="text-[9px] text-stone-400 font-mono block">ID: {p.id}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3 capitalize font-mono text-[10px]">{p.category === "plants" ? "Cây xanh" : p.category === "care" ? "Chăm sóc" : p.category === "nutrients" ? "Dinh dưỡng" : "IoT"}</td>
-                        <td className="p-3 text-center font-mono text-emerald-600 dark:text-emerald-400 font-bold">{p.price.toLocaleString("vi-VN")}₫</td>
-                        <td className="p-3 text-center font-mono">{p.stock} món</td>
-                        <td className="p-3 text-center">
+            {myProducts.length === 0 ? (
+              <EmptyState
+                icon={Sprout}
+                title="Chưa có sản phẩm"
+                description={productSearch ? "Không tìm thấy sản phẩm nào khớp với bộ lọc." : "Chưa có sản phẩm nào do vườn của bạn đăng bán. Hãy sử dụng form bên cạnh để niêm yết!"}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {myProducts.map((p) => {
+                  const raw = rawProducts.find((rp) => String(rp.id) === String(p.id));
+                  const status = raw ? raw.status : "ACTIVE";
+                  
+                  return (
+                    <div key={p.id} className="bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-850 rounded-2xl p-4 flex flex-col justify-between gap-3.5 hover:shadow-md transition-all duration-300">
+                      <div className="flex gap-3">
+                        <img 
+                          src={p.image} 
+                          alt={p.name} 
+                          className="w-14 h-14 object-cover rounded-xl border border-stone-200 dark:border-stone-850 shrink-0" 
+                          loading="lazy" 
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[9px] text-stone-400 font-mono block uppercase tracking-wider">
+                            {p.category === "plants" ? "🌱 Cây xanh" : p.category === "care" ? "🪴 Chăm sóc" : p.category === "nutrients" ? "🧪 Dinh dưỡng" : "⚙️ IoT"}
+                          </span>
+                          <h4 className="font-bold text-stone-900 dark:text-stone-100 text-xs mt-0.5 truncate">{p.name}</h4>
+                          <span className="text-[9px] text-stone-450 dark:text-stone-500 font-mono block mt-0.5">ID: {p.id}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs border-t border-b border-stone-200/50 dark:border-stone-850/40 py-2.5 font-mono">
+                        <div>
+                          <span className="text-[8px] text-stone-455 dark:text-stone-500 block uppercase">Đơn giá</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-450">{p.price.toLocaleString("vi-VN")}₫</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[8px] text-stone-455 dark:text-stone-500 block uppercase">Tồn kho</span>
+                          <span className={`font-bold ${p.stock === 0 ? "text-rose-500" : p.stock < 10 ? "text-amber-500" : "text-stone-750 dark:text-stone-300"}`}>
+                            {p.stock} món
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] text-stone-450 dark:text-stone-500 font-mono">Eco-Score:</span>
                           <span className="px-1.5 py-0.5 rounded bg-emerald-950/20 text-emerald-400 border border-emerald-900/10 font-bold font-mono text-[9px]">{p.ecoScore}%</span>
-                        </td>
-                        <td className="p-3 text-right text-stone-400">
-                          <span className="inline-flex px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded font-mono text-[8px] uppercase font-bold">Đang Bán</span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+
+                        <div>
+                          {p.stock === 0 ? (
+                            <span className="inline-flex px-2 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-md font-mono text-[8px] uppercase font-bold">
+                              🚨 Hết Hàng
+                            </span>
+                          ) : p.stock < 10 ? (
+                            <span className="inline-flex px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-md font-mono text-[8px] uppercase font-bold">
+                              ⚠️ Tồn Thấp
+                            </span>
+                          ) : (
+                            <span className="inline-flex px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md font-mono text-[8px] uppercase font-bold">
+                              ✓ Đang Bán
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Other marketplace catalog block */}
             <div className="pt-4 border-t border-stone-250 dark:border-stone-850">
@@ -550,7 +974,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {otherProducts.slice(0, 4).map((p) => (
                   <div key={p.id} className="p-2.5 bg-stone-100 dark:bg-stone-900/30 border border-stone-200 dark:border-stone-850 rounded-xl space-y-1">
-                    <img src={p.image} alt={p.name} className="w-full h-18 object-cover rounded-lg" />
+                    <img src={p.image} alt={p.name} className="w-full h-18 object-cover rounded-lg" loading="lazy" />
                     <span className="font-semibold text-stone-900 dark:text-stone-100 block text-[10px] line-clamp-1 mt-1">{p.name}</span>
                     <div className="flex justify-between items-center text-[9px] font-mono mt-0.5">
                       <span className="text-emerald-500 font-bold">{p.price.toLocaleString("vi-VN")}₫</span>
@@ -570,14 +994,13 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
               Niêm Yết Mầm Xanh Mới
             </h3>
 
-            {productSuccess && (
-              <div className="p-3 bg-emerald-950 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs flex items-center gap-1">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-                <span>Đăng sản phẩm thành công! Đã qua kiểm định LCA và đưa lên sàn GreenMarket.</span>
-              </div>
-            )}
+            <div className="p-3.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-250 dark:border-amber-900/30 rounded-2xl text-xs text-amber-800 dark:text-amber-400 space-y-1.5 leading-relaxed">
+              <span className="font-bold block">⚠️ Chức năng đăng sản phẩm đang được nâng cấp. Vui lòng liên hệ quản trị viên.</span>
+              <p className="text-[10px] text-stone-500">Hệ thống đang đồng bộ dữ liệu chuẩn mã định danh carbon nông nghiệp LCA.</p>
+            </div>
 
-            <form onSubmit={handleAddNewProductSubmit} className="space-y-4 text-xs">
+            {/* TODO: replace with /api/store/products endpoints when backend is available */}
+            <form onSubmit={(e) => e.preventDefault()} className="space-y-4 text-xs opacity-40 pointer-events-none select-none">
               <div className="space-y-1.5">
                 <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Tên mặt hàng hữu cơ:</label>
                 <input
@@ -586,6 +1009,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none"
+                  disabled
                   required
                 />
               </div>
@@ -598,6 +1022,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                     value={productPrice}
                     onChange={(e) => setProductPrice(Number(e.target.value))}
                     className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono"
+                    disabled
                     required
                   />
                 </div>
@@ -609,6 +1034,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                     value={productStock}
                     onChange={(e) => setProductStock(Number(e.target.value))}
                     className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono"
+                    disabled
                     required
                   />
                 </div>
@@ -620,6 +1046,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   value={productCategory}
                   onChange={(e) => setProductCategory(e.target.value as any)}
                   className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono cursor-pointer"
+                  disabled
                 >
                   <option value="plants">Cây Xanh (Plants)</option>
                   <option value="care">Chăm Sóc (Care)</option>
@@ -636,6 +1063,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   onChange={(e) => setProductDescription(e.target.value)}
                   rows={3}
                   className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none resize-none leading-relaxed"
+                  disabled
                 />
               </div>
 
@@ -645,9 +1073,10 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-xs cursor-pointer transition-all uppercase tracking-wider"
+                disabled
+                className="w-full py-2.5 bg-stone-750 text-stone-450 font-bold rounded-xl text-xs cursor-not-allowed transition-all uppercase tracking-wider"
               >
-                Phê Duyệt Đưa Lên Sàn
+                Đăng Sản Phẩm (Đã Khóa)
               </button>
             </form>
           </div>
@@ -791,6 +1220,189 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
         />
       )}
 
+      {/* 6. REVIEWS TAB */}
+      {activeTab === "reviews" && (
+        <StoreReviewsSection myStore={myStore} />
+      )}
+
+      {/* 4. DETAILED ORDER OVERLAY DRAWER */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-fadeIn">
+          <div 
+            className="w-full max-w-md bg-stone-900 border-l border-stone-850 h-full flex flex-col shadow-2xl relative animate-slide-left"
+          >
+            {/* Close Button / Header */}
+            <div className="p-5 border-b border-stone-850 flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[10px] text-emerald-400 font-mono font-bold uppercase tracking-wider">Thông Tin Đơn Hàng</span>
+                <h4 className="text-xs font-mono font-bold text-white">Mã đơn: {selectedOrder.id}</h4>
+              </div>
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="p-1.5 bg-stone-950 hover:bg-stone-800 text-stone-400 hover:text-white rounded-lg border border-stone-850 cursor-pointer transition-all"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6 text-xs text-stone-300">
+              
+              {/* Order Info & Status */}
+              <div className="bg-stone-950/40 p-4 rounded-2xl border border-stone-850 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-400 font-mono text-[10px]">Ngày đặt mua:</span>
+                  <span className="font-mono text-white">{selectedOrder.date}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-400 font-mono text-[10px]">Trạng thái:</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${getOrderStatusColor(selectedOrder.status)}`}>
+                    {getOrderStatusLabel(selectedOrder.status)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-400 font-mono text-[10px]">Thanh toán:</span>
+                  <span className="font-semibold text-white">{selectedOrder.paymentMethod} ({selectedOrder.paymentStatus})</span>
+                </div>
+              </div>
+
+              {/* Recipient Details */}
+              <div className="space-y-3">
+                <span className="text-[9px] text-stone-500 font-mono uppercase tracking-wider block">Người Nhận & Địa Chỉ Giao</span>
+                <div className="bg-stone-950/20 p-4 rounded-2xl border border-stone-850/60 space-y-2 text-stone-300">
+                  <div>
+                    <span className="text-stone-400 font-mono text-[10px] block">Khách hàng:</span>
+                    <span className="font-semibold text-stone-200">{selectedOrder.customerName}</span>
+                  </div>
+                  {selectedOrder.recipientPhone && (
+                    <div>
+                      <span className="text-stone-400 font-mono text-[10px] block">Số điện thoại:</span>
+                      <span className="font-mono text-stone-200">{selectedOrder.recipientPhone}</span>
+                    </div>
+                  )}
+                  {selectedOrder.shippingAddress && (
+                    <div>
+                      <span className="text-stone-400 font-mono text-[10px] block">Địa chỉ nhận hàng:</span>
+                      <span className="text-stone-200 leading-relaxed">{selectedOrder.shippingAddress}</span>
+                    </div>
+                  )}
+                  {selectedOrder.note && (
+                    <div>
+                      <span className="text-stone-400 font-mono text-[10px] block">Ghi chú từ khách:</span>
+                      <span className="text-stone-400 italic">"{selectedOrder.note}"</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-3">
+                <span className="text-[9px] text-stone-500 font-mono uppercase tracking-wider block">Sản Phẩm Đóng Gói ({selectedOrder.itemsCount})</span>
+                
+                {loadingOrderDetails ? (
+                  <ListSkeleton count={2} />
+                ) : selectedOrderDetails ? (
+                  <div className="space-y-2.5">
+                    {selectedOrderDetails.map((item) => (
+                      <div key={item.productId} className="flex gap-3 bg-stone-950/20 p-3 rounded-2xl border border-stone-850/50 text-stone-300">
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.productName} 
+                          className="w-12 h-12 object-cover rounded-xl border border-stone-800"
+                        />
+                        <div className="flex-1 space-y-1">
+                          <h5 className="font-semibold text-stone-200 line-clamp-1">{item.productName}</h5>
+                          <div className="flex justify-between items-center text-[10px] font-mono text-stone-450">
+                            <span>Đơn giá: {item.unitPrice.toLocaleString("vi-VN")}₫</span>
+                            <span className="font-bold text-white">x{item.quantity}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-stone-500 italic">Không thể tải danh sách sản phẩm.</span>
+                )}
+              </div>
+
+              {/* Carbon Compensation Summary Card */}
+              <div className="bg-emerald-950/10 border border-emerald-500/10 p-4 rounded-2xl flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-400">
+                  <Sprout className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="text-[9px] text-emerald-500/80 font-mono uppercase font-bold tracking-wider">Carbon Compensation</span>
+                  <p className="text-[10px] text-emerald-300 mt-0.5">Quyên góp carbon ước tính: <strong className="text-white font-mono">-{selectedOrder.itemsCount * 12}kg CO₂eq</strong></p>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Total and Footer Action Area */}
+            <div className="p-5 border-t border-stone-850 bg-stone-950/60 backdrop-blur-md space-y-4">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-stone-400">Tổng thanh toán:</span>
+                <span className="text-sm font-mono font-bold text-emerald-500">
+                  {selectedOrder.total.toLocaleString("vi-VN")}₫
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-stone-850/40 flex flex-col gap-2">
+                <span className="text-[8px] text-stone-500 font-mono uppercase tracking-wider block">Hoạt động điều phối</span>
+                <div className="flex flex-wrap gap-2 text-stone-300">
+                  {selectedOrder.status === "pending" && (
+                    <>
+                      <button
+                        onClick={() => handleUpdateOrderStatus(selectedOrder.id, "processing")}
+                        className="py-1.5 px-3 bg-amber-500 hover:bg-amber-400 text-black rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                      >
+                        Nhận Đơn
+                      </button>
+                      <button
+                        onClick={() => handleUpdateOrderStatus(selectedOrder.id, "cancelled")}
+                        className="py-1.5 px-3 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 border border-rose-500/20 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                      >
+                        Hủy Đơn
+                      </button>
+                    </>
+                  )}
+                  {selectedOrder.status === "processing" && (
+                    <>
+                      <button
+                        onClick={() => handleUpdateOrderStatus(selectedOrder.id, "shipped")}
+                        className="py-1.5 px-3 bg-indigo-500 hover:bg-indigo-400 text-black rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                      >
+                        Giao Hàng
+                      </button>
+                      <button
+                        onClick={() => handleUpdateOrderStatus(selectedOrder.id, "cancelled")}
+                        className="py-1.5 px-3 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 border border-rose-500/20 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                      >
+                        Hủy Đơn
+                      </button>
+                    </>
+                  )}
+                  {selectedOrder.status === "shipped" && (
+                    <button
+                      onClick={() => handleUpdateOrderStatus(selectedOrder.id, "completed")}
+                      className="py-1.5 px-3 bg-emerald-500 hover:bg-emerald-400 text-black rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                    >
+                      Hoàn Tất
+                    </button>
+                  )}
+                  {selectedOrder.status === "completed" && (
+                    <span className="text-[10px] text-stone-400 font-mono italic">Đơn hàng đã hoàn thành xuất sắc</span>
+                  )}
+                  {selectedOrder.status === "cancelled" && (
+                    <span className="text-[10px] text-rose-455 font-mono italic">Đơn hàng đã bị hủy</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1027,21 +1639,15 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
           </div>
 
           {storeArticles.length === 0 ? (
-            <div className="py-16 text-center bg-stone-100 dark:bg-stone-900/20 border border-dashed border-stone-250 dark:border-stone-850 rounded-3xl space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-stone-800 flex items-center justify-center text-stone-550">
-                <BookOpen className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-stone-700 dark:text-stone-300 font-semibold text-sm">Chưa có bài viết cẩm nang nào</p>
-                <p className="text-stone-500 dark:text-stone-550 text-xs">Chia sẻ kinh nghiệm làm vườn hữu cơ đầu tiên của bạn để tăng khả năng tương tác với khách hàng!</p>
-              </div>
-              <button
-                onClick={() => setIsCreating(true)}
-                className="px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-450 border border-emerald-500/20 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1"
-              >
-                <PlusCircle className="h-3.5 w-3.5" /> Bắt đầu viết bài
-              </button>
-            </div>
+            <EmptyState
+              icon={BookOpen}
+              title="Chưa có bài viết cẩm nang nào"
+              description="Chia sẻ kinh nghiệm làm vườn hữu cơ đầu tiên của bạn để tăng khả năng tương tác với khách hàng!"
+              action={{
+                label: "Bắt đầu viết bài",
+                onClick: () => setIsCreating(true)
+              }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {storeArticles.map((post) => {
@@ -1063,6 +1669,7 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
                         src={post.image} 
                         alt={post.title} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
+                        loading="lazy"
                       />
                       <span className={`absolute top-3 left-3 px-2 py-0.5 rounded text-[8px] font-bold tracking-wider border font-mono uppercase ${categoryColors[post.category] || "bg-stone-700 text-stone-300"}`}>
                         {categoryNames[post.category] || post.category}
@@ -1235,6 +1842,7 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
                       src={image} 
                       alt="Thumbnail Preview" 
                       className="w-full h-32 object-cover rounded-xl border border-stone-200 dark:border-stone-800"
+                      loading="lazy"
                     />
                     <button
                       type="button"
@@ -1279,7 +1887,11 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
 
                 <div className="overflow-y-auto space-y-2 pr-1 flex-1 py-1">
                   {filteredTaggableProducts.length === 0 ? (
-                    <p className="text-[10px] text-stone-500 font-mono text-center py-4">Không có sản phẩm nào phù hợp.</p>
+                    <EmptyState
+                      icon={ShoppingBag}
+                      title="Không tìm thấy sản phẩm"
+                      description="Không có sản phẩm nào phù hợp."
+                    />
                   ) : (
                     filteredTaggableProducts.map((prod) => {
                       const isChecked = selectedProductIds.includes(prod.id);
@@ -1294,7 +1906,7 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <img src={prod.image} alt={prod.name} className="w-8 h-8 object-cover rounded" />
+                            <img src={prod.image} alt={prod.name} className="w-8 h-8 object-cover rounded" loading="lazy" />
                             <div>
                               <span className="font-bold text-[10px] block line-clamp-1">{prod.name}</span>
                               <span className="text-[9px] text-stone-455 dark:text-stone-550 font-mono font-semibold">{prod.price.toLocaleString("vi-VN")}₫</span>
@@ -1346,8 +1958,149 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
           </div>
 
         </form>
-      )}
+      )}    </div>
+  );
+};
 
+interface StoreReviewsSectionProps {
+  myStore: any;
+}
+
+const StoreReviewsSection: React.FC<StoreReviewsSectionProps> = ({ myStore }) => {
+  const [reviews, setReviews] = useState<ReviewResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState<RatingSummaryResponse>({ averageRating: 5.0, totalReviews: 0 });
+  const [distribution, setDistribution] = useState<Record<number, number>>({ 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 });
+
+  const loadData = async (signal?: AbortSignal) => {
+    setLoading(true);
+    try {
+      if (myStore?.id) {
+        const sumRes = await ReviewService.getStoreRatingSummary(Number(myStore.id), signal);
+        setSummary(sumRes);
+      }
+      
+      const res = await ReviewService.getStoreOwnerReviews(0, 100, signal);
+      setReviews(res.content);
+
+      const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+      res.content.forEach((r: any) => {
+        if (counts[r.rating] !== undefined) counts[r.rating]++;
+      });
+      setDistribution(counts);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        logger.error("Lỗi tải đánh giá nhà vườn:", err);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [myStore?.id]);
+
+  const maxCount = Math.max(...(Object.values(distribution) as number[]), 1);
+  const latestReviews = reviews.slice(0, 3);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Left Column: Summary & Distribution */}
+      <div className="lg:col-span-5 space-y-6">
+        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl text-center space-y-2.5 flex flex-col justify-center shadow-xs">
+          <span className="text-stone-400 font-mono text-[10px] uppercase font-bold tracking-wider">Đánh Giá Trung Bình</span>
+          <div className="text-4xl font-extrabold text-emerald-500 font-mono">
+            {summary.averageRating.toFixed(1)} <span className="text-sm font-normal text-stone-500">/ 5</span>
+          </div>
+          <div className="flex justify-center gap-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                className={`w-4.5 h-4.5 ${star <= Math.round(summary.averageRating) ? "text-amber-455 fill-amber-455" : "text-stone-300 dark:text-stone-800"}`}
+              />
+            ))}
+          </div>
+          <p className="text-[10px] text-stone-500 font-mono">Từ tổng số {summary.totalReviews} lượt đánh giá</p>
+        </div>
+
+        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-4 shadow-xs">
+          <h4 className="text-xs font-bold text-stone-900 dark:text-white uppercase tracking-wider font-mono">Phân Bố Số Sao (Mẫu 100 Đánh Giá)</h4>
+          <div className="space-y-3 text-[10px] font-mono">
+            {[5, 4, 3, 2, 1].map((star) => {
+              const count = distribution[star] || 0;
+              const percent = ((count / maxCount) * 100).toFixed(0);
+              return (
+                <div key={star} className="flex items-center gap-3">
+                  <span className="w-10 text-stone-400 text-right">{star} Sao</span>
+                  <div className="flex-1 bg-stone-150 dark:bg-stone-900 h-2 rounded-full overflow-hidden border border-stone-250 dark:border-stone-850">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                  <span className="w-12 text-stone-600 dark:text-stone-300 text-left">{count} lượt</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Right Column: Customer Reviews */}
+      <div className="lg:col-span-7 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 rounded-3xl p-6 space-y-4 shadow-xs">
+        <h3 className="text-sm font-semibold tracking-tight text-stone-900 dark:text-white flex items-center gap-2 border-b border-stone-200 dark:border-stone-850 pb-3">
+          <MessageSquare className="h-4.5 w-4.5 text-emerald-500" />
+          Ý Kiến Khách Hàng Gần Nhất
+        </h3>
+
+        {loading ? (
+          <ListSkeleton count={3} />
+        ) : latestReviews.length === 0 ? (
+          <EmptyState
+            icon={MessageSquare}
+            title="Chưa có đánh giá"
+            description="Chưa có đánh giá nào dành cho nhà vườn của bạn."
+          />
+        ) : (
+          <div className="space-y-4">
+            {latestReviews.map((rev) => (
+              <div key={rev.id} className="p-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-850 rounded-2xl space-y-2 hover:shadow-sm transition-all duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-linear-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-[10px] select-none">
+                      {getCustomerInitials(rev.customerDisplayName)}
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-stone-900 dark:text-white block">{rev.customerDisplayName}</span>
+                      <div className="flex gap-0.5 mt-0.5">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star key={star} className={`w-3 h-3 ${star <= rev.rating ? "text-amber-455 fill-amber-455" : "text-stone-300 dark:text-stone-800"}`} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[9px] text-stone-400 font-mono">
+                    {new Date(rev.createdAt).toLocaleDateString("vi-VN", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit"
+                    })}
+                  </span>
+                </div>
+                <p className="text-stone-650 dark:text-stone-300 text-xs leading-relaxed font-sans mt-2 ml-9">
+                  {rev.comment || <span className="text-stone-450 dark:text-stone-500 italic">Khách hàng không để lại bình luận.</span>}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+

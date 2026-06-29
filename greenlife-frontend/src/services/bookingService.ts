@@ -1,57 +1,94 @@
 import { Appointment } from "../types";
-import { MOCK_BOOKINGS } from "../data";
+import { HttpClient } from "./httpClient";
+
+export interface PaginatedBookings {
+  content: Appointment[];
+  totalPages: number;
+  totalElements: number;
+  page: number;
+}
 
 export class BookingService {
-  private static STORAGE_KEY = "greenlife_appointments";
-
-  private static async delay(ms = 300): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Retrieves active professional consultant appointments
-   */
-  public static async getAppointments(): Promise<Appointment[]> {
-    await this.delay(200);
-    const stored = localStorage.getItem(this.STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (err) {
-        // Fallback to presets
-      }
+  private static mapStatus(backendStatus: string): any {
+    switch (backendStatus) {
+      case "PENDING": return "pending";
+      case "CONFIRMED": return "confirmed";
+      case "IN_PROGRESS": return "in_progress";
+      case "COMPLETED": return "completed";
+      case "CANCELLED": return "cancelled";
+      default: return "pending";
     }
-    // Seed initial on first use
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(MOCK_BOOKINGS));
-    return MOCK_BOOKINGS;
   }
 
-  /**
-   * Reserves a slot with an industry botanist
-   */
-  public static async bookAppointment(appointment: Omit<Appointment, "id" | "status">): Promise<Appointment> {
-    await this.delay(400);
-    const bookings = await this.getAppointments();
-    
-    const newBooking: Appointment = {
-      ...appointment,
-      id: `booking-${Date.now()}`,
-      status: "confirmed" // Auto-approve simulation
+  private static mapBookingResponseToAppointment(backend: any): Appointment {
+    return {
+      id: String(backend.id),
+      expertName: backend.storeNameSnapshot || "Chuyên gia GreenLife",
+      title: backend.serviceNameSnapshot || "Dịch vụ tham vấn",
+      date: backend.scheduledAt ? backend.scheduledAt.split("T")[0] : "",
+      time: backend.scheduledAt ? backend.scheduledAt.split("T")[1].substring(0, 5) : "",
+      type: backend.serviceAddress && backend.serviceAddress.toLowerCase().includes("online") ? "online" : "offline",
+      price: Number(backend.servicePriceSnapshot),
+      status: this.mapStatus(backend.status),
+      durationMinutes: backend.durationMinutes || 60,
+      expertAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+      userNotes: backend.customerNote || "",
+      customerName: backend.customerName,
+      serviceAddress: backend.serviceAddress,
+      customerNote: backend.customerNote,
+      cancelReason: backend.cancelReason
+    } as any;
+  }
+
+  public static async getCustomerBookings(
+    page: number = 0,
+    size: number = 10,
+    signal?: AbortSignal
+  ): Promise<PaginatedBookings> {
+    const data = await HttpClient.get<any>(`/api/bookings/customer?page=${page}&size=${size}`, { signal });
+    return {
+      content: (data.content || []).map((b: any) => this.mapBookingResponseToAppointment(b)),
+      totalPages: data.totalPages || 0,
+      totalElements: data.totalElements || 0,
+      page: data.number || 0
     };
-
-    const updated = [newBooking, ...bookings];
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
-    return newBooking;
   }
 
-  /**
-   * Cancels scheduled slot
-   */
-  public static async cancelAppointment(id: string): Promise<Appointment[]> {
-    await this.delay(250);
-    const bookings = await this.getAppointments();
-    const updated = bookings.filter((b) => b.id !== id);
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
-    return updated;
+  public static async getStoreBookings(
+    storeId: number,
+    page: number = 0,
+    size: number = 10,
+    signal?: AbortSignal
+  ): Promise<PaginatedBookings> {
+    const data = await HttpClient.get<any>(`/api/bookings/store?storeId=${storeId}&page=${page}&size=${size}`, { signal });
+    return {
+      content: (data.content || []).map((b: any) => this.mapBookingResponseToAppointment(b)),
+      totalPages: data.totalPages || 0,
+      totalElements: data.totalElements || 0,
+      page: data.number || 0
+    };
+  }
+
+  public static async getBookingById(id: string | number, signal?: AbortSignal): Promise<Appointment> {
+    const data = await HttpClient.get<any>(`/api/bookings/${id}`, { signal });
+    return this.mapBookingResponseToAppointment(data);
+  }
+
+  public static async createBooking(
+    payload: {
+      serviceId: number;
+      scheduledAt: string;
+      serviceAddress: string;
+      customerNote?: string;
+    },
+    signal?: AbortSignal
+  ): Promise<Appointment> {
+    const data = await HttpClient.post<any>("/api/bookings", payload, { signal });
+    return this.mapBookingResponseToAppointment(data);
+  }
+
+  public static async cancelBooking(id: string | number, cancelReason: string, signal?: AbortSignal): Promise<Appointment> {
+    const data = await HttpClient.put<any>(`/api/bookings/${id}/cancel`, { cancelReason }, { signal });
+    return this.mapBookingResponseToAppointment(data);
   }
 }

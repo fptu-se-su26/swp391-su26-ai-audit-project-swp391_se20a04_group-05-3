@@ -1,8 +1,11 @@
 import React from "react";
+import { logger } from "../../utils/logger";
+import { sanitizeHtml } from "../../utils/sanitizer";
 import { ArrowLeft, BookOpen, Clock, Eye, Tag, BrainCircuit, ArrowRight, User } from "lucide-react";
 import { BlogPost, Product } from "../../types";
 import { ExpertCalloutBanner } from "./ExpertDirectoryView";
 import { useAppContext } from "../../context/AppContext";
+import { ArticleService } from "../../services/articleService";
 
 interface BlogDetailViewProps {
   article: BlogPost;
@@ -20,11 +23,35 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
   onDirectDiagnosis,
 }) => {
   const { setCurrentPage } = useAppContext();
-  const isPlantCare = article.category === "plant-care" || 
-                      article.title.toLowerCase().includes("bệnh") || 
-                      article.title.toLowerCase().includes("nhện") ||
-                      article.title.toLowerCase().includes("rệp") || 
-                      article.title.toLowerCase().includes("sâu");
+  const [localArticle, setLocalArticle] = React.useState<BlogPost>(article);
+
+  React.useEffect(() => {
+    setLocalArticle(article);
+
+    const controller = new AbortController();
+    const fetchFreshDetail = async () => {
+      try {
+        const fresh = await ArticleService.getArticleById(article.id, controller.signal);
+        setLocalArticle(fresh);
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          logger.warn("Lỗi đồng bộ chi tiết bài viết ngầm:", err);
+        }
+      }
+    };
+
+    fetchFreshDetail();
+
+    return () => {
+      controller.abort();
+    };
+  }, [article]);
+
+  const isPlantCare = localArticle.category === "plant-care" || 
+                      localArticle.title.toLowerCase().includes("bệnh") || 
+                      localArticle.title.toLowerCase().includes("nhện") ||
+                      localArticle.title.toLowerCase().includes("rệp") || 
+                      localArticle.title.toLowerCase().includes("sâu");
 
   const categoryLabelMap: Record<string, string> = {
     "plant-care": "Y Học Bệnh Cây",
@@ -45,28 +72,28 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
 
         <span className="inline-flex gap-2 items-center px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 font-mono text-[10px] font-bold uppercase tracking-wide">
           <BookOpen className="h-3.5 w-3.5" />
-          {categoryLabelMap[article.category] || article.category}
+          {categoryLabelMap[localArticle.category] || localArticle.category}
         </span>
       </div>
 
       {/* Title & Metadata */}
       <div className="space-y-4">
         <h1 className="text-2xl sm:text-3xl font-display font-bold text-stone-900 tracking-tight leading-snug">
-          {article.title}
+          {localArticle.title}
         </h1>
         
         <div className="flex flex-wrap gap-4 text-xs font-mono text-stone-400 font-medium">
           <span className="flex items-center gap-1">
             <User className="w-3.5 h-3.5 text-stone-400" />
-            Tác giả: <strong className="text-stone-700 font-bold ml-0.5">{article.author}</strong>
+            Tác giả: <strong className="text-stone-700 font-bold ml-0.5">{localArticle.author}</strong>
           </span>
           <span>•</span>
-          <span>Ngày đăng: {article.date}</span>
+          <span>Ngày đăng: {localArticle.date}</span>
           <span>•</span>
-          <span>Thời gian đọc: {article.readTime}</span>
+          <span>Thời gian đọc: {localArticle.readTime}</span>
           <span>•</span>
           <span className="flex items-center gap-1">
-            <Eye className="w-3.5 h-3.5" /> {article.views || 0} lượt xem
+            <Eye className="w-3.5 h-3.5" /> {localArticle.views || 0} lượt xem
           </span>
         </div>
       </div>
@@ -74,8 +101,8 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
       {/* Featured Image */}
       <div className="aspect-video bg-stone-50 rounded-2xl overflow-hidden border border-stone-200 shadow-sm">
         <img
-          src={article.image}
-          alt={article.title}
+          src={localArticle.image}
+          alt={localArticle.title}
           className="w-full h-full object-cover"
           referrerPolicy="no-referrer"
         />
@@ -84,17 +111,17 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
       {/* Article Content */}
       <div className="prose prose-stone max-w-none text-stone-600 text-sm sm:text-base leading-relaxed space-y-5">
         <p className="font-semibold text-stone-800 bg-stone-50 p-5 border-l-4 border-emerald-600 rounded-r-2xl leading-relaxed shadow-xs">
-          {article.summary}
+          {localArticle.summary}
         </p>
         
         <div className="space-y-4 font-sans text-stone-650">
-          {article.content.split("\n\n").map((part, index) => {
+          {localArticle.content.split("\n\n").map((part, index) => {
             // Clean up basic HTML tags or parse them directly
             return (
               <p 
                 key={index} 
                 className="leading-relaxed" 
-                dangerouslySetInnerHTML={{ __html: part }} 
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} 
               />
             );
           })}
@@ -102,13 +129,13 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
       </div>
 
       {/* Tagged Products Section */}
-      {article.taggedProductIds && article.taggedProductIds.length > 0 && (
+      {localArticle.taggedProductIds && localArticle.taggedProductIds.length > 0 && (
         <div className="space-y-4 pt-6 border-t border-stone-100">
           <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-2 bg-emerald-50 px-3.5 py-1.5 rounded-lg border border-emerald-100/50 inline-block">
             <Tag className="w-4 h-4 animate-pulse text-emerald-600" /> Sản phẩm khuyên dùng trong bài viết:
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {article.taggedProductIds.map((pId) => {
+            {localArticle.taggedProductIds.map((pId) => {
               const prod = products.find((p) => p.id === pId);
               if (!prod) return null;
               return (
