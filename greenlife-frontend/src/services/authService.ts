@@ -1,355 +1,227 @@
 import { User } from "../types";
-import { MOCK_USERS } from "../data";
+import { HttpClient } from "./httpClient";
+import { storage } from "../utils/storage";
+import { logger } from "../utils/logger";
 
 export class AuthService {
   private static STORAGE_KEY = "greenlife_current_user";
-  private static REGISTERED_USERS_KEY = "greenlife_registered_users";
 
-  /**
-   * Simulated delay for microservices
-   */
-  private static async delay(ms = 300): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  private static mapUserResponseToUser(data: any): User {
+    const roleMap: Record<string, "customer" | "store" | "admin"> = {
+      "ADMIN": "admin",
+      "STORE_OWNER": "store",
+      "CUSTOMER": "customer"
+    };
+    const role = roleMap[data.role || ""] || "customer";
+
+    return {
+      id: String(data.id),
+      name: data.fullName || "",
+      email: data.email || "",
+      avatar: data.avatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      role: role,
+      carbonCredits: 100,
+      co2SavedKg: 0.0,
+      registeredDate: new Date().toISOString().split("T")[0],
+      savedProductIds: [],
+      is_seller: role === "store" || data.role === "STORE_OWNER",
+      shop_name: role === "store" ? data.fullName : undefined,
+      shop_email: role === "store" ? data.email : undefined,
+      shop_phone: role === "store" ? data.phone : undefined,
+      shop_address: role === "store" ? data.address : undefined,
+    };
   }
 
   /**
-   * Retrieves currently logged-in user or loads a default Customer session
+   * Retrieves currently logged-in user and fetches latest profile from server
    */
-  public static async getCurrentUser(): Promise<User> {
-    await this.delay(150);
-    const stored = localStorage.getItem(this.STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (err) {
-        // Fallback to customer
-      }
-    }
-    return MOCK_USERS[0]; // Nguyễn Hoàng Long (Customer)
-  }
+  public static async getCurrentUser(): Promise<User | null> {
+    const parsed = storage.getItem<any>(this.STORAGE_KEY);
+    if (!parsed) return null;
 
-  /**
-   * Switches the active simulation role in the frontend
-   */
-  public static async switchRoleAndUser(role: "customer" | "store" | "admin"): Promise<User> {
-    await this.delay(200);
-    
-    // Check local registered users first
-    const localUsersStr = localStorage.getItem(this.REGISTERED_USERS_KEY);
-    const localUsers: User[] = localUsersStr ? JSON.parse(localUsersStr) : [];
-    const foundLocal = localUsers.find((u) => u.role === role);
-    if (foundLocal) {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(foundLocal));
-      return foundLocal;
-    }
-
-    const user = MOCK_USERS.find((u) => u.role === role) || MOCK_USERS[0];
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(user));
-    return user;
-  }
-
-  /**
-   * Registers a new user and saves to localStorage
-   */
-  public static async register(name: string, email: string, role: "customer" | "store" | "admin", password = "pass1234"): Promise<User> {
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role, phone: "", address: "" })
-      });
-      const data = await response.json();
-      if (data.success && data.user) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data.user));
-        return data.user;
-      }
-      throw new Error(data.error || "Không thể tạo tài khoản.");
-    } catch (err) {
-      console.warn("⚠️ API Đăng ký lỗi, tự động chuyển sang chế độ Giả lập:", err);
-      await this.delay(300);
-      const localUsersStr = localStorage.getItem(this.REGISTERED_USERS_KEY);
-      const localUsers: User[] = localUsersStr ? JSON.parse(localUsersStr) : [];
+      const token = parsed.token;
+      if (!token) return null;
+
+      const data = await HttpClient.get("/api/auth/me", { skipAuthRedirect: true });
+      const mappedUser = this.mapUserResponseToUser(data);
       
-      const existsInMock = MOCK_USERS.some(u => u.email.toLowerCase() === email.toLowerCase());
-      const existsInLocal = localUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
-      if (existsInMock || existsInLocal) {
-        throw new Error("Email đã tồn tại trên hệ thống.");
-      }
-
-      const newUser: User = {
-        id: `cust-${Date.now()}`,
-        name,
-        email,
-        avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-        role,
-        carbonCredits: 100,
-        co2SavedKg: 0.0,
-        registeredDate: new Date().toISOString().split("T")[0],
-        savedProductIds: []
-      };
-
-      localUsers.push(newUser);
-      localStorage.setItem(this.REGISTERED_USERS_KEY, JSON.stringify(localUsers));
-      return newUser;
-    }
-  }
-
-  /**
-   * Request registration and send real OTP email
-   */
-  public static async registerRequest(name: string, email: string, role: "customer" | "store" | "admin", password = "pass1234"): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await fetch("/api/auth/register-request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role })
+      // Save the updated info back to storage
+      storage.setItem(this.STORAGE_KEY, {
+        token: token,
+        user: mappedUser
       });
-      const data = await response.json();
-      if (data.success) {
-        return data;
-      }
-      throw new Error(data.error || "Gửi yêu cầu đăng ký thất bại.");
+
+      return mappedUser;
     } catch (err: any) {
-      console.warn("⚠️ API registerRequest lỗi, chuyển sang giả lập OTP:", err.message);
-      await this.delay(300);
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      localStorage.setItem(`mock_registration_otp_${email}`, JSON.stringify({ name, email, password, role, code }));
-      console.log(`\n============================`);
-      console.log(`[MOCK REGISTRATION OTP] Email: ${email}`);
-      console.log(`[MOCK REGISTRATION OTP] Code: ${code}`);
-      console.log(`============================\n`);
-      return {
-        success: true,
-        message: `[MOCK] Gửi OTP thành công cho ${email}. (Mã: ${code} - hãy xem console F12)`
-      };
+      logger.error("Error in getCurrentUser:", err);
+      if (err.name === "UnauthorizedError" || err.message === "Phiên đăng nhập đã hết hạn") {
+        await this.logout();
+      }
+      return null;
     }
   }
 
   /**
-   * Verify OTP and complete registration
+   * Authenticates credentials and stores JWT + user info
    */
-  public static async verifyRegistrationOTP(email: string, code: string): Promise<User> {
-    try {
-      const response = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code })
+  public static async login(email: string, password = ""): Promise<User> {
+    const data = await HttpClient.post("/api/auth/login", { email, password }, { credentials: "include" });
+
+    if (data.accessToken && data.user) {
+      const mappedUser = this.mapUserResponseToUser(data.user);
+      storage.setItem(this.STORAGE_KEY, {
+        token: data.accessToken,
+        user: mappedUser
       });
-      const data = await response.json();
-      if (data.success && data.user) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data.user));
-        return data.user;
-      }
-      throw new Error(data.error || "Xác thực OTP thất bại.");
-    } catch (err: any) {
-      console.warn("⚠️ API verifyRegistrationOTP lỗi, sử dụng mock:", err.message);
-      await this.delay(200);
-      const stored = localStorage.getItem(`mock_registration_otp_${email}`);
-      if (!stored) throw new Error("Yêu cầu đăng ký không tồn tại.");
-      
-      const payload = JSON.parse(stored);
-      if (payload.code === code.trim() || code.trim() === "123456" || code.trim() === "000000") {
-        localStorage.removeItem(`mock_registration_otp_${email}`);
-        
-        const newUser: User = {
-          id: `cust-${Date.now()}`,
-          name: payload.name,
-          email: payload.email,
-          avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-          role: payload.role,
-          carbonCredits: 100,
-          co2SavedKg: 0.0,
-          registeredDate: new Date().toISOString().split("T")[0],
-          savedProductIds: []
-        };
-        
-        // Add to local registered users
-        const localUsersStr = localStorage.getItem(this.REGISTERED_USERS_KEY);
-        const localUsers: User[] = localUsersStr ? JSON.parse(localUsersStr) : [];
-        localUsers.push(newUser);
-        localStorage.setItem(this.REGISTERED_USERS_KEY, JSON.stringify(localUsers));
-        
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(newUser));
-        return newUser;
-      }
-      throw new Error("Mã OTP đăng ký không chính xác.");
+      return mappedUser;
     }
+
+    throw new Error("Không có thông tin đăng nhập trả về từ hệ thống.");
   }
 
   /**
-   * Authenticates credentials and delivers a user role
-   */
-  public static async login(email: string, password = "pass1234"): Promise<User> {
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await response.json();
-      if (data.success && data.user) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data.user));
-        return data.user;
-      }
-      throw new Error(data.error || "Email hoặc mật khẩu không chính xác.");
-    } catch (err) {
-      console.warn("⚠️ API Đăng nhập lỗi, tự động chuyển sang chế độ Giả lập:", err);
-      await this.delay(400);
-      
-      // Check local registered users first
-      const localUsersStr = localStorage.getItem(this.REGISTERED_USERS_KEY);
-      const localUsers: User[] = localUsersStr ? JSON.parse(localUsersStr) : [];
-      const foundLocal = localUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
-      if (foundLocal) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(foundLocal));
-        return foundLocal;
-      }
-
-      // Check mock users
-      const found = MOCK_USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
-      if (found) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(found));
-        return found;
-      }
-      
-      // Create new temporary user with role-based fallback detection
-      let fallbackRole: "customer" | "store" | "admin" = "customer";
-      let fallbackName = email.split("@")[0].toUpperCase();
-      if (email.toLowerCase().includes("admin")) {
-        fallbackRole = "admin";
-        fallbackName = "Admin GreenLife";
-      } else if (email.toLowerCase().includes("store")) {
-        fallbackRole = "store";
-        fallbackName = "Nhà Vườn GreenLife";
-      }
-
-      const tempUser: User = {
-        id: fallbackRole === "admin" ? "admin-83921" : fallbackRole === "store" ? "store-83921" : "cust-83921",
-        name: fallbackName,
-        email,
-        avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-        role: fallbackRole,
-        carbonCredits: fallbackRole === "admin" ? 99999 : 100,
-        co2SavedKg: fallbackRole === "admin" ? 1490.0 : 5.0,
-        registeredDate: new Date().toISOString().split("T")[0],
-        savedProductIds: []
-      };
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(tempUser));
-      return tempUser;
-    }
-  }
-
-  /**
-   * Performs Google Authentication via Google Sign-In ID Token
+   * Performs Google authentication via Google Sign-In ID Token
    */
   public static async googleLogin(idToken: string): Promise<User> {
-    try {
-      const response = await fetch("/api/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken })
+    const data = await HttpClient.post("/api/auth/google", { idToken }, { credentials: "include" });
+
+    if (data.accessToken && data.user) {
+      const mappedUser = this.mapUserResponseToUser(data.user);
+      storage.setItem(this.STORAGE_KEY, {
+        token: data.accessToken,
+        user: mappedUser
       });
-      const data = await response.json();
-      if (data.success && data.user) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data.user));
-        return data.user;
-      }
-      throw new Error(data.error || "Đăng nhập Google thất bại.");
-    } catch (err) {
-      console.warn("⚠️ API Đăng nhập Google lỗi, tự động chuyển sang chế độ Giả lập:", err);
-      await this.delay(300);
-      
-      let email = "google-user@gmail.com";
-      let name = "Google User";
-      let avatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150";
-      
-      try {
-        const base64Url = idToken.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        const payload = JSON.parse(jsonPayload);
-        if (payload.email) email = payload.email;
-        if (payload.name) name = payload.name;
-        if (payload.picture) avatar = payload.picture;
-      } catch (jwtErr) {
-        console.error("Lỗi giải mã mock Google JWT:", jwtErr);
-      }
-      
-      const mockId = `google-${Date.now()}`;
-      const tempUser: User = {
-        id: mockId,
-        name: name,
-        email: email,
-        avatar: avatar,
-        role: "customer",
-        carbonCredits: 100,
-        co2SavedKg: 0.0,
-        registeredDate: new Date().toISOString().split("T")[0],
-        savedProductIds: []
-      };
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(tempUser));
-      return tempUser;
+      return mappedUser;
     }
+    throw new Error("Đăng nhập bằng Google thất bại.");
   }
 
   /**
-   * Sends OTP to the specified email
+   * Refreshes JWT access token
    */
-  public static async sendOTP(email: string): Promise<{ success: boolean; message: string }> {
+  public static async refreshToken(): Promise<string> {
     try {
-      const response = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
-      const data = await response.json();
-      if (data.success) {
-        return data;
+      const data = await HttpClient.post("/api/auth/refresh", {}, { credentials: "include", skipAuthRedirect: true });
+      if (data.accessToken) {
+        const parsed = storage.getItem<any>(this.STORAGE_KEY) || {};
+        const mappedUser = data.user ? this.mapUserResponseToUser(data.user) : parsed.user;
+        
+        storage.setItem(this.STORAGE_KEY, {
+          token: data.accessToken,
+          user: mappedUser
+        });
+        return data.accessToken;
       }
-      throw new Error(data.error || "Gửi OTP thất bại.");
-    } catch (err: any) {
-      console.warn("⚠️ API sendOTP lỗi, giả lập thành công:", err.message);
-      await this.delay(200);
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      localStorage.setItem(`mock_otp_${email}`, code);
-      console.log(`\n============================`);
-      console.log(`[MOCK OTP FRONTEND] Email: ${email}`);
-      console.log(`[MOCK OTP FRONTEND] Code: ${code}`);
-      console.log(`============================\n`);
-      return {
-        success: true,
-        message: `[MOCK] Gửi OTP thành công cho ${email}. (Vui lòng kiểm tra F12 Console để lấy mã!)`
-      };
+      throw new Error("Không có token mới từ hệ thống.");
+    } catch (err) {
+      storage.removeItem(this.STORAGE_KEY);
+      throw new Error("Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.");
     }
   }
 
   /**
-   * Verifies OTP for email
+   * Clears security context
+   */
+  public static async logout(): Promise<void> {
+    try {
+      await HttpClient.post("/api/auth/logout", {}, { credentials: "include", skipAuthRedirect: true });
+    } catch (err) {
+      logger.warn("Yêu cầu đăng xuất thất bại:", err);
+    } finally {
+      storage.removeItem(this.STORAGE_KEY);
+    }
+  }
+
+  /**
+   * Register a new user (request)
+   */
+  public static async registerRequest(
+    name: string,
+    email: string,
+    role: "customer" | "store" | "admin",
+    password = ""
+  ): Promise<{ success: boolean; message: string }> {
+    const backendRole = role === "store" ? "STORE_OWNER" : "CUSTOMER";
+    const data = await HttpClient.post("/api/auth/register", {
+      fullName: name,
+      email: email,
+      password: password,
+      phone: "",
+      address: "",
+      role: backendRole
+    });
+
+    return {
+      success: true,
+      message: data.message || "Đăng ký thành công. Vui lòng kiểm tra email để nhận mã OTP."
+    };
+  }
+
+  /**
+   * Verify OTP to complete registration
+   */
+  public static async verifyRegistrationOTP(email: string, code: string): Promise<{ success: boolean; message: string }> {
+    const data = await HttpClient.post("/api/auth/verify-email", { email, otp: code });
+    return {
+      success: true,
+      message: data.message || "Xác thực OTP thành công!"
+    };
+  }
+
+  /**
+   * General OTP verification — alias for verifyRegistrationOTP.
+   * Used by StoreProfileSetupView to verify shop-email OTP.
+   * Maps to POST /api/auth/verify-email.
    */
   public static async verifyOTP(email: string, code: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code })
-      });
-      const data = await response.json();
-      if (data.success) {
-        return data;
-      }
-      throw new Error(data.error || "Xác thực OTP thất bại.");
-    } catch (err: any) {
-      console.warn("⚠️ API verifyOTP lỗi, sử dụng kiểm tra mock:", err.message);
-      await this.delay(200);
-      const savedCode = localStorage.getItem(`mock_otp_${email}`);
-      if (savedCode === code.trim() || code.trim() === "123456" || code.trim() === "000000") {
-        localStorage.removeItem(`mock_otp_${email}`);
-        return { success: true, message: "Xác thực OTP thành công!" };
-      }
-      throw new Error("Mã OTP không chính xác hoặc đã hết hạn (Thử dùng mã 123456 hoặc xem console).");
-    }
+    const data = await HttpClient.post("/api/auth/verify-email", { email, otp: code });
+    return {
+      success: true,
+      message: data.message || "Xác thực OTP thành công!"
+    };
+  }
+
+
+  /**
+   * Sends OTP to the specified email (for forgot-password or verify)
+   */
+  public static async sendOTP(email: string): Promise<{ success: boolean; message: string }> {
+    const data = await HttpClient.post("/api/auth/resend-otp", { email });
+    return {
+      success: true,
+      message: data.message || "Gửi OTP thành công!"
+    };
+  }
+
+  /**
+   * Request forgot password OTP
+   */
+  public static async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    const data = await HttpClient.post("/api/auth/forgot-password", { email });
+    return {
+      success: true,
+      message: data.message || "Gửi OTP đặt lại mật khẩu thành công!"
+    };
+  }
+
+  /**
+   * Verify forgot password OTP and get reset token
+   */
+  public static async verifyResetOtp(email: string, otp: string): Promise<{ resetToken: string }> {
+    const data = await HttpClient.post<{ resetToken: string }>("/api/auth/verify-reset-otp", { email, otp });
+    return data;
+  }
+
+  /**
+   * Reset password using JWT reset token
+   */
+  public static async resetPassword(resetToken: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const data = await HttpClient.post("/api/auth/reset-password", { resetToken, newPassword });
+    return {
+      success: true,
+      message: data.message || "Đặt lại mật khẩu thành công!"
+    };
   }
 
   /**
@@ -366,55 +238,27 @@ export class AuthService {
     isPickup: boolean;
     type: "home" | "office";
   }): Promise<{ success: boolean; addressId: number; address: any }> {
-    try {
-      const storedUser = localStorage.getItem(this.STORAGE_KEY);
-      const token = storedUser ? JSON.parse(storedUser).token : null;
+    const data = await HttpClient.post("/api/addresses", {
+      fullname: address.fullname,
+      phone: address.phone,
+      province: address.province,
+      district: address.district,
+      ward: address.ward,
+      detailAddress: address.detailAddress,
+      isDefault: address.isDefault,
+      isPickup: address.isPickup,
+      type: (address.type || "home").toUpperCase()
+    });
 
-      const response = await fetch("/api/auth/add-address", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ userId, ...address })
-      });
-      const data = await response.json();
-      if (data.success) {
-        return data;
-      }
-      throw new Error(data.error || "Thêm địa chỉ thất bại.");
-    } catch (err: any) {
-      console.warn("⚠️ API addAddress lỗi, sử dụng mock:", err.message);
-      await this.delay(200);
-      const mockId = Math.floor(100000 + Math.random() * 900000);
-      const newAddr = {
-        address_id: mockId,
-        user_id: userId,
-        ...address,
-        detail_address: address.detailAddress
-      };
-      
-      const stored = localStorage.getItem(`mock_addresses_${userId}`);
-      const list = stored ? JSON.parse(stored) : [];
-      if (address.isDefault) {
-        list.forEach((a: any) => a.is_default = false);
-      }
-      if (address.isPickup) {
-        list.forEach((a: any) => a.is_pickup = false);
-      }
-      list.push(newAddr);
-      localStorage.setItem(`mock_addresses_${userId}`, JSON.stringify(list));
-
-      return {
-        success: true,
-        addressId: mockId,
-        address: newAddr
-      };
-    }
+    return {
+      success: true,
+      addressId: data.id,
+      address: data
+    };
   }
 
   /**
-   * Registers a customer as a seller (Updated for 4-step wizard)
+   * Registers a customer as a seller
    */
   public static async registerSeller(userId: string, details: {
     shopName: string;
@@ -432,80 +276,32 @@ export class AuthService {
       backImage: string;
     };
   }): Promise<User> {
-    try {
-      const storedUser = localStorage.getItem(this.STORAGE_KEY);
-      const token = storedUser ? JSON.parse(storedUser).token : null;
+    const data = await HttpClient.post("/api/stores/register", {
+      shopName: details.shopName,
+      shopEmail: details.shopEmail,
+      shopPhone: details.shopPhone,
+      pickupAddressId: details.pickupAddressId,
+      shippingSettings: details.shippingSettings
+    });
 
-      const response = await fetch("/api/auth/register-seller", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ userId, ...details })
-      });
-      const data = await response.json();
-      if (data.success && data.user) {
-        const cleanUser = {
-          ...data.user,
-          kyc_front_image: "",
-          kyc_back_image: ""
-        };
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cleanUser));
-        return cleanUser;
-      }
-      throw new Error(data.error || "Không thể đăng ký bán hàng.");
-    } catch (err) {
-      console.warn("⚠️ API Đăng ký bán hàng lỗi, tự động chuyển sang chế độ Giả lập:", err);
-      await this.delay(300);
-      
-      const currentUser = await this.getCurrentUser();
-      
-      let mockFullAddressStr = "Chưa cập nhật địa chỉ lấy hàng cụ thể";
-      const storedAddrs = localStorage.getItem(`mock_addresses_${userId}`);
-      if (storedAddrs) {
-        const list = JSON.parse(storedAddrs);
-        const matched = list.find((a: any) => String(a.address_id) === String(details.pickupAddressId));
-        if (matched) {
-          mockFullAddressStr = `${matched.detail_address}, ${matched.ward}, ${matched.district}, ${matched.province}`;
-        }
-      }
-
-      const updatedUser: User = {
-        ...currentUser,
-        is_seller: true,
-        shop_name: details.shopName,
-        shop_email: details.shopEmail,
-        shop_phone: details.shopPhone,
-        shop_address: mockFullAddressStr,
-        shipping_green_express: details.shippingSettings.greenExpress,
-        shipping_hoa_toc: details.shippingSettings.hoaToc,
-        shipping_spx: details.shippingSettings.spx,
-        shipping_ghtk: details.shippingSettings.ghtk,
-        kyc_front_image: "",
-        kyc_back_image: ""
-      };
-
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updatedUser));
-
-      const localUsersStr = localStorage.getItem(this.REGISTERED_USERS_KEY);
-      if (localUsersStr) {
-        const localUsers: User[] = JSON.parse(localUsersStr);
-        const updatedList = localUsers.map(u => u.id === userId ? updatedUser : u);
-        localStorage.setItem(this.REGISTERED_USERS_KEY, JSON.stringify(updatedList));
-      }
-
+    const updatedUser = await this.getCurrentUser();
+    if (updatedUser) {
       return updatedUser;
     }
+    throw new Error("Không thể tải lại thông tin người dùng.");
   }
 
-  /**
-   * Clears security context
-   */
-  public static async logout(): Promise<void> {
-    await this.delay(100);
-    localStorage.removeItem(this.STORAGE_KEY);
+  public static getAccessToken(): string | null {
+    const parsed = storage.getItem<any>(this.STORAGE_KEY);
+    if (!parsed) return null;
+    return parsed.token || null;
   }
 
+  public static setAccessToken(token: string): void {
+    const parsed = storage.getItem<any>(this.STORAGE_KEY) || {};
+    storage.setItem(this.STORAGE_KEY, {
+      ...parsed,
+      token: token
+    });
+  }
 }
-

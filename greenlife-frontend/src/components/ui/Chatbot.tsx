@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, X, Send, Bot, User, Sparkles, ChevronDown, Leaf, Sprout } from "lucide-react";
+import { X, Send, Bot, User, ChevronDown, Sprout } from "lucide-react";
+import { logger } from "../../utils/logger";
+import { HttpClient } from "../../services/httpClient";
 
 interface Message {
   id: string;
@@ -159,18 +161,7 @@ export const Chatbot: React.FC = () => {
         }, 600);
       } else {
         // Otherwise, send a real API request to our tuned AI Doctor chat endpoint
-        const storedUser = localStorage.getItem("greenlife_current_user");
-        const token = storedUser ? JSON.parse(storedUser).token : null;
-
-        fetch("/api/ai/chat", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            ...(token ? { "Authorization": `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ question: text }),
-        })
-          .then((res) => res.json())
+        HttpClient.post("/api/ai/chat", { question: text })
           .then((data) => {
             setIsTyping(false);
             const replyText = data.success && data.answer
@@ -188,7 +179,7 @@ export const Chatbot: React.FC = () => {
             ]);
           })
           .catch((err) => {
-            console.error("Chatbot API error:", err);
+            logger.error("Chatbot API error:", err);
             setIsTyping(false);
             setMessages((prev) => [
               ...prev,
@@ -210,6 +201,11 @@ export const Chatbot: React.FC = () => {
       setHasUnread(false);
     }
   };
+
+  const chatbotBackendSupported = false;
+  if (!chatbotBackendSupported) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">

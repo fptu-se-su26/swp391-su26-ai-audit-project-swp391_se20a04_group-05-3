@@ -1,9 +1,13 @@
-import React, { useState, useRef } from "react";
-import { BrainCircuit, Upload, Sparkles, AlertTriangle, CheckCircle, RefreshCw, ShoppingBag, Eye, History, HelpCircle } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { BrainCircuit, Upload, Sparkles, AlertTriangle, CheckCircle, RefreshCw, Eye, History } from "lucide-react";
 import { Product, DiagnosisLog } from "../../types";
 import { MOCK_DIAGNOSIS_PRESETS } from "../../data";
 import { ExpertCalloutBanner } from "./ExpertDirectoryView";
 import { useAppContext } from "../../context/AppContext";
+import { AIDiagnosisService } from "../../services/aiDiagnosisService";
+import { CardSkeleton } from "../common/Skeleton";
+import { logger } from "../../utils/logger";
+import toast from "react-hot-toast";
 
 
 interface AIDiagnosisViewProps {
@@ -22,6 +26,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
   const { setCurrentPage } = useAppContext();
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [fileBase64, setFileBase64] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -29,6 +34,15 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
   const [warningMessage, setWarningMessage] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Trigger file dialog
   const handleSelectFileClick = () => {
@@ -39,12 +53,13 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
   const processUploadFile = (file: File) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      alert("Vui lòng tải lên tập tin hình ảnh vườn tược chuẩn (PNG/JPG).");
+      toast.error("Vui lòng tải lên tập tin hình ảnh vườn tược chuẩn (PNG/JPG).");
       return;
     }
 
     setFileName(file.name);
     setSelectedPresetId(null); // Overwrite preset with custom custom upload image
+    setSelectedFile(file);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -86,6 +101,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
   const selectPreset = (presetId: string) => {
     setSelectedPresetId(presetId);
     setFileBase64(null); // Clear custom upload image
+    setSelectedFile(null);
     setFileName("");
     const matched = MOCK_DIAGNOSIS_PRESETS.find((p) => p.id === presetId);
     if (matched) {
@@ -93,67 +109,83 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
     }
   };
 
+  // Helper to convert URL/base64 to a File object
+  const urlToFile = async (urlOrBase64: string, filename: string, mimeType: string): Promise<File> => {
+    try {
+      const res = await fetch(urlOrBase64);
+      const buf = await res.arrayBuffer();
+      return new File([buf], filename, { type: mimeType });
+    } catch (e) {
+      logger.warn("Failed to fetch image, falling back to mock file blob:", e);
+      const mockPngBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+      const res = await fetch(mockPngBase64);
+      const buf = await res.arrayBuffer();
+      return new File([buf], filename, { type: "image/png" });
+    }
+  };
+
   // Trigger diagnosis call to server api
   const executeDiagnosisProcess = async () => {
     if (!fileBase64 && !selectedPresetId) {
-      alert("Vui lòng chọn 1 loại bệnh cây mẫu bên dưới hoặc tải lên file ảnh lá cây của bạn.");
+      toast.error("Vui lòng chọn 1 loại bệnh cây mẫu bên dưới hoặc tải lên file ảnh lá cây của bạn.");
       return;
     }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
 
     setIsScanning(true);
     setWarningMessage("");
     setActiveReport(null);
 
     try {
-      // Build body parameters
-      const reqBody: any = {};
+      let fileToDiagnose: File | null = null;
       if (selectedPresetId) {
-        reqBody.presetId = selectedPresetId;
-      } else {
-        reqBody.base64Data = fileBase64;
-        reqBody.mimeType = "image/jpeg";
-      }
-
-      const storedUser = localStorage.getItem("greenlife_current_user");
-      const token = storedUser ? JSON.parse(storedUser).token : null;
-
-      const response = await fetch("/api/ai-diagnosis", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(reqBody),
-      });
-
-      const data = await response.json();
-
-      if (data.success && data.result) {
-        setActiveReport(data.result);
-        if (data.warning) {
-          setWarningMessage(data.warning);
+        const matched = MOCK_DIAGNOSIS_PRESETS.find((p) => p.id === selectedPresetId);
+        if (matched) {
+          fileToDiagnose = await urlToFile(matched.imageUrl, "preset-leaf.jpg", "image/jpeg");
         }
-
-        // Save report log to parent state
-        const newLog: DiagnosisLog = {
-          id: `diag-${Date.now()}`,
-          date: new Date().toLocaleDateString("vi-VN"),
-          plantName: data.result.plantName,
-          diseaseName: data.result.diseaseName,
-          severity: data.result.severity,
-          symptoms: data.result.symptoms,
-          treatment: data.result.treatment,
-          recommendedProductIds: data.result.recommendedProductIds || [],
-          imageUrl: fileBase64 || "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=200"
-        };
-        onAddDiagnosisLog(newLog);
-
-      } else {
-        alert(data.error || "Có lỗi bất ngờ xảy ra khi chuẩn đoán thông số.");
+      } else if (selectedFile) {
+        fileToDiagnose = selectedFile;
       }
+
+      if (!fileToDiagnose) {
+        toast.error("Không tìm thấy file ảnh để chẩn đoán.");
+        setIsScanning(false);
+        return;
+      }
+
+      const logResult = await AIDiagnosisService.diagnosePlantLeaf(
+        fileToDiagnose,
+        abortControllerRef.current.signal
+      );
+
+      const diseaseNameLower = (logResult.diseaseName || "").toLowerCase();
+      let recommendedIds: string[] = [];
+      if (diseaseNameLower.includes("mốc sương") || diseaseNameLower.includes("infestans")) {
+        recommendedIds = ["prod-5"];
+      } else if (diseaseNameLower.includes("sen đá") || diseaseNameLower.includes("thối")) {
+        recommendedIds = ["prod-2"];
+      } else if (diseaseNameLower.includes("trĩ") || diseaseNameLower.includes("hồng")) {
+        recommendedIds = ["prod-5"];
+      }
+      logResult.recommendedProductIds = recommendedIds;
+
+      if (fileBase64) {
+        logResult.imageUrl = fileBase64;
+      }
+
+      setActiveReport(logResult);
+      onAddDiagnosisLog(logResult);
+      toast.success("Chẩn đoán bệnh lá thành công!");
+
     } catch (err: any) {
-      console.error("Diagnosis error:", err);
-      alert("Mạng kết nối không ổn định hoặc lỗi máy chủ xử lý ảnh.");
+      if (err.name !== "AbortError") {
+        logger.error("Diagnosis error:", err);
+        toast.error("Mạng kết nối không ổn định hoặc lỗi máy chủ xử lý ảnh.");
+      }
     } finally {
       setIsScanning(false);
     }
@@ -180,7 +212,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
         <span className="text-xs text-emerald-500 font-mono tracking-widest uppercase">TRÁM CHẨN ĐOÁN CÔNG NGHỆ CAO</span>
         <h1 className="text-3xl sm:text-4xl font-display font-bold text-stone-100 tracking-tight flex items-center gap-2">
           <BrainCircuit className="h-8 w-8 text-emerald-400" />
-          Bác Sĩ Thực Vật Trí Tuệ Nhân Tạo
+          Chẩn Đoán Bệnh Cây AI
         </h1>
         <p className="text-stone-400 text-sm max-w-2xl leading-relaxed">
           Ứng dụng phát hiện tự động hơn 150 loại vi nấm, sâu xanh rệp, thối nhũn và sự cố dinh dưỡng hữu cơ nhờ AI sinh học. Đưa cây hồi sinh khỏe mạnh chỉ sau một phác đồ dứt điểm.
@@ -316,19 +348,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
 
           {/* Beautiful dynamic scanning simulator overlay display */}
           {isScanning && (
-            <div className="bg-stone-950 border border-stone-800 p-8 rounded-3xl space-y-6 animate-pulse">
-              <div className="h-4 bg-stone-900 rounded-md w-1/4" />
-              <div className="h-8 bg-stone-900 rounded-md w-3/4" />
-              <div className="space-y-3 pt-4 border-t border-stone-800">
-                <div className="h-3 bg-stone-900 rounded-md w-full" />
-                <div className="h-3 bg-stone-900 rounded-md w-5/6" />
-                <div className="h-3 bg-stone-900 rounded-md w-4/6" />
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-6">
-                <div className="h-10 bg-stone-900 rounded-xl" />
-                <div className="h-10 bg-stone-900 rounded-xl" />
-              </div>
-            </div>
+            <CardSkeleton />
           )}
 
           {/* Active diagnostic medical file viewer */}

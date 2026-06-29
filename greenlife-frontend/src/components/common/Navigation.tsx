@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-import { Leaf, ShoppingBag, BrainCircuit, Calendar, Newspaper, User, Settings2, Home, Landmark, UserCheck, Sun, Moon, MapPin, Menu, X, LogOut, Cpu, Store, Users, Sprout, TrendingUp, Inbox, FileText } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Leaf, ShoppingBag, BrainCircuit, Newspaper, User, Settings2, Home, UserCheck, Sun, Moon, MapPin, Menu, X, LogOut, Cpu, Store, Users, Sprout, TrendingUp, Inbox, FileText, Bell, Trash2, MessageSquare, ShieldAlert } from "lucide-react";
 
 import { useAppContext } from "../../context/AppContext";
+import { NotificationSkeleton } from "./Skeleton";
 
 
 interface NavigationProps {
@@ -21,7 +22,59 @@ export const Navigation: React.FC<NavigationProps> = ({
   setUserRole,
   openCart,
 }) => {
-  const { theme, toggleTheme, selectedStoreId, stores, currentUser, logout, adminActiveTab, setAdminActiveTab, storeActiveTab, setStoreActiveTab } = useAppContext();
+  const {
+    theme,
+    toggleTheme,
+    selectedStoreId,
+    stores,
+    currentUser,
+    logout,
+    adminActiveTab,
+    setAdminActiveTab,
+    storeActiveTab,
+    setStoreActiveTab,
+    notifications,
+    unreadCount,
+    loadNotifications,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification
+  } = useAppContext();
+
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifError, setNotifError] = useState("");
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const handleBellClick = async () => {
+    setIsNotifOpen(!isNotifOpen);
+    if (!isNotifOpen) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
+      setNotifLoading(true);
+      setNotifError("");
+      try {
+        await loadNotifications(0, 10, abortControllerRef.current.signal);
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          setNotifError("Không thể tải thông báo.");
+        }
+      } finally {
+        setNotifLoading(false);
+      }
+    }
+  };
 
   const matchedStore = stores.find((s) => s.id === selectedStoreId);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -37,6 +90,8 @@ export const Navigation: React.FC<NavigationProps> = ({
         { id: "products", label: "Danh Mục Sản Phẩm", icon: Sprout },
         { id: "orders", label: "Giao Dịch Đơn Hàng", icon: ShoppingBag },
         { id: "blogs", label: "Cẩm Nang Xanh", icon: FileText },
+        { id: "reviews", label: "Kiểm Duyệt Đánh Giá", icon: MessageSquare },
+        { id: "security-logs", label: "Nhật Ký Bảo Mật", icon: ShieldAlert },
       ]
     : isStoreOwner
       ? [
@@ -44,6 +99,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           { id: "orders", label: "Quản Lý Đơn Hàng", icon: Inbox },
           { id: "products", label: "Niêm Yết Sản Phẩm", icon: Sprout },
           { id: "blogs", label: "Quản Lý Bài Viết", icon: FileText },
+          { id: "reviews", label: "Đánh Giá Khách Hàng", icon: MessageSquare },
           { id: "settings", label: "Cấu hình Nhà Vườn", icon: Settings2 },
           { id: "customer-view-back", label: "Trang Mua Sắm 🛒", icon: Home },
         ]
@@ -72,7 +128,9 @@ export const Navigation: React.FC<NavigationProps> = ({
         "users",
         "products",
         "orders",
-        "blogs"
+        "blogs",
+        "reviews",
+        "security-logs"
       ].includes(id);
 
       if (isAdminItem) {
@@ -93,7 +151,8 @@ export const Navigation: React.FC<NavigationProps> = ({
         "orders",
         "products",
         "settings",
-        "blogs"
+        "blogs",
+        "reviews"
       ].includes(id);
 
       if (isStoreItem) {
@@ -200,6 +259,96 @@ export const Navigation: React.FC<NavigationProps> = ({
               )}
             </button>
 
+            {/* Notification Bell with Badge & Dropdown */}
+            {currentUser && (
+              <div className="relative">
+                <button
+                  onClick={handleBellClick}
+                  className={`relative p-2.5 rounded-xl bg-stone-800/80 hover:bg-stone-850 text-stone-300 hover:text-stone-100 border border-stone-700/40 transition-all cursor-pointer btn-animated shadow-xs ${
+                    unreadCount > 0 ? "bell-glow-pulse" : ""
+                  }`}
+                  aria-label="Thông báo"
+                >
+                  <Bell className="h-5 w-5 text-emerald-500 hover:text-emerald-450 hover:scale-110 transition-all duration-300" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white border-2 border-stone-900 shadow-md animate-badge-pop">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {isNotifOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
+                    <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-stone-950 border border-stone-800 rounded-2xl shadow-2xl z-50 overflow-hidden text-stone-300">
+                      {/* Header */}
+                      <div className="flex items-center justify-between border-b border-stone-850 px-4 py-3 bg-stone-900/40">
+                        <span className="font-semibold text-sm text-white">Thông báo</span>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={markAllAsRead}
+                            className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer"
+                          >
+                            Đánh dấu đã đọc tất cả
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="max-h-80 overflow-y-auto divide-y divide-stone-850">
+                        {notifLoading && (
+                          <div className="p-4">
+                            <NotificationSkeleton />
+                          </div>
+                        )}
+                        {notifError && (
+                          <div className="p-6 text-center text-xs text-rose-400">
+                            {notifError}
+                          </div>
+                        )}
+                        {!notifLoading && !notifError && notifications.length === 0 && (
+                          <div className="p-8 text-center text-xs text-stone-500">
+                            Không có thông báo mới.
+                          </div>
+                        )}
+                        {!notifLoading && !notifError && notifications.map((notif) => (
+                          <div
+                            key={notif.id}
+                            className={`p-3.5 flex justify-between gap-3 text-xs transition-all relative ${
+                              !notif.isRead ? "bg-emerald-950/20 border-l-2 border-emerald-500" : "hover:bg-stone-900/20"
+                            }`}
+                          >
+                            <div className="flex-1 space-y-1 cursor-pointer" onClick={() => !notif.isRead && markAsRead(notif.id)}>
+                              <div className="flex items-center justify-between">
+                                <span className={`font-semibold ${!notif.isRead ? "text-white" : "text-stone-300"}`}>
+                                  {notif.title}
+                                </span>
+                                <span className="text-[10px] text-stone-500 font-mono">
+                                  {new Date(notif.createdAt).toLocaleDateString("vi-VN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                  })}
+                                </span>
+                              </div>
+                              <p className="text-stone-400 leading-normal line-clamp-2">{notif.message}</p>
+                            </div>
+                            
+                            <button
+                              onClick={() => deleteNotification(notif.id)}
+                              className="p-1 text-stone-600 hover:text-rose-400 transition-colors cursor-pointer shrink-0 self-center"
+                              title="Xóa"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Profile Avatar trigger */}
             <button
               onClick={() => {
@@ -244,6 +393,96 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Mobile hamburger icon trigger */}
           <div className="flex md:hidden items-center gap-2">
+            {/* Notification Bell */}
+            {currentUser && (
+              <div className="relative">
+                <button
+                  onClick={handleBellClick}
+                  className={`relative p-2.5 rounded-xl bg-stone-800/80 hover:bg-stone-850 text-stone-300 hover:text-stone-100 border border-stone-700/40 transition-all cursor-pointer animate-badge-pop shadow-xs ${
+                    unreadCount > 0 ? "bell-glow-pulse" : ""
+                  }`}
+                  aria-label="Thông báo"
+                >
+                  <Bell className="h-5 w-5 text-emerald-500 hover:text-emerald-450 hover:scale-110 transition-all duration-300" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white border-2 border-stone-900 shadow-md animate-badge-pop">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {isNotifOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
+                    <div className="absolute right-0 mt-3 w-72 bg-stone-950 border border-stone-800 rounded-2xl shadow-2xl z-50 overflow-hidden text-stone-300">
+                      {/* Header */}
+                      <div className="flex items-center justify-between border-b border-stone-850 px-4 py-3 bg-stone-900/40">
+                        <span className="font-semibold text-sm text-white">Thông báo</span>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={markAllAsRead}
+                            className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer"
+                          >
+                            Đã đọc tất cả
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="max-h-64 overflow-y-auto divide-y divide-stone-850">
+                        {notifLoading && (
+                          <div className="p-4">
+                            <NotificationSkeleton />
+                          </div>
+                        )}
+                        {notifError && (
+                          <div className="p-4 text-center text-xs text-rose-400">
+                            {notifError}
+                          </div>
+                        )}
+                        {!notifLoading && !notifError && notifications.length === 0 && (
+                          <div className="p-6 text-center text-xs text-stone-500">
+                            Không có thông báo.
+                          </div>
+                        )}
+                        {!notifLoading && !notifError && notifications.map((notif) => (
+                          <div
+                            key={notif.id}
+                            className={`p-3 flex justify-between gap-2 text-xs transition-all relative ${
+                              !notif.isRead ? "bg-emerald-950/20 border-l-2 border-emerald-500" : "hover:bg-stone-900/20"
+                            }`}
+                          >
+                            <div className="flex-1 space-y-0.5 cursor-pointer" onClick={() => !notif.isRead && markAsRead(notif.id)}>
+                              <div className="flex items-center justify-between">
+                                <span className={`font-semibold line-clamp-1 ${!notif.isRead ? "text-white" : "text-stone-300"}`}>
+                                  {notif.title}
+                                </span>
+                                <span className="text-[9px] text-stone-500 font-mono">
+                                  {new Date(notif.createdAt).toLocaleDateString("vi-VN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                  })}
+                                </span>
+                              </div>
+                              <p className="text-stone-400 leading-normal line-clamp-2">{notif.message}</p>
+                            </div>
+                            
+                            <button
+                              onClick={() => deleteNotification(notif.id)}
+                              className="p-1 text-stone-600 hover:text-rose-400 transition-colors cursor-pointer shrink-0 self-center"
+                              title="Xóa"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Cart Button */}
             <button
               onClick={openCart}
@@ -282,6 +521,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               return (
                 <button
                   key={item.id}
+                  role="link"
                   onClick={() => handleNavClick(item.id)}
                   className={`flex flex-col items-center justify-center gap-0.5 px-4 py-1.5 rounded-lg text-sm font-medium cursor-pointer nav-item-animated transition-all ${
                     isActive
@@ -314,6 +554,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 return (
                   <button
                     key={item.id}
+                    role="link"
                     onClick={() => handleNavClick(item.id)}
                     className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium w-full text-left cursor-pointer nav-item-animated ${
                       isActive

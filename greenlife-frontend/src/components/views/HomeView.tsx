@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowUpRight, BrainCircuit, ShieldAlert, Award, ChevronRight, Sparkles, TrendingDown, Users, Leaf, Camera } from "lucide-react";
+import { ArrowUpRight, BrainCircuit, Award, ChevronRight, Sparkles, TrendingDown, Users, Leaf, Camera } from "lucide-react";
 import { Product } from "../../types";
 
 
@@ -245,6 +245,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   alt={product.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   referrerPolicy="no-referrer"
+                  loading="lazy"
                 />
                 <div className="absolute top-3 left-3 px-2 py-1 rounded bg-stone-900/95 border border-emerald-500/30 font-mono text-[10px] text-emerald-400">
                   ECO {product.ecoScore}%
