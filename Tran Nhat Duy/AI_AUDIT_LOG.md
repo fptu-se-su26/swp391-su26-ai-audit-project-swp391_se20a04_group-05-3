@@ -192,7 +192,7 @@ Chuyển đổi kiểu dữ liệu ENUM sang VARCHAR và NVARCHAR trong SQL Serv
 |---|---|
 | Link commit | `12ef07a Add database folder with schema and patches` |
 | File liên quan | Xem chi tiết |
-| Screenshot | ![GreenLife Wireframe Structure](ai_usage_1_initial_db.png) |
+| Screenshot | ![GreenLife Initial DB Chat 1](ai_usage_1_initial_db_1.png) <br> ![GreenLife Initial DB Chat 2](ai_usage_1_initial_db_2.png) |
 | Kết quả chạy/test | Đã xác nhận thành công |
 
 #### 4.6. Nhận xét cá nhân/nhóm
