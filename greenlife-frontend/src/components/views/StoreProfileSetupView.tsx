@@ -3,8 +3,6 @@ import {
   Store, 
   Phone, 
   MapPin, 
-  Image as ImageIcon, 
-  FileText, 
   CheckCircle2, 
   AlertCircle, 
   Mail, 
@@ -16,11 +14,11 @@ import {
   ShieldCheck, 
   Truck, 
   Plus, 
-  X,
-  CreditCard
+  X
 } from "lucide-react";
 import { useAppContext } from "../../context/AppContext";
 import { EcoStore } from "../../types";
+import toast from "react-hot-toast";
 
 const vietnamDivisions: Record<string, Record<string, string[]>> = {
   "Đà Nẵng": {
@@ -185,7 +183,7 @@ export const StoreProfileSetupView: React.FC = () => {
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addressForm.fullname || !addressForm.phone || !addressForm.detailAddress) {
-      alert("Vui lòng điền đầy đủ các thông tin địa chỉ.");
+      toast.error("Vui lòng điền đầy đủ các thông tin địa chỉ.");
       return;
     }
     try {
@@ -195,7 +193,7 @@ export const StoreProfileSetupView: React.FC = () => {
         setShowAddressModal(false);
       }
     } catch (err: any) {
-      alert("Không thể lưu địa chỉ: " + err.message);
+      toast.error("Không thể lưu địa chỉ: " + err.message);
     }
   };
 
@@ -240,7 +238,7 @@ export const StoreProfileSetupView: React.FC = () => {
         }
       });
     } catch (err: any) {
-      alert("Đăng ký bán hàng thất bại: " + (err.message || err));
+      toast.error("Đăng ký bán hàng thất bại: " + (err.message || err));
     } finally {
       setSubmitting(false);
     }

@@ -1,8 +1,13 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Search, SlidersHorizontal, Leaf, Sparkles, MapPin, ChevronDown, ChevronUp } from "lucide-react";
 import { Product } from "../../types";
 import { useAppContext } from "../../context/AppContext";
 import { LocationSelector } from "../ui/LocationSelector";
+import { ProductGridSkeleton } from "../common/Skeleton";
+import { ProductCard } from "../common/ProductCard";
+import { CategoryCard } from "../common/CategoryCard";
+import { useDebounce } from "../../hooks/useDebounce";
+import { EmptyState } from "../common/EmptyState";
 
 
 interface ShopViewProps {
@@ -21,7 +26,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
   onAddToCart,
   initialSearch = "",
 }) => {
-  const { userLocation, selectedStoreId, setSelectedStoreId, stores } = useAppContext();
+  const { userLocation, selectedStoreId, setSelectedStoreId, stores, loadProducts, currentUser, toggleWishlist, loading } = useAppContext();
   const [search, setSearch] = useState(initialSearch);
 
   useEffect(() => {
@@ -30,6 +35,32 @@ export const ShopView: React.FC<ShopViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("all");
   const [sortOption, setSortOption] = useState<SortOption>("featured");
   const [showMapSection, setShowMapSection] = useState(false);
+
+  const debouncedSearch = useDebounce(search, 400);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadProducts(debouncedSearch, selectedCategory, controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [debouncedSearch, selectedCategory]);
+
+  const handleAddToCart = useCallback((p: Product) => {
+    onAddToCart(p);
+  }, [onAddToCart]);
+
+  const handleSelectProduct = useCallback((p: Product) => {
+    onSelectProduct(p);
+  }, [onSelectProduct]);
+
+  const handleToggleWishlist = useCallback(async (id: number) => {
+    await toggleWishlist(id);
+  }, [toggleWishlist]);
+
+  const handleCategoryChange = useCallback((id: string) => {
+    setSelectedCategory(id as CategoryFilter);
+  }, []);
 
   const categories = [
     { id: "all", label: "Tất Cả" },
@@ -47,12 +78,12 @@ export const ShopView: React.FC<ShopViewProps> = ({
     return stores.find((s) => s.id === selectedStoreId);
   }, [stores, selectedStoreId]);
 
-  const filteredAndSortedProducts = useMemo(() => {
+  const filteredProducts = useMemo(() => {
     let result = [...products];
 
     // Apply Search Filter
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
@@ -64,6 +95,12 @@ export const ShopView: React.FC<ShopViewProps> = ({
     if (selectedCategory !== "all") {
       result = result.filter((p) => p.category === selectedCategory);
     }
+
+    return result;
+  }, [products, debouncedSearch, selectedCategory]);
+
+  const sortedProducts = useMemo(() => {
+    const result = [...filteredProducts];
 
     // Apply Sort option
     if (sortOption === "price-asc") {
@@ -77,7 +114,11 @@ export const ShopView: React.FC<ShopViewProps> = ({
     }
 
     return result;
-  }, [products, search, selectedCategory, sortOption]);
+  }, [filteredProducts, sortOption]);
+
+  const paginatedProducts = useMemo(() => {
+    return sortedProducts;
+  }, [sortedProducts]);
 
   return (
     <div className="space-y-8 pb-20 text-stone-100">
@@ -219,17 +260,12 @@ export const ShopView: React.FC<ShopViewProps> = ({
         {/* Categories Pills */}
         <div className="flex flex-wrap gap-2 pt-2 border-t border-stone-850">
           {categories.map((cat) => (
-            <button
+            <CategoryCard
               key={cat.id}
-              onClick={() => setSelectedCategory(cat.id as CategoryFilter)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${
-                selectedCategory === cat.id
-                  ? "bg-emerald-500 text-black shadow-md font-semibold"
-                  : "bg-stone-900 text-stone-400 border border-stone-850 hover:text-stone-200"
-              }`}
-            >
-              {cat.label}
-            </button>
+              category={cat}
+              isActive={selectedCategory === cat.id}
+              onClick={handleCategoryChange}
+            />
           ))}
         </div>
       </div>
@@ -243,87 +279,34 @@ export const ShopView: React.FC<ShopViewProps> = ({
       )}
 
       {/* Products Grid */}
-      {filteredAndSortedProducts.length === 0 ? (
-        <div className="text-center py-20 bg-stone-950/50 border border-dashed border-stone-850 rounded-3xl space-y-3">
-          <p className="text-stone-400 font-medium">Không tìm thấy sản phẩm nào khớp với tìm kiếm.</p>
-          <button
-            onClick={() => {
+      {loading?.products ? (
+        <ProductGridSkeleton count={6} />
+      ) : paginatedProducts.length === 0 ? (
+        <EmptyState
+          icon={Leaf}
+          title="Không tìm thấy sản phẩm"
+          description="Không tìm thấy sản phẩm nào khớp với bộ lọc hoặc tìm kiếm của bạn."
+          action={{
+            label: "Reset bộ lọc",
+            onClick: () => {
               setSearch("");
               setSelectedCategory("all");
-            }}
-            className="text-xs text-emerald-400 hover:underline"
-          >
-            Reset bộ lọc
-          </button>
-        </div>
+            }
+          }}
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedProducts.map((product) => {
-            return (
-              <div
-                key={product.id}
-                className="group bg-stone-950 border border-stone-850 hover:border-emerald-900/40 rounded-2xl overflow-hidden shadow-md flex flex-col justify-between transition-all"
-              >
-                {/* Product Image Stage */}
-                <div 
-                  className="relative h-60 bg-stone-900 overflow-hidden cursor-pointer"
-                  onClick={() => onSelectProduct(product)}
-                >
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute top-3 left-3 flex gap-2">
-                    <span className="px-2 py-0.5 rounded bg-emerald-950/95 border border-emerald-500/30 font-mono text-[9px] text-emerald-400 flex items-center gap-1">
-                      <Leaf className="h-2.5 w-2.5" />
-                      ECO {product.ecoScore}%
-                    </span>
-                    {product.stock <= 5 && (
-                      <span className="px-2 py-0.5 rounded bg-amber-950/90 border border-amber-500/30 font-mono text-[9px] text-amber-400">
-                        Chỉ còn {product.stock} sản phẩm
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Info & Buy Module */}
-                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                  <div className="space-y-1">
-                    <span className="text-[9px] font-mono text-stone-500 uppercase tracking-widest block">
-                      {product.category === "plants" ? "Cây Xanh" : product.category === "care" ? "Chăm Sóc" : product.category === "nutrients" ? "Dinh Dưỡng" : "IoT Smart"}
-                    </span>
-                    <h3 
-                      onClick={() => onSelectProduct(product)}
-                      className="font-sans font-semibold text-stone-100 hover:text-emerald-400 transition-colors cursor-pointer text-base line-clamp-1"
-                    >
-                      {product.name}
-                    </h3>
-                    <p className="text-stone-400 text-xs line-clamp-2 leading-relaxed h-8">
-                      {product.description}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-stone-850 pt-3">
-                    <div className="flex flex-col">
-                      <span className="text-[9px] font-mono text-stone-500">Giá thành:</span>
-                      <span className="text-base font-bold text-emerald-400 font-mono leading-none mt-0.5">
-                        {product.price.toLocaleString("vi-VN")}₫
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() => onAddToCart(product)}
-                      className="px-4 py-2 bg-stone-800 hover:bg-emerald-500 hover:text-black font-semibold text-xs text-stone-200 rounded-xl transition-all cursor-pointer"
-                    >
-                      Thêm vào giỏ
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {paginatedProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onSelectProduct={handleSelectProduct}
+              onAddToCart={handleAddToCart}
+              toggleWishlist={handleToggleWishlist}
+              isSaved={currentUser?.savedProductIds?.includes(String(product.id))}
+              showDetailsStyle={true}
+            />
+          ))}
         </div>
       )}
     </div>

@@ -141,41 +141,7 @@ export const PRODUCTS: Product[] = [
   }
 ];
 
-export const BLOG_POSTS: BlogPost[] = [
-  {
-    id: "blog-1",
-    title: "Nông nghiệp đô thị 4.0: Biến ban công nhà bạn thành nguồn thực phẩm sạch xanh",
-    summary: "Hướng dẫn thực chiến từ chuyên gia để khởi tạo một hệ sinh thái vườn rau, thảo mộc khép kín tại căn hộ đô thị chỉ từ 2 mét vuông.",
-    content: "Nông nghiệp đô thị không chỉ là trào lưu nhất thời mà đang nhanh chóng trở thành phong cách sống bền vững của thế hệ cư dân thông thái mới. Tại các thành phố lớn như Hà Nội, Hồ Chí Minh, không gian ban công thường khá khiêm tốn. Sách cẩm nang này sẽ hướng dẫn bạn cách phân tầng ánh sáng, sử dụng hệ giá đỡ bento thông minh, và lắp đặt các cảm biến độ ẩm vi điểm IoT. Kết quả, bạn không chỉ thu hoạch được xà lách sạch dồi dào mà còn giảm trực tiếp 5 độ C nhiệt bức xạ chiếu vào căn hộ của mình vào những đợt nắng nóng đỉnh điểm của mùa hè nhiệt đới.",
-    author: "Kỹ sư nông nghiệp Nguyễn Minh Tiến",
-    date: "2026-05-15",
-    readTime: "6 phút đọc",
-    category: "urban-farming",
-    image: "https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?w=800&auto=format&fit=crop&q=80"
-  },
-  {
-    id: "blog-2",
-    title: "Bí mật đằng sau 'Eco-Score' và lối sống giảm thiểu dấu chân Carbon",
-    summary: "Đọc vị các con số tác động sinh thái trên dòng sản phẩm GreenLife và cách lựa chọn thông minh để góp phần bảo vệ hành tinh xanh.",
-    content: "Mỗi sản phẩm tại GreenLife đều trải qua quá trình đánh giá vòng đời nghiêm ngặt LCA (Life Cycle Assessment) từ nguồn nguyên liệu nhập, quy trình nung đất sét bản địa không hóa chất, cho tới túi đóng gói tự hủy sinh học làm từ tinh bột mì nương. Eco-Score phản ánh từ thang số 1-100 độ thân thiện môi trường của sản phẩm đó. Bằng cách ưu tiên sử dụng các sản phẩm có chỉ số thân thiện trên 90, mỗi gia đình Việt Nam trung bình có thể cắt giảm tới 450kg lượng phát thải CO2 mỗi năm, tương đương với sự đóng góp bền bỉ của một cây cổ thụ 20 tuổi ngoài tự nhiên.",
-    author: "TS. Phạm Hải Yến (Director of Ecology)",
-    date: "2026-05-10",
-    readTime: "8 phút đọc",
-    category: "eco-living",
-    image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop&q=80"
-  },
-  {
-    id: "blog-3",
-    title: "Cách chẩn đoán và xử lý thối nhũn lá ở những dòng phong lan, sen đá quý hiếm",
-    summary: "Bệnh thối nhũn do vi khuẩn Erwinia carotovora gây hoang mang cho mọi tín đồ yêu cây. Tìm hiểu phác đồ điều trị sinh học thần tốc.",
-    content: "Mùa ẩm ướt chuyển giao tại Việt Nam thường kéo theo sự bùng nổ của các ổ vi khuẩn cơ hội. Đối với dòng sen đá cẩm thạch quý hiếm hay phong lan đắt đỏ, chỉ một vệt nước đọng qua đêm ở nách lá cũng có thể biến thành vết hoại tử thối nhũn chỉ sau 12 giờ ngắn ngủi phá hủy hệ mô liên kết. Khi phát hiện vệt sũng nước chuyển màu thâm kim, việc đầu tiên cần làm là ngưng tưới hoàn toàn, cách ly nhiệt đối, dùng dao cạo gỗ đã sát trùng rạch tế bào hỏng, sau đó bôi cốt dầu sầu đông Neem ép lạnh kết hợp vôi nông nghiệp tôi siêu mịn lên rìa vết hoại tử.",
-    author: "Nghệ nhân cây cảnh Trần Xuân Sơn",
-    date: "2026-04-28",
-    readTime: "5 phút đọc",
-    category: "plant-care",
-    image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&auto=format&fit=crop&q=80"
-  }
-];
+export const BLOG_POSTS: BlogPost[] = [];
 
 export const EXPERTS: Expert[] = [
   {
@@ -456,35 +422,7 @@ export const MOCK_PLANTS: Plant[] = [
     purifyingProperties: ["Hấp thụ độc tố trong không khí kín", "Tăng nồng độ an tĩnh tinh thần"]
   }
 ];
-
-export const MOCK_BOOKINGS: Appointment[] = [
-  {
-    id: "booking-1",
-    expertName: "ThS. Nguyễn Thành Trung",
-    title: "Tư vấn cải tạo đất nặn hữu cơ vườn ban công phủ sương",
-    date: "2026-05-28",
-    time: "09:00",
-    type: "online",
-    price: 350000,
-    status: "confirmed",
-    durationMinutes: 60,
-    expertAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
-    userNotes: "Muốn trồng thêm cải kale và cà chua bi hữu cơ nương râm lầu cao."
-  },
-  {
-    id: "booking-2",
-    expertName: "KTS. Lê Thị Mai Chi",
-    title: "Thiết kế hệ giàn bento tuần hoàn nước tưới nhỏ giọt ban công lửng",
-    date: "2026-06-02",
-    time: "14:35",
-    type: "offline",
-    price: 500000,
-    status: "pending",
-    durationMinutes: 90,
-    expertAvatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
-    userNotes: "Diện tích ban công chung cư thô 2.4m2 cần tối ưu bệ nằm."
-  }
-];
+export const MOCK_BOOKINGS: Appointment[] = [];
 
 export const MOCK_AI_DIAGNOSES: DiagnosisLog[] = [
   {
