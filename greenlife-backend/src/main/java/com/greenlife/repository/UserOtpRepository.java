@@ -8,11 +8,20 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface UserOtpRepository extends JpaRepository<UserOtp, Long> {
 
-    Optional<UserOtp> findByUserAndPurpose(User user, OtpPurpose purpose);
+    @Query("SELECT o FROM UserOtp o WHERE o.user = :user AND o.purpose = :purpose ORDER BY o.createdAt DESC")
+    List<UserOtp> findByUserAndPurposeOrderByCreatedAtDesc(@Param("user") User user, @Param("purpose") OtpPurpose purpose);
+
+    default Optional<UserOtp> findByUserAndPurpose(User user, OtpPurpose purpose) {
+        List<UserOtp> list = findByUserAndPurposeOrderByCreatedAtDesc(user, purpose);
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+    }
+
+    long countByUserAndCreatedAtAfter(User user, LocalDateTime time);
 
     void deleteByUserAndPurpose(User user, OtpPurpose purpose);
 

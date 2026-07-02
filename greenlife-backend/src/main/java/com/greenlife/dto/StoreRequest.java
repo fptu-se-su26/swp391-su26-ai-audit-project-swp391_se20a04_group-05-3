@@ -33,6 +33,6 @@ public class StoreRequest {
     @Size(max = 500, message = "Đường dẫn ảnh logo không được vượt quá 500 ký tự")
     private String logoUrl;
 
-    @Size(max = 500, message = "Đường dẫn tài liệu xác minh không được vượt quá 500 ký tự")
+    @Size(max = 7000000, message = "Tài liệu xác minh không được vượt quá 7,000,000 ký tự")
     private String verificationDocument;
 }

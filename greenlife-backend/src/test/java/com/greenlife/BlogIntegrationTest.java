@@ -6,7 +6,6 @@ import com.greenlife.entity.Blog;
 import com.greenlife.entity.Role;
 import com.greenlife.entity.User;
 import com.greenlife.entity.enums.BlogCategory;
-import com.greenlife.entity.enums.BlogStatus;
 import com.greenlife.entity.enums.UserStatus;
 import com.greenlife.repository.BlogRepository;
 import com.greenlife.repository.RoleRepository;
@@ -19,12 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.concurrent.CountDownLatch;
@@ -52,7 +51,7 @@ public class BlogIntegrationTest {
     @Autowired
     private RoleRepository roleRepository;
 
-    @SpyBean
+    @MockitoSpyBean
     private BlogRepository blogRepository;
 
     @Autowired
@@ -67,10 +66,10 @@ public class BlogIntegrationTest {
     @Autowired
     private PlatformTransactionManager transactionManager;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
-    @SpyBean
+    @MockitoSpyBean
     private SecurityAuditService securityAuditService;
 
     @Autowired

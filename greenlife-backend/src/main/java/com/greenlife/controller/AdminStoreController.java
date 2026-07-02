@@ -28,8 +28,11 @@ public class AdminStoreController {
         return ResponseEntity.ok(storeService.getPendingStores());
     }
 
+    /**
+     * Approve a pending store (RESTful PUT for state transition).
+     */
     @PutMapping("/{id}/approve")
-    public ResponseEntity<StoreResponse> approveStorePut(
+    public ResponseEntity<StoreResponse> approveStore(
             @PathVariable Integer id,
             @Valid @RequestBody(required = false) ApproveStoreRequest request,
             @AuthenticationPrincipal UserDetails userDetails
@@ -37,26 +40,11 @@ public class AdminStoreController {
         return ResponseEntity.ok(storeService.approveStore(id, request, userDetails.getUsername()));
     }
 
-    @PostMapping("/{id}/approve")
-    public ResponseEntity<StoreResponse> approveStorePost(
-            @PathVariable Integer id,
-            @Valid @RequestBody(required = false) ApproveStoreRequest request,
-            @AuthenticationPrincipal UserDetails userDetails
-    ) {
-        return ResponseEntity.ok(storeService.approveStore(id, request, userDetails.getUsername()));
-    }
-
+    /**
+     * Reject a pending store (RESTful PUT for state transition).
+     */
     @PutMapping("/{id}/reject")
-    public ResponseEntity<StoreResponse> rejectStorePut(
-            @PathVariable Integer id,
-            @Valid @RequestBody RejectStoreRequest request,
-            @AuthenticationPrincipal UserDetails userDetails
-    ) {
-        return ResponseEntity.ok(storeService.rejectStore(id, request, userDetails.getUsername()));
-    }
-
-    @PostMapping("/{id}/reject")
-    public ResponseEntity<StoreResponse> rejectStorePost(
+    public ResponseEntity<StoreResponse> rejectStore(
             @PathVariable Integer id,
             @Valid @RequestBody RejectStoreRequest request,
             @AuthenticationPrincipal UserDetails userDetails

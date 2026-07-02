@@ -80,6 +80,7 @@ public class BlogController {
         return ResponseEntity.ok(blogs);
     }
 
+
     @PostMapping
     @PreAuthorize("hasAnyRole('STORE_OWNER', 'ADMIN')")
     public ResponseEntity<BlogResponse> createBlog(
@@ -133,6 +134,17 @@ public class BlogController {
     ) {
         User user = resolveUserRequired(userDetails);
         BlogResponse blog = blogService.archiveBlog(id, user);
+        return ResponseEntity.ok(blog);
+    }
+
+    @PatchMapping("/{id}/draft")
+    @PreAuthorize("hasAnyRole('STORE_OWNER', 'ADMIN')")
+    public ResponseEntity<BlogResponse> revertToDraft(
+            @PathVariable("id") Integer id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = resolveUserRequired(userDetails);
+        BlogResponse blog = blogService.revertToDraft(id, user);
         return ResponseEntity.ok(blog);
     }
 

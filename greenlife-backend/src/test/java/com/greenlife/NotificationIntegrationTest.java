@@ -44,7 +44,7 @@ public class NotificationIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired
@@ -409,7 +409,7 @@ public class NotificationIntegrationTest {
         while (it.hasNext()) {
             String k = it.next();
             String v = queryParams.get(k);
-            hashData.append(k).append('=').append(URLEncoder.encode(v, StandardCharsets.US_ASCII.toString()));
+            hashData.append(k).append('=').append(URLEncoder.encode(v, StandardCharsets.US_ASCII));
             if (it.hasNext()) {
                 hashData.append('&');
             }
@@ -453,7 +453,7 @@ public class NotificationIntegrationTest {
         while (it.hasNext()) {
             String k = it.next();
             String v = queryParams.get(k);
-            hashData.append(k).append('=').append(URLEncoder.encode(v, StandardCharsets.US_ASCII.toString()));
+            hashData.append(k).append('=').append(URLEncoder.encode(v, StandardCharsets.US_ASCII));
             if (it.hasNext()) {
                 hashData.append('&');
             }
@@ -522,7 +522,6 @@ public class NotificationIntegrationTest {
     @Test
     void testNotificationOnWishlistRestock() throws Exception {
         String customerToken = jwtService.generateToken(customer);
-        String ownerToken = jwtService.generateToken(storeOwner);
 
         // Add to wishlist
         mockMvc.perform(post("/api/wishlist/" + plant.getId())

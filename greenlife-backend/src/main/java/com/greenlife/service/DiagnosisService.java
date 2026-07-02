@@ -106,10 +106,11 @@ public class DiagnosisService {
                 size,
                 pageable.getSort().isEmpty() ? Sort.by(Sort.Direction.DESC, "createdAt") : pageable.getSort()
         );
-
-        Specification<DiagnosisHistory> spec = Specification.where(DiagnosisHistorySpecifications.hasCustomer(customerId))
-                .and(DiagnosisHistorySpecifications.hasPlant(plantId))
-                .and(DiagnosisHistorySpecifications.hasSeverity(severity));
+        Specification<DiagnosisHistory> spec = Specification.allOf(
+                DiagnosisHistorySpecifications.hasCustomer(customerId),
+                DiagnosisHistorySpecifications.hasPlant(plantId),
+                DiagnosisHistorySpecifications.hasSeverity(severity)
+        );
 
         return diagnosisHistoryRepository.findAll(spec, cappedPageable);
     }

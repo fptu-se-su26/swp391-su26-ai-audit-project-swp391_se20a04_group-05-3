@@ -159,6 +159,7 @@ public class ReviewService {
     }
 
     @Transactional(readOnly = true)
+    @SuppressWarnings("null")
     public Page<ReviewResponse> getStoreOwnerReviews(Integer ownerId, Pageable pageable) {
         List<Store> stores = storeRepository.findByOwnerId(ownerId);
         if (stores.isEmpty()) {

@@ -7,6 +7,7 @@ import com.greenlife.entity.enums.SecurityAuditAction;
 import com.greenlife.entity.enums.LoginFailureReason;
 import com.greenlife.repository.SecurityAuditRepository;
 import com.greenlife.repository.LoginAuditRepository;
+import com.greenlife.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -20,13 +21,18 @@ public class SecurityAuditService {
 
     private final SecurityAuditRepository securityAuditRepository;
     private final LoginAuditRepository loginAuditRepository;
+    private final UserRepository userRepository;
 
-    // TODO: Sprint 12 retention hook: Add scheduled job to archive/clean up records older than 90 days.
+    // NOTE: Sprint 12 retention hook: Add scheduled job to archive/clean up records older than 90 days.
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordSecurityAudit(User user, String email, SecurityAuditAction action, com.greenlife.entity.enums.SuspiciousActivityType suspiciousActivityType, String details) {
+        User managedUser = null;
+        if (user != null && user.getId() != null) {
+            managedUser = userRepository.findById(user.getId()).orElse(null);
+        }
         securityAuditRepository.save(SecurityAudit.builder()
-                .user(user)
-                .email(email != null ? email : (user != null ? user.getEmail() : null))
+                .user(managedUser)
+                .email(email != null ? email : (managedUser != null ? managedUser.getEmail() : null))
                 .action(action)
                 .suspiciousActivityType(suspiciousActivityType)
                 .details(details)
@@ -39,11 +45,15 @@ public class SecurityAuditService {
         recordSecurityAudit(user, null, action, null, details);
     }
 
-    // TODO: Sprint 12 retention hook: Add scheduled job to archive/clean up records older than 90 days.
+    // NOTE: Sprint 12 retention hook: Add scheduled job to archive/clean up records older than 90 days.
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordLoginAudit(User user, String email, boolean success, String ipAddress, String userAgent, LoginFailureReason failureReason) {
+        User managedUser = null;
+        if (user != null && user.getId() != null) {
+            managedUser = userRepository.findById(user.getId()).orElse(null);
+        }
         loginAuditRepository.save(LoginAudit.builder()
-                .user(user)
+                .user(managedUser)
                 .email(email)
                 .success(success)
                 .ipAddress(ipAddress)
@@ -51,5 +61,13 @@ public class SecurityAuditService {
                 .failureReason(failureReason)
                 .loginTime(LocalDateTime.now())
                 .build());
+    }
+
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 2 * * ?")
+    @Transactional
+    public void purgeOldAuditRecords() {
+        LocalDateTime ninetyDaysAgo = LocalDateTime.now().minusDays(90);
+        securityAuditRepository.deleteByCreatedAtBefore(ninetyDaysAgo);
+        loginAuditRepository.deleteByLoginTimeBefore(ninetyDaysAgo);
     }
 }

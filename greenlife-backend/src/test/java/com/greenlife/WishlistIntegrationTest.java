@@ -1,7 +1,4 @@
 package com.greenlife;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.WishlistCheckResponse;
 import com.greenlife.dto.WishlistResponse;
 import com.greenlife.entity.*;
 import com.greenlife.entity.enums.PlantStatus;
@@ -15,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -38,10 +34,7 @@ public class WishlistIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired

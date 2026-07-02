@@ -30,6 +30,7 @@ public class CartService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
+    @SuppressWarnings("null")
     public CartResponse getCart(Integer customerId) {
         List<CartItem> items = cartItemRepository.findByCustomerId(customerId);
         

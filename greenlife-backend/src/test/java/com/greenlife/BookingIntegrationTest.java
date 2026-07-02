@@ -21,7 +21,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,7 +38,7 @@ public class BookingIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired
@@ -78,12 +77,10 @@ public class BookingIntegrationTest {
     private Role storeRole;
 
     private User customerA;
-    private User customerB;
     private User storeOwnerA;
     private User storeOwnerB;
 
     private Store storeA;
-    private Store storeB;
 
     private PlantCareService serviceA;
 
@@ -104,7 +101,7 @@ public class BookingIntegrationTest {
         cleanupDatabase();
 
         customerA = createUser(customerEmailA, customerRole);
-        customerB = createUser(customerEmailB, customerRole);
+        createUser(customerEmailB, customerRole);
         storeOwnerA = createUser(ownerEmailA, storeRole);
         storeOwnerB = createUser(ownerEmailB, storeRole);
 
@@ -116,7 +113,7 @@ public class BookingIntegrationTest {
                 .createdAt(LocalDateTime.now())
                 .build());
 
-        storeB = storeRepository.save(Store.builder()
+        storeRepository.save(Store.builder()
                 .owner(storeOwnerB)
                 .name("Booking Test Store B")
                 .address("Store B Address")
@@ -489,8 +486,6 @@ public class BookingIntegrationTest {
 
     @Test
     void testPaginationAndSorting() throws Exception {
-        String token = jwtService.generateToken(customerA);
-
         // Verify limit protection: size=150 is capped to 100
         mockMvc.perform(get("/api/services?size=150"))
                 .andExpect(status().isOk())

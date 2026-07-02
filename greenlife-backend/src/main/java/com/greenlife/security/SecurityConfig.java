@@ -29,6 +29,7 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
     @Bean
+    @SuppressWarnings("null")
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
@@ -47,6 +48,10 @@ public class SecurityConfig {
                         "/api/auth/logout",
                         "/api/auth/forgot-password",
                         "/api/auth/reset-password",
+                        "/api/auth/verify-email",
+                        "/api/auth/verify-reset-otp",
+                        "/api/auth/google",
+                        "/api/dev/mail-health",
                         "/uploads/**"
                 ).permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories", "/api/categories/**", "/api/products", "/api/products/**", "/api/reviews/plants/**", "/api/reviews/stores/**", "/api/services", "/api/services/{id}", "/api/blogs", "/api/blogs/{id}", "/api/blogs/slug/**", "/api/blogs/categories").permitAll()
@@ -67,7 +72,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Cache-Control"));
         configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);

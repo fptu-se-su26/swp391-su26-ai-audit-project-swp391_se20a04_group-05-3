@@ -27,4 +27,8 @@ public interface LoginAuditRepository extends Repository<LoginAudit, Long> {
     LoginAudit save(LoginAudit loginAudit);
 
     List<LoginAudit> findAll();
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM LoginAudit l WHERE l.loginTime < :date")
+    void deleteByLoginTimeBefore(@org.springframework.data.repository.query.Param("date") LocalDateTime date);
 }

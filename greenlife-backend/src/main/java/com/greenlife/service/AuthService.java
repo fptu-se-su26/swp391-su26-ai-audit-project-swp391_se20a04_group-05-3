@@ -18,6 +18,7 @@ import com.greenlife.repository.RoleRepository;
 import com.greenlife.repository.SecurityAuditRepository;
 import com.greenlife.repository.UserRepository;
 import com.greenlife.security.JwtService;
+import com.greenlife.security.JwtBlacklistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 @RequiredArgsConstructor
@@ -49,6 +53,19 @@ public class AuthService {
     private final LoginAuditRepository loginAuditRepository;
     private final SecurityAuditService securityAuditService;
     private final SecurityMonitoringService securityMonitoringService;
+    private final JwtBlacklistService jwtBlacklistService;
+
+    @Value("${greenlife.google.client-id:}")
+    private String googleClientId;
+
+    private GoogleIdTokenVerifier getGoogleVerifier() {
+        if (googleClientId == null || googleClientId.trim().isEmpty()) {
+            throw new IllegalStateException("Google Client ID is not configured");
+        }
+        return new GoogleIdTokenVerifier.Builder(new com.google.api.client.http.javanet.NetHttpTransport(), new com.google.api.client.json.gson.GsonFactory())
+                .setAudience(java.util.Collections.singletonList(googleClientId))
+                .build();
+    }
 
     @Transactional
     public MessageResponse register(RegisterRequest request) {
@@ -58,9 +75,21 @@ public class AuthService {
             throw new CustomException("Đăng ký vai trò này không được phép trên hệ thống công cộng", HttpStatus.BAD_REQUEST);
         }
 
-        // Check unique email
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new CustomException("Email đã được sử dụng bởi tài khoản khác", HttpStatus.BAD_REQUEST);
+        // Check unique email or allow resend if PENDING_VERIFICATION
+        Optional<User> existingUserOpt = userRepository.findByEmail(request.getEmail());
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            if (existingUser.getStatus() == UserStatus.PENDING_VERIFICATION) {
+                // Generate OTP
+                String otp = otpService.createVerificationOtp(existingUser);
+                // Send email
+                emailService.sendVerificationOtp(existingUser.getEmail(), otp);
+                return MessageResponse.builder()
+                        .message("Registration successful. Please verify your email.")
+                        .build();
+            } else {
+                throw new CustomException("Email đã được sử dụng bởi tài khoản khác", HttpStatus.BAD_REQUEST);
+            }
         }
 
         // Get Role entity
@@ -188,7 +217,7 @@ public class AuthService {
                 // Record ACCOUNT_LOCKED BEFORE modifying the user entity in Transaction A!
                 securityAuditService.recordSecurityAudit(user, SecurityAuditAction.ACCOUNT_LOCKED, "Account locked out due to too many failed attempts");
                 user.setStatus(UserStatus.LOCKED);
-                user.setLockoutEnd(LocalDateTime.now().plusMinutes(30));
+                user.setLockoutEnd(LocalDateTime.now().plusMinutes(15));
             } else if (shouldUnlock) {
                 user.setStatus(UserStatus.ACTIVE);
                 user.setLockoutEnd(null);
@@ -306,12 +335,20 @@ public class AuthService {
 
     @Transactional
     public void logout(String rawRefreshToken) {
+        logout(rawRefreshToken, null);
+    }
+
+    @Transactional
+    public void logout(String rawRefreshToken, String accessToken) {
         if (rawRefreshToken != null && !rawRefreshToken.isBlank()) {
             String tokenHash = hashToken(rawRefreshToken);
             refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(token -> {
                 token.setRevoked(true);
                 refreshTokenRepository.save(token);
             });
+        }
+        if (accessToken != null && !accessToken.isBlank()) {
+            jwtBlacklistService.blacklistToken(accessToken);
         }
     }
 
@@ -330,10 +367,70 @@ public class AuthService {
 
     @Transactional
     public MessageResponse resetPassword(ResetPasswordRequest request) {
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            throw new PasswordMismatchException("Passwords do not match");
-        }
+        if (request.getResetToken() != null && !request.getResetToken().isBlank()) {
+            // Secure JWT-based reset flow
+            String email = jwtService.extractEmailFromResetToken(request.getResetToken());
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
+            jwtService.verifyPasswordResetToken(request.getResetToken(), user.getPasswordHash());
+
+            verifyPasswordNotReused(user, request.getNewPassword());
+            recordPasswordHistory(user, user.getPasswordHash());
+
+            user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+            user.setFailedLoginAttempts(0);
+            user.setLockoutEnd(null);
+            if (user.getStatus() == UserStatus.LOCKED) {
+                user.setStatus(UserStatus.ACTIVE);
+            }
+            userRepository.save(user);
+
+            refreshTokenRepository.revokeAllUserTokens(user.getId());
+            recordSecurityAudit(user, SecurityAuditAction.PASSWORD_RESET, "Password reset successfully via secure JWT token verification flow");
+            return new MessageResponse("Password reset successfully");
+        } else {
+            // Traditional OTP-based flow (for backward compatibility and tests)
+            if (request.getNewPassword() == null || request.getConfirmPassword() == null ||
+                !request.getNewPassword().equals(request.getConfirmPassword())) {
+                throw new PasswordMismatchException("Passwords do not match");
+            }
+            if (request.getEmail() == null || request.getEmail().isBlank()) {
+                throw new CustomException("Email không được để trống", HttpStatus.BAD_REQUEST);
+            }
+            if (request.getOtp() == null || request.getOtp().isBlank()) {
+                throw new CustomException("Mã OTP không được để trống", HttpStatus.BAD_REQUEST);
+            }
+
+            User user = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new PasswordResetOtpInvalidException("Invalid OTP or reset information"));
+
+            if (user.getStatus() != UserStatus.ACTIVE && user.getStatus() != UserStatus.LOCKED) {
+                throw new PasswordResetOtpInvalidException("Invalid OTP or reset information");
+            }
+
+            otpService.verifyPasswordResetOtp(user, request.getOtp());
+            verifyPasswordNotReused(user, request.getNewPassword());
+            recordPasswordHistory(user, user.getPasswordHash());
+
+            user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+            user.setFailedLoginAttempts(0);
+            user.setLockoutEnd(null);
+            if (user.getStatus() == UserStatus.LOCKED) {
+                user.setStatus(UserStatus.ACTIVE);
+            }
+
+            userRepository.save(user);
+            refreshTokenRepository.revokeAllUserTokens(user.getId());
+            otpService.consumePasswordResetOtp(user);
+            recordSecurityAudit(user, SecurityAuditAction.PASSWORD_RESET, "Password reset successfully via OTP verification flow");
+
+            return new MessageResponse("Password reset successfully");
+        }
+    }
+
+    @Transactional
+    public ResetTokenResponse verifyResetOtp(VerifyOtpRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new PasswordResetOtpInvalidException("Invalid OTP or reset information"));
 
@@ -342,28 +439,105 @@ public class AuthService {
         }
 
         otpService.verifyPasswordResetOtp(user, request.getOtp());
-
-        verifyPasswordNotReused(user, request.getNewPassword());
-
-        recordPasswordHistory(user, user.getPasswordHash());
-
-        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         
-        user.setFailedLoginAttempts(0);
-        user.setLockoutEnd(null);
-        if (user.getStatus() == UserStatus.LOCKED) {
-            user.setStatus(UserStatus.ACTIVE);
-        }
-
-        userRepository.save(user);
-
-        refreshTokenRepository.revokeAllUserTokens(user.getId());
-
+        // Generate password reset token
+        String resetToken = jwtService.generatePasswordResetToken(user);
+        
+        // Consume OTP
         otpService.consumePasswordResetOtp(user);
+        
+        return ResetTokenResponse.builder().resetToken(resetToken).build();
+    }
 
-        recordSecurityAudit(user, SecurityAuditAction.PASSWORD_RESET, "Password reset successfully via OTP verification flow");
+    @Transactional
+    public LoginResult googleLogin(String idTokenString, RequestMetadata metadata) {
+        if (googleClientId == null || googleClientId.trim().isEmpty()) {
+            throw new CustomException("Google authentication is currently unavailable", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+        try {
+            GoogleIdTokenVerifier verifier = getGoogleVerifier();
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+            if (idToken == null) {
+                throw new CustomException("Google authentication is currently unavailable", HttpStatus.BAD_REQUEST);
+            }
 
-        return new MessageResponse("Password reset successfully");
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+            String name = (String) payload.get("name");
+            String pictureUrl = (String) payload.get("picture");
+
+            // Look up or auto-register user
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            User user;
+            if (userOpt.isPresent()) {
+                user = userOpt.get();
+                if (user.getStatus() == UserStatus.DISABLED) {
+                    throw new AccountDisabledException("Tài khoản đã bị vô hiệu hóa");
+                }
+                // Automatically activate and verify if they log in via Google
+                if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
+                    user.setStatus(UserStatus.ACTIVE);
+                    user.setEmailVerified(true);
+                    userRepository.save(user);
+                }
+            } else {
+                // Auto register verified Customer
+                Role customerRole = roleRepository.findByName("CUSTOMER")
+                        .orElseThrow(() -> new CustomException("Customer role not found", HttpStatus.INTERNAL_SERVER_ERROR));
+                
+                user = User.builder()
+                        .fullName(name != null ? name : email.split("@")[0])
+                        .email(email)
+                        .passwordHash(passwordEncoder.encode(generateRawToken())) // random strong password
+                        .avatarUrl(pictureUrl)
+                        .role(customerRole)
+                        .status(UserStatus.ACTIVE)
+                        .emailVerified(true)
+                        .build();
+                user = userRepository.save(user);
+            }
+
+            // Perform successful login audits and generate tokens
+            securityAuditService.recordLoginAudit(user, email, true, metadata.ipAddress(), metadata.userAgent(), null);
+            securityAuditService.recordSecurityAudit(user, SecurityAuditAction.LOGIN_SUCCESS, "Successful Google login from IP: " + metadata.ipAddress());
+
+            user.setFailedLoginAttempts(0);
+            user.setLockoutEnd(null);
+            user.setLastLoginAt(LocalDateTime.now());
+            user.setLastLoginIp(metadata.ipAddress());
+            userRepository.save(user);
+
+            String accessToken = jwtService.generateToken(user);
+            String rawRefreshToken = generateRawToken();
+            String tokenHash = hashToken(rawRefreshToken);
+
+            RefreshToken refreshToken = RefreshToken.builder()
+                    .user(user)
+                    .tokenHash(tokenHash)
+                    .expiresAt(LocalDateTime.now().plusDays(7))
+                    .revoked(false)
+                    .build();
+            refreshTokenRepository.save(refreshToken);
+
+            AuthResponse authResponse = AuthResponse.builder()
+                    .accessToken(accessToken)
+                    .tokenType("Bearer")
+                    .user(mapToUserResponse(user))
+                    .build();
+
+            return LoginResult.builder()
+                    .authResponse(authResponse)
+                    .rawRefreshToken(rawRefreshToken)
+                    .build();
+        } catch (Exception e) {
+            if (e instanceof AccountDisabledException) {
+                throw (RuntimeException) e;
+            }
+            if (e instanceof CustomException && "Google authentication is currently unavailable".equals(e.getMessage())) {
+                throw (CustomException) e;
+            }
+            throw new CustomException("Google authentication is currently unavailable", HttpStatus.BAD_REQUEST);
+        }
     }
 
     @Transactional(noRollbackFor = IncorrectPasswordException.class)
@@ -435,6 +609,7 @@ public class AuthService {
         return mapToUserResponse(user);
     }
 
+    @SuppressWarnings("null")
     public SecurityHistoryResponse getSecurityHistory(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));

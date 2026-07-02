@@ -36,7 +36,7 @@ public class CartIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired
@@ -371,7 +371,6 @@ public class CartIntegrationTest {
 
     @Test
     void testOwnershipProtectionOnUpdateAndRemove() throws Exception {
-        String token1 = jwtService.generateToken(customer1);
         String token2 = jwtService.generateToken(customer2);
 
         CartItem cartItemOfCustomer1 = cartItemRepository.save(CartItem.builder()

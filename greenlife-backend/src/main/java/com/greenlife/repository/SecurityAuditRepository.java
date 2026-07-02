@@ -14,4 +14,8 @@ public interface SecurityAuditRepository extends JpaRepository<SecurityAudit, Lo
 
     boolean existsByUserIdAndActionAndSuspiciousActivityTypeAndCreatedAtAfter(
             Integer userId, SecurityAuditAction action, SuspiciousActivityType suspiciousActivityType, LocalDateTime createdAt);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM SecurityAudit s WHERE s.createdAt < :date")
+    void deleteByCreatedAtBefore(@org.springframework.data.repository.query.Param("date") LocalDateTime date);
 }

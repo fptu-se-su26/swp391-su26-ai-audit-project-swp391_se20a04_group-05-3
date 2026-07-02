@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -40,7 +39,7 @@ public class ReviewIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired
@@ -90,7 +89,6 @@ public class ReviewIntegrationTest {
     private Store store;
     private Category category;
     private Plant plant1;
-    private Plant plant2;
 
     @BeforeEach
     void setUp() {
@@ -143,7 +141,7 @@ public class ReviewIntegrationTest {
                 .createdAt(LocalDateTime.now())
                 .build());
 
-        plant2 = plantRepository.save(Plant.builder()
+        plantRepository.save(Plant.builder()
                 .store(store)
                 .category(category)
                 .name("Rev Plant 2")

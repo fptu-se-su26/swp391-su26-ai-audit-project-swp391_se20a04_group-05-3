@@ -19,4 +19,5 @@ public class AdminUserResponse {
     private Integer failedLoginAttempts;
     private LocalDateTime lockoutEnd;
     private LocalDateTime createdAt;
+    private LocalDateTime lastLoginAt;
 }

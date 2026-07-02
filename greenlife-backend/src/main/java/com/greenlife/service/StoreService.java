@@ -26,6 +26,7 @@ public class StoreService {
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
     private final StoreApprovalAuditRepository storeApprovalAuditRepository;
+    private final FileStorageService fileStorageService;
 
     @Transactional
     public StoreResponse createStore(StoreRequest request, String ownerEmail) {
@@ -40,6 +41,16 @@ public class StoreService {
         if (!storeRepository.findByOwnerEmail(ownerEmail).isEmpty()) {
             throw new CustomException("Cửa hàng đã được đăng ký cho tài khoản này", HttpStatus.BAD_REQUEST);
         }
+        String verificationDoc = request.getVerificationDocument();
+        if (verificationDoc != null) {
+            String clean = verificationDoc.trim();
+            checkPathTraversal(clean);
+            if (clean.startsWith("http://") || clean.startsWith("https://") || clean.startsWith("/uploads/")) {
+                // Bypass Base64 processing and store as-is
+            } else {
+                verificationDoc = fileStorageService.storeKycDocument(clean);
+            }
+        }
 
         Store store = Store.builder()
                 .owner(owner)
@@ -50,7 +61,7 @@ public class StoreService {
                 .address(request.getAddress())
                 .description(request.getDescription())
                 .logoUrl(request.getLogoUrl())
-                .verificationDocument(request.getVerificationDocument())
+                .verificationDocument(verificationDoc)
                 .status(StoreStatus.PENDING)
                 .build();
 
@@ -73,6 +84,21 @@ public class StoreService {
         Store store = stores.stream()
                 .findFirst()
                 .orElseThrow(() -> new CustomException("Cửa hàng chưa được đăng ký", HttpStatus.NOT_FOUND));
+        String newVerificationDoc = request.getVerificationDocument();
+        if (newVerificationDoc != null) {
+            String clean = newVerificationDoc.trim();
+            checkPathTraversal(clean);
+            if (clean.startsWith("http://") || clean.startsWith("https://") || clean.startsWith("/uploads/")) {
+                // Bypass Base64 processing and store as-is
+            } else {
+                // Safely delete the previous stored KYC file from disk if it was an uploaded kyc file
+                String oldVerificationDoc = store.getVerificationDocument();
+                if (oldVerificationDoc != null && oldVerificationDoc.startsWith("/uploads/kyc/")) {
+                    fileStorageService.deleteFile(oldVerificationDoc);
+                }
+                newVerificationDoc = fileStorageService.storeKycDocument(clean);
+            }
+        }
         store.setName(request.getName());
         store.setPhone(request.getPhone());
         store.setCity(request.getCity());
@@ -80,7 +106,7 @@ public class StoreService {
         store.setAddress(request.getAddress());
         store.setDescription(request.getDescription());
         store.setLogoUrl(request.getLogoUrl());
-        store.setVerificationDocument(request.getVerificationDocument());
+        store.setVerificationDocument(newVerificationDoc);
         store.setUpdatedAt(LocalDateTime.now());
 
         if (store.getStatus() == StoreStatus.REJECTED) {
@@ -205,5 +231,11 @@ public class StoreService {
                 .createdAt(store.getCreatedAt())
                 .updatedAt(store.getUpdatedAt())
                 .build();
+    }
+
+    private void checkPathTraversal(String value) {
+        if (value != null && (value.contains("..") || value.contains("\\") || value.contains("%2e%2e"))) {
+            throw new CustomException("Đường dẫn tài liệu không hợp lệ (phát hiện ký tự traversal)", HttpStatus.BAD_REQUEST);
+        }
     }
 }

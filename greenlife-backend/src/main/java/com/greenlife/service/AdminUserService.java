@@ -30,9 +30,11 @@ public class AdminUserService {
         int pageSize = Math.min(pageable.getPageSize(), 50);
         Pageable restrictedPageable = PageRequest.of(pageable.getPageNumber(), pageSize, pageable.getSort());
 
-        Specification<User> spec = Specification.where(UserSpecifications.hasKeyword(keyword))
-                .and(UserSpecifications.hasRole(role))
-                .and(UserSpecifications.hasStatus(status));
+        Specification<User> spec = Specification.allOf(
+                UserSpecifications.hasKeyword(keyword),
+                UserSpecifications.hasRole(role),
+                UserSpecifications.hasStatus(status)
+        );
 
         return userRepository.findAll(spec, restrictedPageable).map(this::mapToResponse);
     }
@@ -129,6 +131,7 @@ public class AdminUserService {
                 .failedLoginAttempts(user.getFailedLoginAttempts())
                 .lockoutEnd(user.getLockoutEnd())
                 .createdAt(user.getCreatedAt())
+                .lastLoginAt(user.getLastLoginAt())
                 .build();
     }
 }

@@ -32,14 +32,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 public class AuthRtrIntegrationTest {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthRtrIntegrationTest.class);
+
     @Autowired
     private MockMvc mockMvc;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired
@@ -114,7 +119,7 @@ public class AuthRtrIntegrationTest {
                 "END"
             );
         } catch (Exception e) {
-            System.err.println("Migration setup failed: " + e.getMessage());
+            log.error("Migration setup failed: {}", e.getMessage(), e);
         }
 
         refreshTokenRepository.deleteAll();

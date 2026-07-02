@@ -3,13 +3,13 @@ package com.greenlife.entity;
 import com.greenlife.entity.enums.Severity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "diagnosis_history")
-@Where(clause = "deleted = 0")
+@SQLRestriction("deleted = 0")
 @Getter
 @Setter
 @NoArgsConstructor

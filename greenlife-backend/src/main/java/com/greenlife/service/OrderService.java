@@ -3,7 +3,6 @@ package com.greenlife.service;
 import com.greenlife.dto.CheckoutRequest;
 import com.greenlife.dto.OrderDetailResponse;
 import com.greenlife.dto.OrderResponse;
-import com.greenlife.dto.UpdateOrderStatusRequest;
 import com.greenlife.entity.*;
 import com.greenlife.entity.enums.OrderStatus;
 import com.greenlife.entity.enums.PaymentStatus;
@@ -31,7 +30,6 @@ import com.greenlife.event.PaymentEvent;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final OrderDetailRepository orderDetailRepository;
     private final CartItemRepository cartItemRepository;
     private final PlantRepository plantRepository;
     private final UserRepository userRepository;
@@ -252,6 +250,7 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    @SuppressWarnings("null")
     public List<OrderResponse> getStoreOwnerOrders(Integer ownerId) {
         List<Store> stores = storeRepository.findByOwnerId(ownerId);
         if (stores.isEmpty()) {
@@ -264,6 +263,7 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    @SuppressWarnings("null")
     public OrderResponse getStoreOwnerOrderDetail(Integer ownerId, Integer orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new CustomException("Đơn hàng không tồn tại", HttpStatus.NOT_FOUND));
@@ -279,6 +279,7 @@ public class OrderService {
     }
 
     @Transactional
+    @SuppressWarnings("null")
     public OrderResponse updateStoreOwnerOrderStatus(Integer ownerId, Integer orderId, String statusStr) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new CustomException("Đơn hàng không tồn tại", HttpStatus.NOT_FOUND));
@@ -321,6 +322,7 @@ public class OrderService {
     }
 
     @Transactional
+    @SuppressWarnings("null")
     public OrderResponse cancelStoreOwnerOrder(Integer ownerId, Integer orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new CustomException("Đơn hàng không tồn tại", HttpStatus.NOT_FOUND));
