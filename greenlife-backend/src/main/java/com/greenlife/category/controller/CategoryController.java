@@ -1,8 +1,8 @@
-package com.greenlife.controller;
+package com.greenlife.category.controller;
 
-import com.greenlife.dto.CategoryRequest;
-import com.greenlife.dto.CategoryResponse;
-import com.greenlife.service.CategoryService;
+import com.greenlife.category.dto.CategoryRequest;
+import com.greenlife.category.dto.CategoryResponse;
+import com.greenlife.category.service.CategoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

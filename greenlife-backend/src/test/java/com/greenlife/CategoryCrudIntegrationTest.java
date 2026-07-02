@@ -1,15 +1,15 @@
 package com.greenlife;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.CategoryRequest;
-import com.greenlife.entity.Category;
+import com.greenlife.category.dto.CategoryRequest;
+import com.greenlife.category.entity.Category;
 import com.greenlife.entity.Role;
 import com.greenlife.entity.Store;
 import com.greenlife.entity.Plant;
 import com.greenlife.entity.User;
 import com.greenlife.entity.enums.PlantStatus;
 import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.repository.CategoryRepository;
+import com.greenlife.category.repository.CategoryRepository;
 import com.greenlife.repository.PlantRepository;
 import com.greenlife.repository.RoleRepository;
 import com.greenlife.repository.StoreRepository;

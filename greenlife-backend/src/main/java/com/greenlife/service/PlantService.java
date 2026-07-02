@@ -2,12 +2,12 @@ package com.greenlife.service;
 
 import com.greenlife.dto.PlantRequest;
 import com.greenlife.dto.PlantResponse;
-import com.greenlife.entity.Category;
+import com.greenlife.category.entity.Category;
 import com.greenlife.entity.Plant;
 import com.greenlife.entity.Store;
 import com.greenlife.entity.enums.PlantStatus;
 import com.greenlife.exception.CustomException;
-import com.greenlife.repository.CategoryRepository;
+import com.greenlife.category.repository.CategoryRepository;
 import com.greenlife.repository.PlantRepository;
 import com.greenlife.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;

@@ -1,4 +1,6 @@
 package com.greenlife;
+import com.greenlife.category.repository.CategoryRepository;
+import com.greenlife.category.entity.Category;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.greenlife.dto.PlantRequest;
