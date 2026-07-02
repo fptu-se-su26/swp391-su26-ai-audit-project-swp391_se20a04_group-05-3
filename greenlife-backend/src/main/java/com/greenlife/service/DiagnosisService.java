@@ -1,4 +1,5 @@
 package com.greenlife.service;
+import com.greenlife.common.service.FileStorageService;
 
 import com.greenlife.dto.DiagnosisResult;
 import com.greenlife.entity.DiagnosisHistory;

@@ -1,4 +1,4 @@
-package com.greenlife.service;
+package com.greenlife.common.service;
 
 import org.springframework.web.multipart.MultipartFile;
 

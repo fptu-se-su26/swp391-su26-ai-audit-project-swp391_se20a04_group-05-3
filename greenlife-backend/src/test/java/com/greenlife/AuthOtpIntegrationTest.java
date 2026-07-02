@@ -1,4 +1,6 @@
 package com.greenlife;
+import com.greenlife.common.dto.MessageResponse;
+import com.greenlife.common.service.EmailService;
 
 import com.greenlife.dto.*;
 import com.greenlife.entity.*;

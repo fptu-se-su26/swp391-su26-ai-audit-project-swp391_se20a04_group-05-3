@@ -1,4 +1,5 @@
 package com.greenlife;
+import com.greenlife.common.service.EmailService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.greenlife.dto.*;

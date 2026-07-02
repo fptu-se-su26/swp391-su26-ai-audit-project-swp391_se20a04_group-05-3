@@ -1,4 +1,4 @@
-package com.greenlife.dto;
+package com.greenlife.common.dto;
 
 import lombok.*;
 import java.time.LocalDateTime;
