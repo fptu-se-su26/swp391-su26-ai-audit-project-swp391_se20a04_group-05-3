@@ -1,4 +1,6 @@
-package com.greenlife.service;
+package com.greenlife.common.service;
+
+import com.greenlife.service.OtpService;
 
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;

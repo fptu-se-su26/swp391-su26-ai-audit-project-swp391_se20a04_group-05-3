@@ -1,4 +1,4 @@
-package com.greenlife.dto;
+package com.greenlife.security.dto;
 
 public record RequestMetadata(
     String ipAddress,

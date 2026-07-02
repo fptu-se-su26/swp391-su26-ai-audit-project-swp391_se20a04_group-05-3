@@ -1,6 +1,6 @@
 package com.greenlife.security;
 
-import com.greenlife.dto.RequestMetadata;
+import com.greenlife.security.dto.RequestMetadata;
 import jakarta.servlet.http.HttpServletRequest;
 
 public class RequestMetadataExtractor {

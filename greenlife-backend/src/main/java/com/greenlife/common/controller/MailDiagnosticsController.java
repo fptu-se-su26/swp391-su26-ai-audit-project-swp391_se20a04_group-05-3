@@ -1,4 +1,4 @@
-package com.greenlife.controller;
+package com.greenlife.common.controller;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;

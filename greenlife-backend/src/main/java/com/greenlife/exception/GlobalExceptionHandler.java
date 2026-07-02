@@ -1,6 +1,6 @@
 package com.greenlife.exception;
 
-import com.greenlife.dto.ApiErrorResponse;
+import com.greenlife.common.dto.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;

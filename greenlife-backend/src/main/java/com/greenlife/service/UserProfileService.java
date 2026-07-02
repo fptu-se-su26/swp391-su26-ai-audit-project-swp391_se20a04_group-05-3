@@ -1,4 +1,5 @@
 package com.greenlife.service;
+import com.greenlife.common.service.FileStorageService;
 
 import com.greenlife.dto.UserProfileRequest;
 import com.greenlife.entity.User;
