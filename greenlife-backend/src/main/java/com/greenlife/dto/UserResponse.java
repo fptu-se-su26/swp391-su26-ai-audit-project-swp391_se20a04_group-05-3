@@ -1,5 +1,6 @@
 package com.greenlife.dto;
 
+import com.greenlife.entity.enums.UserStatus;
 import lombok.*;
 
 @Data
@@ -14,6 +15,7 @@ public class UserResponse {
     private String address;
     private String avatarUrl;
     private String role;
-    private String status;
+    private UserStatus status;
     private Boolean emailVerified;
 }
+

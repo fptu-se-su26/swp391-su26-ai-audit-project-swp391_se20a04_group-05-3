@@ -1,5 +1,9 @@
 package com.greenlife.security;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +26,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final JwtBlacklistService jwtBlacklistService;
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
 
     @Override
     protected void doFilterInternal(
@@ -39,6 +45,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         jwt = authHeader.substring(7);
+
+        if (jwtBlacklistService.isBlacklisted(jwt)) {
+            SecurityContextHolder.clearContext();
+            authenticationEntryPoint.commence(
+                    request,
+                    response,
+                    new org.springframework.security.authentication.BadCredentialsException("Token has been revoked")
+            );
+            return;
+        }
         try {
             userEmail = jwtService.extractUsername(jwt);
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -55,8 +71,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
-        } catch (Exception e) {
-            // Leave it unauthenticated if token is invalid or expired
+        } catch (ExpiredJwtException | SignatureException | MalformedJwtException |
+                 UnsupportedJwtException | IllegalArgumentException | io.jsonwebtoken.IncorrectClaimException e) {
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
