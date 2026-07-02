@@ -1,5 +1,7 @@
 package com.greenlife.entity;
 
+import com.greenlife.category.entity.Category;
+
 import com.greenlife.entity.enums.PlantStatus;
 import jakarta.persistence.*;
 import lombok.*;

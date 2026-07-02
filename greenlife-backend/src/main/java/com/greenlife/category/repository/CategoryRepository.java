@@ -1,6 +1,6 @@
-package com.greenlife.repository;
+package com.greenlife.category.repository;
 
-import com.greenlife.entity.Category;
+import com.greenlife.category.entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 

@@ -1,4 +1,6 @@
 package com.greenlife;
+import com.greenlife.category.repository.CategoryRepository;
+import com.greenlife.category.entity.Category;
 import com.greenlife.dto.WishlistResponse;
 import com.greenlife.entity.*;
 import com.greenlife.entity.enums.PlantStatus;

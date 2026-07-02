@@ -1,4 +1,4 @@
-package com.greenlife.entity;
+package com.greenlife.category.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

@@ -1,4 +1,4 @@
-package com.greenlife.dto;
+package com.greenlife.category.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

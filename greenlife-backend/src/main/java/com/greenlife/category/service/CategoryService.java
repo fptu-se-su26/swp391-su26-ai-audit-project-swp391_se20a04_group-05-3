@@ -1,10 +1,10 @@
-package com.greenlife.service;
+package com.greenlife.category.service;
 
-import com.greenlife.dto.CategoryRequest;
-import com.greenlife.dto.CategoryResponse;
-import com.greenlife.entity.Category;
+import com.greenlife.category.dto.CategoryRequest;
+import com.greenlife.category.dto.CategoryResponse;
+import com.greenlife.category.entity.Category;
 import com.greenlife.exception.CustomException;
-import com.greenlife.repository.CategoryRepository;
+import com.greenlife.category.repository.CategoryRepository;
 import com.greenlife.repository.PlantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
