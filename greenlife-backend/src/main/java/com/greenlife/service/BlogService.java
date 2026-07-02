@@ -168,15 +168,32 @@ public class BlogService {
         return mapToResponse(saved);
     }
 
+    @Transactional
+    public BlogResponse revertToDraft(Integer id, User currentUser) {
+        Blog blog = blogRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Blog không tồn tại", HttpStatus.NOT_FOUND));
+
+        validateOwnershipOrAdmin(blog, currentUser, "Không có quyền chuyển bài viết này thành bản nháp");
+
+        blog.setStatus(BlogStatus.DRAFT);
+        blog.setUpdatedAt(LocalDateTime.now());
+
+        Blog saved = blogRepository.saveAndFlush(blog);
+
+        return mapToResponse(saved);
+    }
+
     @Transactional(readOnly = true)
     public Page<BlogResponse> getPublicBlogs(String keyword, BlogCategory category, Pageable pageable) {
         int pageSize = Math.min(pageable.getPageSize(), 50);
         Pageable restrictedPageable = PageRequest.of(pageable.getPageNumber(), pageSize, pageable.getSort());
 
-        Specification<Blog> spec = Specification.where(BlogSpecifications.fetchAuthor())
-                .and(BlogSpecifications.hasStatus(BlogStatus.PUBLISHED))
-                .and(BlogSpecifications.hasCategory(category))
-                .and(BlogSpecifications.hasKeyword(keyword));
+        Specification<Blog> spec = Specification.allOf(
+                BlogSpecifications.fetchAuthor(),
+                BlogSpecifications.hasStatus(BlogStatus.PUBLISHED),
+                BlogSpecifications.hasCategory(category),
+                BlogSpecifications.hasKeyword(keyword)
+        );
 
         return blogRepository.findAll(spec, restrictedPageable).map(this::mapToResponse);
     }
@@ -204,11 +221,28 @@ public class BlogService {
         int pageSize = Math.min(pageable.getPageSize(), 50);
         Pageable restrictedPageable = PageRequest.of(pageable.getPageNumber(), pageSize, pageable.getSort());
 
-        Specification<Blog> spec = Specification.where(BlogSpecifications.fetchAuthor())
-                .and(BlogSpecifications.hasAuthor(currentUser.getId()))
-                .and(BlogSpecifications.hasCategory(category))
-                .and(BlogSpecifications.hasStatus(status))
-                .and(BlogSpecifications.hasKeyword(keyword));
+        Specification<Blog> spec = Specification.allOf(
+                BlogSpecifications.fetchAuthor(),
+                BlogSpecifications.hasAuthor(currentUser.getId()),
+                BlogSpecifications.hasCategory(category),
+                BlogSpecifications.hasStatus(status),
+                BlogSpecifications.hasKeyword(keyword)
+        );
+
+        return blogRepository.findAll(spec, restrictedPageable).map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BlogResponse> getAllBlogsAdmin(String keyword, BlogCategory category, BlogStatus status, Pageable pageable) {
+        int pageSize = Math.min(pageable.getPageSize(), 50);
+        Pageable restrictedPageable = PageRequest.of(pageable.getPageNumber(), pageSize, pageable.getSort());
+
+        Specification<Blog> spec = Specification.allOf(
+                BlogSpecifications.fetchAuthor(),
+                BlogSpecifications.hasCategory(category),
+                BlogSpecifications.hasStatus(status),
+                BlogSpecifications.hasKeyword(keyword)
+        );
 
         return blogRepository.findAll(spec, restrictedPageable).map(this::mapToResponse);
     }

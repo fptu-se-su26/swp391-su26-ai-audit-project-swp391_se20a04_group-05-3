@@ -5,13 +5,13 @@ import com.greenlife.entity.enums.BlogStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "blogs")
 @SQLDelete(sql = "UPDATE blogs SET deleted = 1 WHERE id = ? AND version = ?")
-@Where(clause = "deleted = 0")
+@SQLRestriction("deleted = 0")
 @Getter
 @Setter
 @NoArgsConstructor

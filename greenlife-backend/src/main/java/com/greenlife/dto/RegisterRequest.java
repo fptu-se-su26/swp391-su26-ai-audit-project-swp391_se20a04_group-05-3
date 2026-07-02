@@ -22,7 +22,10 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank(message = "Mật khẩu không được để trống")
-    @Size(min = 6, max = 50, message = "Mật khẩu phải từ 6 đến 50 ký tự")
+    @Pattern(
+            regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,64}$",
+            message = "Mật khẩu phải từ 8 đến 64 ký tự, bao gồm ít nhất một chữ cái và một chữ số"
+    )
     private String password;
 
     @Pattern(regexp = "^$|[0-9]{10,11}", message = "Số điện thoại phải chứa 10-11 chữ số")

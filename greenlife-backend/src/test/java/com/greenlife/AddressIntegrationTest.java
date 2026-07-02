@@ -41,7 +41,7 @@ public class AddressIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired
@@ -360,7 +360,6 @@ public class AddressIntegrationTest {
     @Test
     void testOwnershipProtection() throws Exception {
         String tokenA = jwtService.generateToken(customerA);
-        String tokenB = jwtService.generateToken(customerB);
 
         CustomerAddress addressB = addressRepository.save(CustomerAddress.builder()
                 .customer(customerB)
@@ -533,6 +532,7 @@ public class AddressIntegrationTest {
     }
 
     @Test
+    @SuppressWarnings("null")
     void testConcurrentDefaultAddressUpdate() throws Exception {
         String token = jwtService.generateToken(customerA);
 
@@ -576,7 +576,7 @@ public class AddressIntegrationTest {
     void testPaginationAndSorting() throws Exception {
         String token = jwtService.generateToken(customerA);
 
-        CustomerAddress address1 = addressRepository.save(CustomerAddress.builder()
+        addressRepository.save(CustomerAddress.builder()
                 .customer(customerA)
                 .recipientName("Nguyen Van A")
                 .phone("0987654321")
@@ -587,7 +587,7 @@ public class AddressIntegrationTest {
                 .isDefault(true)
                 .build());
 
-        CustomerAddress address2 = addressRepository.save(CustomerAddress.builder()
+        addressRepository.save(CustomerAddress.builder()
                 .customer(customerA)
                 .recipientName("Nguyen Van B")
                 .phone("0987654321")

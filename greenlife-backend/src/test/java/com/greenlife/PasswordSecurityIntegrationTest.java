@@ -43,7 +43,7 @@ public class PasswordSecurityIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired

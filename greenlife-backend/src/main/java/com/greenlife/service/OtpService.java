@@ -22,6 +22,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class OtpService {
 
+    public static final int OTP_EXPIRY_MINUTES = 3;
+
     private final UserOtpRepository userOtpRepository;
     private final UserRepository userRepository;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -58,8 +60,13 @@ public class OtpService {
             if (LocalDateTime.now().isBefore(otpEntity.getCreatedAt().plusSeconds(60))) {
                 throw new OtpRateLimitException("Yêu cầu gửi mã OTP quá nhanh. Vui lòng đợi 60 giây.");
             }
-            userOtpRepository.delete(otpEntity);
-            userOtpRepository.flush();
+        }
+
+        // Enforce resend limit: maximum 3 resend attempts (total 3 OTPs) within 10 minutes
+        LocalDateTime tenMinutesAgo = LocalDateTime.now().minusMinutes(10);
+        long count = userOtpRepository.countByUserAndCreatedAtAfter(user, tenMinutesAgo);
+        if (count >= 3) {
+            throw new CustomException("Too many resend attempts. Please try again later.", org.springframework.http.HttpStatus.TOO_MANY_REQUESTS);
         }
 
         String plainOtp = generateOtp();
@@ -70,7 +77,7 @@ public class OtpService {
                 .otpHash(hashedOtp)
                 .purpose(OtpPurpose.VERIFICATION)
                 .attempts(0)
-                .expiresAt(LocalDateTime.now().plusMinutes(10))
+                .expiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES))
                 .build();
 
         userOtpRepository.save(userOtp);
@@ -88,7 +95,7 @@ public class OtpService {
 
         // Check expiration
         if (LocalDateTime.now().isAfter(otpEntity.getExpiresAt())) {
-            userOtpRepository.delete(otpEntity);
+            userOtpRepository.deleteByUserAndPurpose(user, OtpPurpose.VERIFICATION);
             userOtpRepository.flush();
             throw new OtpExpiredException("Mã xác thực đã hết hạn.");
         }
@@ -102,7 +109,7 @@ public class OtpService {
             userRepository.save(user);
 
             // Clean up OTP
-            userOtpRepository.delete(otpEntity);
+            userOtpRepository.deleteByUserAndPurpose(user, OtpPurpose.VERIFICATION);
             userOtpRepository.flush();
         } else {
             // Increment attempts
@@ -110,7 +117,7 @@ public class OtpService {
             otpEntity.setAttempts(currentAttempts);
 
             if (currentAttempts >= 3) {
-                userOtpRepository.delete(otpEntity);
+                userOtpRepository.deleteByUserAndPurpose(user, OtpPurpose.VERIFICATION);
                 userOtpRepository.flush();
                 throw new OtpAttemptsExceededException("Bạn đã nhập sai mã OTP quá 3 lần. Vui lòng yêu cầu gửi lại mã mới.");
             } else {
@@ -137,8 +144,13 @@ public class OtpService {
             if (LocalDateTime.now().isBefore(otpEntity.getCreatedAt().plusSeconds(60))) {
                 throw new OtpRateLimitException("Yêu cầu gửi mã OTP quá nhanh. Vui lòng đợi 60 giây.");
             }
-            userOtpRepository.delete(otpEntity);
-            userOtpRepository.flush();
+        }
+
+        // Enforce resend limit: maximum 3 resend attempts within 10 minutes
+        LocalDateTime tenMinutesAgo = LocalDateTime.now().minusMinutes(10);
+        long count = userOtpRepository.countByUserAndCreatedAtAfter(user, tenMinutesAgo);
+        if (count >= 3) {
+            throw new CustomException("Too many resend attempts. Please try again later.", org.springframework.http.HttpStatus.TOO_MANY_REQUESTS);
         }
 
         String plainOtp = generateOtp();
@@ -149,7 +161,7 @@ public class OtpService {
                 .otpHash(hashedOtp)
                 .purpose(OtpPurpose.PASSWORD_RESET)
                 .attempts(0)
-                .expiresAt(LocalDateTime.now().plusMinutes(10))
+                .expiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES))
                 .build();
 
         userOtpRepository.save(userOtp);
@@ -163,7 +175,7 @@ public class OtpService {
 
         // Check expiration
         if (LocalDateTime.now().isAfter(otpEntity.getExpiresAt())) {
-            userOtpRepository.delete(otpEntity);
+            userOtpRepository.deleteByUserAndPurpose(user, OtpPurpose.PASSWORD_RESET);
             userOtpRepository.flush();
             throw new PasswordResetOtpExpiredException("Password reset OTP has expired");
         }
@@ -178,7 +190,7 @@ public class OtpService {
             otpEntity.setAttempts(currentAttempts);
 
             if (currentAttempts >= 3) {
-                userOtpRepository.delete(otpEntity);
+                userOtpRepository.deleteByUserAndPurpose(user, OtpPurpose.PASSWORD_RESET);
                 userOtpRepository.flush();
                 throw new OtpAttemptsExceededException("Too many invalid OTP attempts. Please request a new OTP.");
             } else {

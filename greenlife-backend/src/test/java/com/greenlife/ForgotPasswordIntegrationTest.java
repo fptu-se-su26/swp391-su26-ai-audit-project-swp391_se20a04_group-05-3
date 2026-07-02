@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.greenlife.dto.*;
 import com.greenlife.entity.*;
 import com.greenlife.entity.enums.*;
-import com.greenlife.exception.*;
 import com.greenlife.repository.*;
 import com.greenlife.service.*;
 import jakarta.servlet.http.Cookie;
@@ -15,7 +14,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -59,7 +58,7 @@ public class ForgotPasswordIntegrationTest {
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
-    @MockBean
+    @MockitoBean
     private EmailService emailService;
 
     private Role customerRole;

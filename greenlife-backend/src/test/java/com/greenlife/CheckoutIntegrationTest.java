@@ -36,7 +36,7 @@ public class CheckoutIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired
@@ -84,7 +84,6 @@ public class CheckoutIntegrationTest {
     private Category category;
     private Plant activePlant1;
     private Plant activePlant2;
-    private Plant inactivePlant;
 
     @BeforeEach
     void setUp() {
@@ -140,7 +139,7 @@ public class CheckoutIntegrationTest {
                 .createdAt(LocalDateTime.now())
                 .build());
 
-        inactivePlant = plantRepository.save(Plant.builder()
+        plantRepository.save(Plant.builder()
                 .store(store)
                 .category(category)
                 .name("Inactive Checkout Plant")

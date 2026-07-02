@@ -39,6 +39,11 @@ public class AuthController {
         return ResponseEntity.ok(authService.verifyOtp(request));
     }
 
+    @PostMapping("/verify-email")
+    public ResponseEntity<MessageResponse> verifyEmail(@Valid @RequestBody VerifyOtpRequest request) {
+        return ResponseEntity.ok(authService.verifyOtp(request));
+    }
+
     @PostMapping("/resend-otp")
     public ResponseEntity<MessageResponse> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         return ResponseEntity.ok(authService.resendOtp(request));
@@ -54,6 +59,11 @@ public class AuthController {
         return ResponseEntity.ok(authService.resetPassword(request));
     }
 
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<ResetTokenResponse> verifyResetOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        return ResponseEntity.ok(authService.verifyResetOtp(request));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody LoginRequest request,
@@ -62,6 +72,18 @@ public class AuthController {
     ) {
         RequestMetadata metadata = RequestMetadataExtractor.extract(httpRequest);
         LoginResult result = authService.login(request, metadata);
+        setRefreshTokenCookie(response, result.getRawRefreshToken(), 7 * 24 * 60 * 60);
+        return ResponseEntity.ok(result.getAuthResponse());
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> googleLogin(
+            @Valid @RequestBody GoogleLoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response
+    ) {
+        RequestMetadata metadata = RequestMetadataExtractor.extract(httpRequest);
+        LoginResult result = authService.googleLogin(request.getIdToken(), metadata);
         setRefreshTokenCookie(response, result.getRawRefreshToken(), 7 * 24 * 60 * 60);
         return ResponseEntity.ok(result.getAuthResponse());
     }
@@ -82,9 +104,14 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<MessageResponse> logout(
             @CookieValue(name = "refreshToken", required = false) String refreshToken,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
             HttpServletResponse response
     ) {
-        authService.logout(refreshToken);
+        String accessToken = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            accessToken = authHeader.substring(7);
+        }
+        authService.logout(refreshToken, accessToken);
         setRefreshTokenCookie(response, "", 0);
         return ResponseEntity.ok(MessageResponse.builder()
                 .message("Logged out successfully")

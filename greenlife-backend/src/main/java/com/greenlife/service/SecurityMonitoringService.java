@@ -52,6 +52,7 @@ public class SecurityMonitoringService {
         }
     }
 
+    @SuppressWarnings("null")
     public void checkIpHopping(User user, String currentIp) {
         if (user == null || currentIp == null || currentIp.isBlank() || "unknown".equalsIgnoreCase(currentIp)) {
             return;

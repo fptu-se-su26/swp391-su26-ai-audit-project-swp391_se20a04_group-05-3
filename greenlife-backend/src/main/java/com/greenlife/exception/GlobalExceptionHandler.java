@@ -111,6 +111,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
+    @SuppressWarnings("null")
     public ResponseEntity<ApiErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
         String firstError = ex.getBindingResult().getAllErrors().stream()
                 .map(org.springframework.validation.ObjectError::getDefaultMessage)

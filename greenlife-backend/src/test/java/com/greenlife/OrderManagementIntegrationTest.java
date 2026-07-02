@@ -20,7 +20,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,7 +37,7 @@ public class OrderManagementIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired
@@ -234,7 +233,6 @@ public class OrderManagementIntegrationTest {
     @Test
     void testStoreOwnerOrderListingAndSecurity() throws Exception {
         String tokenOwner1 = jwtService.generateToken(storeOwner1);
-        String tokenOwner2 = jwtService.generateToken(storeOwner2);
 
         Order order1 = createOrder(customer1, store1, OrderStatus.PENDING, "COD", PaymentStatus.PENDING, plant1, 2);
         Order order2 = createOrder(customer2, store2, OrderStatus.PENDING, "COD", PaymentStatus.PENDING, plant2, 1);

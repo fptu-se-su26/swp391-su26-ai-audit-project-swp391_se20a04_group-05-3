@@ -1,21 +1,19 @@
 package com.greenlife;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.greenlife.dto.UserProfileRequest;
 import com.greenlife.entity.*;
 import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.exception.CustomException;
 import com.greenlife.repository.*;
 import com.greenlife.security.JwtService;
-import com.greenlife.service.FileStorageService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.HttpStatus;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -45,7 +43,7 @@ public class ProfileIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
     @Autowired
@@ -59,9 +57,6 @@ public class ProfileIntegrationTest {
 
     @Autowired
     private JwtService jwtService;
-
-    @Autowired
-    private FileStorageService fileStorageService;
 
     private final String customerEmail = "profile_cust@gmail.com";
     private Role customerRole;
@@ -202,7 +197,7 @@ public class ProfileIntegrationTest {
                 .andExpect(jsonPath("$.avatarUrl", startsWith("/uploads/avatars/")))
                 .andReturn();
 
-        Map<String, String> response1 = objectMapper.readValue(result1.getResponse().getContentAsString(), Map.class);
+        Map<String, String> response1 = objectMapper.readValue(result1.getResponse().getContentAsString(), new TypeReference<Map<String, String>>() {});
         String avatar1Url = response1.get("avatarUrl");
         String relativeUrl1 = avatar1Url.substring("/uploads/avatars/".length());
         File diskFile1 = new File("./uploads/avatars/" + relativeUrl1);
@@ -221,7 +216,7 @@ public class ProfileIntegrationTest {
                 .andExpect(jsonPath("$.avatarUrl", startsWith("/uploads/avatars/")))
                 .andReturn();
 
-        Map<String, String> response2 = objectMapper.readValue(result2.getResponse().getContentAsString(), Map.class);
+        Map<String, String> response2 = objectMapper.readValue(result2.getResponse().getContentAsString(), new TypeReference<Map<String, String>>() {});
         String avatar2Url = response2.get("avatarUrl");
         String relativeUrl2 = avatar2Url.substring("/uploads/avatars/".length());
         File diskFile2 = new File("./uploads/avatars/" + relativeUrl2);

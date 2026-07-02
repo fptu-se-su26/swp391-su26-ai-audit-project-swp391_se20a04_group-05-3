@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +39,7 @@ public class PlantCareServiceController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('STORE_OWNER')")
     public ResponseEntity<PlantCareServiceResponse> createService(
             @Valid @RequestBody PlantCareServiceRequest request,
             @AuthenticationPrincipal UserDetails userDetails
@@ -48,6 +50,7 @@ public class PlantCareServiceController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('STORE_OWNER')")
     public ResponseEntity<PlantCareServiceResponse> updateService(
             @PathVariable Integer id,
             @Valid @RequestBody PlantCareServiceRequest request,
@@ -58,6 +61,7 @@ public class PlantCareServiceController {
     }
 
     @PutMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('STORE_OWNER')")
     public ResponseEntity<PlantCareServiceResponse> deactivateService(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails

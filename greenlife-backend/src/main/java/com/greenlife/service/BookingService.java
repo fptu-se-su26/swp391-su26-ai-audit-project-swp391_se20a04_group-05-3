@@ -74,6 +74,16 @@ public class BookingService {
             throw new CustomException("Thời gian đặt lịch hẹn phải cách thời gian hiện tại ít nhất 2 giờ", HttpStatus.BAD_REQUEST);
         }
 
+        // Validation: block duplicate bookings for same service, scheduled date/time, and status PENDING, CONFIRMED, IN_PROGRESS
+        boolean hasOverlap = bookingRepository.existsByServiceIdAndScheduledAtAndStatusIn(
+                request.getServiceId(),
+                request.getScheduledAt(),
+                Arrays.asList(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS)
+        );
+        if (hasOverlap) {
+            throw new CustomException("Dịch vụ này đã có lịch hẹn được đặt vào thời gian đã chọn", HttpStatus.BAD_REQUEST);
+        }
+
         Booking booking = Booking.builder()
                 .customer(customer)
                 .store(store)
@@ -112,8 +122,6 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new CustomException("Lịch hẹn không tồn tại", HttpStatus.NOT_FOUND));
 
-        User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new CustomException("Người dùng không tồn tại", HttpStatus.NOT_FOUND));
 
         // Ownership: Only the store owner of the store providing the service can change status
         if (!booking.getStore().getOwner().getId().equals(currentUserId)) {
@@ -183,8 +191,6 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new CustomException("Lịch hẹn không tồn tại", HttpStatus.NOT_FOUND));
 
-        User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new CustomException("Người dùng không tồn tại", HttpStatus.NOT_FOUND));
 
         boolean isCustomer = booking.getCustomer().getId().equals(currentUserId);
         boolean isStoreOwner = booking.getStore().getOwner().getId().equals(currentUserId);
