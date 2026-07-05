@@ -3,12 +3,22 @@ import com.greenlife.category.repository.CategoryRepository;
 import com.greenlife.category.entity.Category;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.*;
-import com.greenlife.entity.*;
-import com.greenlife.entity.enums.SecurityAuditAction;
-import com.greenlife.entity.enums.Severity;
-import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.repository.*;
+import com.greenlife.diagnosis.dto.DiagnosisResponse;
+import com.greenlife.diagnosis.entity.DiagnosisHistory;
+import com.greenlife.diagnosis.entity.enums.Severity;
+import com.greenlife.plant.entity.Plant;
+import com.greenlife.plant.repository.PlantRepository;
+import com.greenlife.auth.entity.enums.SecurityAuditAction;
+import com.greenlife.user.entity.User;
+import com.greenlife.user.entity.Role;
+import com.greenlife.user.entity.enums.UserStatus;
+import com.greenlife.store.entity.Store;
+import com.greenlife.diagnosis.repository.DiagnosisHistoryRepository;
+import com.greenlife.user.repository.UserRepository;
+import com.greenlife.user.repository.RoleRepository;
+import com.greenlife.store.repository.StoreRepository;
+import com.greenlife.auth.repository.SecurityAuditRepository;
+import com.greenlife.auth.entity.SecurityAudit;
 import com.greenlife.security.JwtService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -149,9 +159,20 @@ public class DiagnosisIntegrationTest {
     private void cleanupDatabase() {
         securityAuditRepository.deleteAll();
         diagnosisHistoryRepository.hardDeleteAll();
-        plantRepository.deleteAll();
-        categoryRepository.deleteAll();
-        storeRepository.deleteAll();
+
+        for (Store s : storeRepository.findAll()) {
+            if (s.getName().startsWith("Diag Test Store")) {
+                for (Plant p : plantRepository.findAll()) {
+                    if (p.getStore() != null && p.getStore().getId().equals(s.getId())) {
+                        plantRepository.delete(p);
+                    }
+                }
+                storeRepository.delete(s);
+            }
+        }
+
+        categoryRepository.findByNameIgnoreCase("Diag Category").ifPresent(categoryRepository::delete);
+
         userRepository.findByEmail(customerEmailA).ifPresent(userRepository::delete);
         userRepository.findByEmail(customerEmailB).ifPresent(userRepository::delete);
         userRepository.findByEmail(adminEmail).ifPresent(userRepository::delete);

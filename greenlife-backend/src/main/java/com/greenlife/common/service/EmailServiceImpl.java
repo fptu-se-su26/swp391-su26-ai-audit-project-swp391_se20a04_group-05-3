@@ -1,6 +1,6 @@
 package com.greenlife.common.service;
 
-import com.greenlife.service.OtpService;
+import com.greenlife.auth.service.OtpService;
 
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;

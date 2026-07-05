@@ -1,12 +1,18 @@
 package com.greenlife;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.*;
-import com.greenlife.entity.*;
-import com.greenlife.entity.enums.LoginFailureReason;
-import com.greenlife.entity.enums.SecurityAuditAction;
-import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.repository.*;
+import com.greenlife.auth.dto.*;
+import com.greenlife.auth.entity.*;
+import com.greenlife.user.entity.User;
+import com.greenlife.user.entity.Role;
+
+import com.greenlife.auth.entity.enums.LoginFailureReason;
+import com.greenlife.auth.entity.enums.SecurityAuditAction;
+import com.greenlife.auth.entity.enums.SuspiciousActivityType;
+import com.greenlife.user.entity.enums.UserStatus;
+import com.greenlife.auth.repository.*;
+import com.greenlife.user.repository.UserRepository;
+import com.greenlife.user.repository.RoleRepository;
 import com.greenlife.security.JwtService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -491,7 +497,7 @@ public class LoginAuditIntegrationTest {
         // Verify that exactly one SUSPICIOUS_ACTIVITY brute force alert was generated
         List<SecurityAudit> suspiciousAudits = securityAuditRepository.findAll().stream()
                 .filter(sa -> sa.getAction() == SecurityAuditAction.SUSPICIOUS_ACTIVITY 
-                           && sa.getSuspiciousActivityType() == com.greenlife.entity.enums.SuspiciousActivityType.BRUTE_FORCE)
+                           && sa.getSuspiciousActivityType() == SuspiciousActivityType.BRUTE_FORCE)
                 .toList();
         assertEquals(1, suspiciousAudits.size());
         assertNull(suspiciousAudits.get(0).getUser());

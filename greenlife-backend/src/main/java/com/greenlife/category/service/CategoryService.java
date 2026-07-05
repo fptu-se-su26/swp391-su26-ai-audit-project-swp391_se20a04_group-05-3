@@ -5,7 +5,7 @@ import com.greenlife.category.dto.CategoryResponse;
 import com.greenlife.category.entity.Category;
 import com.greenlife.exception.CustomException;
 import com.greenlife.category.repository.CategoryRepository;
-import com.greenlife.repository.PlantRepository;
+import com.greenlife.plant.repository.PlantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;

@@ -1,10 +1,29 @@
 package com.greenlife;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.*;
-import com.greenlife.entity.*;
-import com.greenlife.entity.enums.*;
-import com.greenlife.repository.*;
+import com.greenlife.booking.dto.BookingRequest;
+
+import com.greenlife.booking.dto.BookingCancelRequest;
+import com.greenlife.booking.dto.BookingStatusUpdateRequest;
+import com.greenlife.booking.dto.PlantCareServiceRequest;
+
+import com.greenlife.booking.entity.Booking;
+import com.greenlife.booking.entity.PlantCareService;
+import com.greenlife.booking.entity.enums.BookingStatus;
+import com.greenlife.booking.entity.enums.ServiceStatus;
+import com.greenlife.booking.repository.BookingRepository;
+import com.greenlife.booking.repository.PlantCareServiceRepository;
+import com.greenlife.notification.entity.Notification;
+import com.greenlife.user.entity.User;
+import com.greenlife.user.entity.Role;
+import com.greenlife.user.entity.enums.UserStatus;
+import com.greenlife.user.repository.UserRepository;
+import com.greenlife.user.repository.RoleRepository;
+import com.greenlife.store.entity.Store;
+import com.greenlife.store.entity.enums.StoreStatus;
+import com.greenlife.store.repository.StoreRepository;
+import com.greenlife.notification.entity.enums.NotificationType;
+import com.greenlife.notification.repository.NotificationRepository;
 import com.greenlife.security.JwtService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

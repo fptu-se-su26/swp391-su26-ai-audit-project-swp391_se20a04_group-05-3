@@ -29,8 +29,7 @@ public class RequestMetadataExtractor {
         }
 
         return new RequestMetadata(
-            ip != null ? ip : "unknown",
-            userAgent != null ? userAgent : "unknown"
-        );
+                ip != null ? ip : "unknown",
+                userAgent != null ? userAgent : "unknown");
     }
 }

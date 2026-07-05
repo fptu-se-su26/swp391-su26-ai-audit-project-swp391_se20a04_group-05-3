@@ -2,11 +2,17 @@ package com.greenlife;
 import com.greenlife.common.service.EmailService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.*;
-import com.greenlife.entity.*;
-import com.greenlife.entity.enums.*;
-import com.greenlife.repository.*;
-import com.greenlife.service.*;
+import com.greenlife.auth.dto.*;
+import com.greenlife.auth.entity.*;
+import com.greenlife.user.entity.User;
+import com.greenlife.user.entity.Role;
+import com.greenlife.user.entity.enums.UserStatus;
+
+import com.greenlife.auth.entity.enums.*;
+import com.greenlife.auth.repository.*;
+import com.greenlife.user.repository.UserRepository;
+import com.greenlife.user.repository.RoleRepository;
+
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

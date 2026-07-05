@@ -1,15 +1,19 @@
 package com.greenlife;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.ChangePasswordRequest;
-import com.greenlife.dto.ResetPasswordRequest;
-import com.greenlife.entity.Role;
-import com.greenlife.entity.User;
-import com.greenlife.entity.enums.SecurityAuditAction;
-import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.repository.*;
+import com.greenlife.auth.dto.ChangePasswordRequest;
+import com.greenlife.auth.dto.ResetPasswordRequest;
+import com.greenlife.user.entity.Role;
+import com.greenlife.user.entity.User;
+import com.greenlife.auth.entity.PasswordHistory;
+import com.greenlife.auth.entity.RefreshToken;
+import com.greenlife.auth.entity.enums.SecurityAuditAction;
+import com.greenlife.user.entity.enums.UserStatus;
+import com.greenlife.auth.repository.*;
+import com.greenlife.user.repository.UserRepository;
+import com.greenlife.user.repository.RoleRepository;
 import com.greenlife.security.JwtService;
-import com.greenlife.service.OtpService;
+import com.greenlife.auth.service.OtpService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -240,7 +244,7 @@ public class PasswordSecurityIntegrationTest {
         String token = jwtService.generateToken(testUser);
 
         // We simulate saving a past password to history
-        passwordHistoryRepository.save(com.greenlife.entity.PasswordHistory.builder()
+        passwordHistoryRepository.save(PasswordHistory.builder()
                 .user(testUser)
                 .passwordHash(passwordEncoder.encode("PastPassword123!"))
                 .createdAt(LocalDateTime.now().minusDays(1))
@@ -282,7 +286,7 @@ public class PasswordSecurityIntegrationTest {
     @Test
     void testSessionInvalidationAfterPasswordChange() throws Exception {
         // Create an active token in repository
-        com.greenlife.entity.RefreshToken rfToken = com.greenlife.entity.RefreshToken.builder()
+        RefreshToken rfToken = RefreshToken.builder()
                 .user(testUser)
                 .tokenHash("some-token-hash-xyz")
                 .expiresAt(LocalDateTime.now().plusDays(7))
@@ -311,7 +315,7 @@ public class PasswordSecurityIntegrationTest {
 
     @Test
     void testSessionInvalidationAfterPasswordReset() throws Exception {
-        com.greenlife.entity.RefreshToken rfToken = com.greenlife.entity.RefreshToken.builder()
+        RefreshToken rfToken = RefreshToken.builder()
                 .user(testUser)
                 .tokenHash("some-token-hash-abc")
                 .expiresAt(LocalDateTime.now().plusDays(7))
@@ -341,7 +345,7 @@ public class PasswordSecurityIntegrationTest {
     void testPasswordHistoryRetentionLimit() throws Exception {
         // Save 6 old passwords to history
         for (int i = 1; i <= 6; i++) {
-            passwordHistoryRepository.save(com.greenlife.entity.PasswordHistory.builder()
+            passwordHistoryRepository.save(PasswordHistory.builder()
                     .user(testUser)
                     .passwordHash(passwordEncoder.encode("PasswordNumber" + i))
                     .createdAt(LocalDateTime.now().minusHours(i))

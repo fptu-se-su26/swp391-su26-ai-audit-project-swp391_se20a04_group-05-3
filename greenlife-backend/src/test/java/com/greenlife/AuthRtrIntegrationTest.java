@@ -1,14 +1,14 @@
 package com.greenlife;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.LoginRequest;
-import com.greenlife.entity.RefreshToken;
-import com.greenlife.entity.Role;
-import com.greenlife.entity.User;
-import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.repository.RefreshTokenRepository;
-import com.greenlife.repository.RoleRepository;
-import com.greenlife.repository.UserRepository;
+import com.greenlife.auth.dto.LoginRequest;
+import com.greenlife.auth.entity.RefreshToken;
+import com.greenlife.user.entity.Role;
+import com.greenlife.user.entity.User;
+import com.greenlife.user.entity.enums.UserStatus;
+import com.greenlife.auth.repository.RefreshTokenRepository;
+import com.greenlife.user.repository.RoleRepository;
+import com.greenlife.user.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
