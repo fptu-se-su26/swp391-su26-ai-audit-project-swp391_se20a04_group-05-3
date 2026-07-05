@@ -2,10 +2,16 @@ package com.greenlife;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.UserProfileRequest;
-import com.greenlife.entity.*;
-import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.repository.*;
+import com.greenlife.user.dto.UserProfileRequest;
+
+import com.greenlife.user.entity.User;
+import com.greenlife.user.entity.Role;
+
+import com.greenlife.user.entity.enums.UserStatus;
+
+import com.greenlife.user.repository.UserRepository;
+import com.greenlife.user.repository.RoleRepository;
+
 import com.greenlife.security.JwtService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

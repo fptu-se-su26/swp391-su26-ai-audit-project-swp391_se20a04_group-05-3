@@ -3,11 +3,19 @@ import com.greenlife.category.repository.CategoryRepository;
 import com.greenlife.category.entity.Category;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.PlantRequest;
-import com.greenlife.entity.*;
-import com.greenlife.entity.enums.PlantStatus;
-import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.repository.*;
+import com.greenlife.plant.dto.PlantRequest;
+
+import com.greenlife.plant.entity.enums.PlantStatus;
+import com.greenlife.plant.entity.Plant;
+import com.greenlife.plant.repository.PlantRepository;
+import com.greenlife.user.entity.User;
+import com.greenlife.user.entity.Role;
+import com.greenlife.user.entity.enums.UserStatus;
+
+import com.greenlife.user.repository.UserRepository;
+import com.greenlife.user.repository.RoleRepository;
+import com.greenlife.store.entity.Store;
+import com.greenlife.store.repository.StoreRepository;
 import com.greenlife.security.JwtService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

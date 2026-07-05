@@ -1,13 +1,18 @@
 package com.greenlife;
+
 import com.greenlife.common.dto.MessageResponse;
 import com.greenlife.common.service.EmailService;
-
-import com.greenlife.dto.*;
-import com.greenlife.entity.*;
-import com.greenlife.entity.enums.*;
+import com.greenlife.auth.dto.*;
+import com.greenlife.auth.entity.*;
+import com.greenlife.auth.entity.enums.*;
+import com.greenlife.auth.repository.*;
+import com.greenlife.auth.service.*;
+import com.greenlife.user.entity.User;
+import com.greenlife.user.entity.Role;
+import com.greenlife.user.entity.enums.UserStatus;
 import com.greenlife.exception.*;
-import com.greenlife.repository.*;
-import com.greenlife.service.*;
+import com.greenlife.user.repository.UserRepository;
+import com.greenlife.user.repository.RoleRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

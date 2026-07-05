@@ -39,13 +39,13 @@ public class JwtService {
         }
     }
 
-    public String generatePasswordResetToken(com.greenlife.entity.User user) {
+    public String generatePasswordResetToken(com.greenlife.user.entity.User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("passHash", user.getPasswordHash());
-        
+
         byte[] keyBytes = Decoders.BASE64.decode(resetSecretKey);
         SecretKey key = Keys.hmacShaKeyFor(keyBytes);
-        
+
         return Jwts.builder()
                 .claims(claims)
                 .subject(user.getEmail())
@@ -60,7 +60,7 @@ public class JwtService {
         try {
             byte[] keyBytes = Decoders.BASE64.decode(resetSecretKey);
             SecretKey key = Keys.hmacShaKeyFor(keyBytes);
-            
+
             Claims claims = Jwts.parser()
                     .verifyWith(key)
                     .requireIssuer("greenlife")
@@ -69,7 +69,8 @@ public class JwtService {
                     .getPayload();
             return claims.getSubject();
         } catch (Exception e) {
-            throw new com.greenlife.exception.CustomException("Invalid or expired password reset token", org.springframework.http.HttpStatus.BAD_REQUEST);
+            throw new com.greenlife.exception.CustomException("Invalid or expired password reset token",
+                    org.springframework.http.HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -77,28 +78,32 @@ public class JwtService {
         try {
             byte[] keyBytes = Decoders.BASE64.decode(resetSecretKey);
             SecretKey key = Keys.hmacShaKeyFor(keyBytes);
-            
+
             Claims claims = Jwts.parser()
                     .verifyWith(key)
                     .requireIssuer("greenlife")
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-            
+
             // Check expiration
             if (claims.getExpiration().before(new Date())) {
-                throw new com.greenlife.exception.CustomException("Password reset token has expired", org.springframework.http.HttpStatus.BAD_REQUEST);
+                throw new com.greenlife.exception.CustomException("Password reset token has expired",
+                        org.springframework.http.HttpStatus.BAD_REQUEST);
             }
-            
+
             // Check one-time use claim
             String tokenPassHash = claims.get("passHash", String.class);
             if (tokenPassHash == null || !tokenPassHash.equals(currentDbPasswordHash)) {
-                throw new com.greenlife.exception.CustomException("Password reset token is invalid or has already been used", org.springframework.http.HttpStatus.BAD_REQUEST);
+                throw new com.greenlife.exception.CustomException(
+                        "Password reset token is invalid or has already been used",
+                        org.springframework.http.HttpStatus.BAD_REQUEST);
             }
         } catch (com.greenlife.exception.CustomException ce) {
             throw ce;
         } catch (Exception e) {
-            throw new com.greenlife.exception.CustomException("Invalid or expired password reset token", org.springframework.http.HttpStatus.BAD_REQUEST);
+            throw new com.greenlife.exception.CustomException("Invalid or expired password reset token",
+                    org.springframework.http.HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -123,8 +128,7 @@ public class JwtService {
     private String buildToken(
             Map<String, Object> extraClaims,
             UserDetails userDetails,
-            long expiration
-    ) {
+            long expiration) {
         return Jwts
                 .builder()
                 .claims(extraClaims)

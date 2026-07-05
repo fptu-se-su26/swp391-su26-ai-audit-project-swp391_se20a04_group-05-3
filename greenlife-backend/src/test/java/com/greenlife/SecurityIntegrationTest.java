@@ -1,10 +1,10 @@
 package com.greenlife;
 
-import com.greenlife.entity.Role;
-import com.greenlife.entity.User;
-import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.repository.RoleRepository;
-import com.greenlife.repository.UserRepository;
+import com.greenlife.user.entity.Role;
+import com.greenlife.user.entity.User;
+import com.greenlife.user.entity.enums.UserStatus;
+import com.greenlife.user.repository.RoleRepository;
+import com.greenlife.user.repository.UserRepository;
 import com.greenlife.security.JwtService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,17 +1,17 @@
 package com.greenlife;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.dto.BlogRequest;
-import com.greenlife.entity.Blog;
-import com.greenlife.entity.Role;
-import com.greenlife.entity.User;
-import com.greenlife.entity.enums.BlogCategory;
-import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.repository.BlogRepository;
-import com.greenlife.repository.RoleRepository;
-import com.greenlife.repository.UserRepository;
+import com.greenlife.blog.dto.BlogRequest;
+import com.greenlife.blog.entity.Blog;
+import com.greenlife.user.entity.Role;
+import com.greenlife.user.entity.User;
+import com.greenlife.blog.entity.enums.BlogCategory;
+import com.greenlife.user.entity.enums.UserStatus;
+import com.greenlife.blog.repository.BlogRepository;
+import com.greenlife.user.repository.RoleRepository;
+import com.greenlife.user.repository.UserRepository;
 import com.greenlife.security.JwtService;
-import com.greenlife.service.SecurityAuditService;
+import com.greenlife.auth.service.SecurityAuditService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -1,13 +1,23 @@
 package com.greenlife;
 import com.greenlife.category.repository.CategoryRepository;
 import com.greenlife.category.entity.Category;
-import com.greenlife.dto.WishlistResponse;
-import com.greenlife.entity.*;
-import com.greenlife.entity.enums.PlantStatus;
-import com.greenlife.entity.enums.UserStatus;
-import com.greenlife.repository.*;
+import com.greenlife.wishlist.dto.WishlistResponse;
+import com.greenlife.wishlist.service.WishlistService;
+import com.greenlife.wishlist.repository.WishlistRepository;
+
+
+import com.greenlife.store.entity.Store;
+import com.greenlife.plant.entity.enums.PlantStatus;
+import com.greenlife.plant.entity.Plant;
+import com.greenlife.plant.repository.PlantRepository;
+import com.greenlife.user.entity.enums.UserStatus;
+import com.greenlife.user.entity.User;
+import com.greenlife.user.entity.Role;
+
+import com.greenlife.user.repository.UserRepository;
+import com.greenlife.user.repository.RoleRepository;
+import com.greenlife.store.repository.StoreRepository;
 import com.greenlife.security.JwtService;
-import com.greenlife.service.WishlistService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -114,7 +124,7 @@ public class WishlistIntegrationTest {
                 .owner(storeOwner)
                 .name("Wishlist Store")
                 .address("Wishlist Address")
-                .status(com.greenlife.entity.enums.StoreStatus.APPROVED)
+                .status(com.greenlife.store.entity.enums.StoreStatus.APPROVED)
                 .build());
 
         category = categoryRepository.save(Category.builder()

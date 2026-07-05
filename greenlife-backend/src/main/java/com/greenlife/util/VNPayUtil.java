@@ -1,6 +1,6 @@
 package com.greenlife.util;
 
-import com.greenlife.entity.Order;
+import com.greenlife.order.entity.Order;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
