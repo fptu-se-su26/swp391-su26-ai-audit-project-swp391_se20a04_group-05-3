@@ -11,6 +11,7 @@ import com.greenlife.exception.CustomException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 
@@ -21,6 +22,7 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final OrderService orderService;
 
+    @Transactional(readOnly = true)
     public PaymentUrlResponse generatePaymentUrl(PaymentUrlRequest request, User currentUser, String clientIp) {
         Order order = orderRepository.findById(request.getOrderId())
                 .orElseThrow(() -> new CustomException("Không tìm thấy đơn hàng", HttpStatus.NOT_FOUND));
