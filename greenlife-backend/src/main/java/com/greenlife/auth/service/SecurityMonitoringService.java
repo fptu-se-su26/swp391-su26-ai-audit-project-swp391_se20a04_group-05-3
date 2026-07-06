@@ -7,6 +7,7 @@ import com.greenlife.auth.repository.SecurityAuditRepository;
 import com.greenlife.auth.repository.LoginAuditRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.greenlife.auth.entity.enums.SuspiciousActivityType;
 import java.time.LocalDateTime;
@@ -20,6 +21,7 @@ public class SecurityMonitoringService {
     private final LoginAuditRepository loginAuditRepository;
     private final SecurityAuditService securityAuditService;
 
+    @Transactional(readOnly = true)
     public void checkFailedLogins(User user, String email) {
         if (email == null || email.isBlank()) return;
         long failedCount = loginAuditRepository.countByEmailAndSuccessAndLoginTimeAfter(email, false, LocalDateTime.now().minusMinutes(10));
@@ -53,6 +55,7 @@ public class SecurityMonitoringService {
     }
 
     @SuppressWarnings("null")
+    @Transactional(readOnly = true)
     public void checkIpHopping(User user, String currentIp) {
         if (user == null || currentIp == null || currentIp.isBlank() || "unknown".equalsIgnoreCase(currentIp)) {
             return;
@@ -87,6 +90,7 @@ public class SecurityMonitoringService {
         }
     }
 
+    @Transactional(readOnly = true)
     public void handleRefreshTokenFailure(User user, String details) {
         if (user == null) return;
         boolean alreadyAlerted = securityAuditRepository.existsByUserIdAndActionAndSuspiciousActivityTypeAndCreatedAtAfter(

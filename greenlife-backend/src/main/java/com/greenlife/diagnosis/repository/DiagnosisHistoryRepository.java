@@ -22,9 +22,6 @@ public interface DiagnosisHistoryRepository extends JpaRepository<DiagnosisHisto
     @Query(value = "SELECT * FROM diagnosis_history WHERE id = :id", nativeQuery = true)
     Optional<DiagnosisHistory> findIncludingDeleted(@Param("id") Integer id);
 
-    @Query(value = "SELECT * FROM diagnosis_history", nativeQuery = true)
-    List<DiagnosisHistory> findAllIncludingDeleted();
-
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
     @Query(value = "DELETE FROM diagnosis_history", nativeQuery = true)
