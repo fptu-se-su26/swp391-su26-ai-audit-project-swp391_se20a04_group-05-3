@@ -3,12 +3,12 @@ package com.greenlife.order.controller;
 import com.greenlife.order.dto.OrderResponse;
 import com.greenlife.order.dto.UpdateOrderStatusRequest;
 import com.greenlife.user.entity.User;
-import com.greenlife.exception.CustomException;
-import com.greenlife.user.repository.UserRepository;
+
+import com.greenlife.security.CurrentUserResolver;
 import com.greenlife.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,19 +24,19 @@ import java.util.List;
 public class StoreOwnerOrderController {
 
     private final OrderService orderService;
-    private final UserRepository userRepository;
+    private final CurrentUserResolver currentUserResolver;
 
-    private User getAuthenticatedUser(UserDetails userDetails) {
-        if (userDetails == null) {
-            throw new CustomException("Chưa đăng nhập", HttpStatus.UNAUTHORIZED);
-        }
-        return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-    }
+
+
+
+
+
+
+
 
     @GetMapping
     public ResponseEntity<List<OrderResponse>> getMyStoreOrders(@AuthenticationPrincipal UserDetails userDetails) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(orderService.getStoreOwnerOrders(user.getId()));
     }
 
@@ -45,7 +45,7 @@ public class StoreOwnerOrderController {
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(orderService.getStoreOwnerOrderDetail(user.getId(), id));
     }
 
@@ -55,7 +55,7 @@ public class StoreOwnerOrderController {
             @Valid @RequestBody UpdateOrderStatusRequest request,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(orderService.updateStoreOwnerOrderStatus(user.getId(), id, request.getStatus()));
     }
 
@@ -64,7 +64,7 @@ public class StoreOwnerOrderController {
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(orderService.cancelStoreOwnerOrder(user.getId(), id));
     }
 }

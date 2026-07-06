@@ -2,15 +2,14 @@ package com.greenlife.review.controller;
 
 import com.greenlife.review.dto.ReviewResponse;
 import com.greenlife.user.entity.User;
-import com.greenlife.exception.CustomException;
-import com.greenlife.user.repository.UserRepository;
+import com.greenlife.security.CurrentUserResolver;
 import com.greenlife.review.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,15 +22,15 @@ import org.springframework.web.bind.annotation.*;
 public class StoreOwnerReviewController {
 
     private final ReviewService reviewService;
-    private final UserRepository userRepository;
+    private final CurrentUserResolver currentUserResolver;
 
-    private User getAuthenticatedUser(UserDetails userDetails) {
-        if (userDetails == null) {
-            throw new CustomException("Chưa đăng nhập", HttpStatus.UNAUTHORIZED);
-        }
-        return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-    }
+
+
+
+
+
+
+
 
     @GetMapping
     @PreAuthorize("hasRole('STORE_OWNER')")
@@ -40,7 +39,7 @@ public class StoreOwnerReviewController {
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(reviewService.getStoreOwnerReviews(user.getId(), pageable));
     }

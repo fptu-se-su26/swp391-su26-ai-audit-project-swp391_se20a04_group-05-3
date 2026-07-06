@@ -6,15 +6,15 @@ package com.greenlife.user.controller;
 import com.greenlife.user.dto.AdminUserResponse;
 import com.greenlife.user.entity.User;
 import com.greenlife.user.entity.enums.UserStatus;
-import com.greenlife.exception.CustomException;
-import com.greenlife.user.repository.UserRepository;
+
+import com.greenlife.security.CurrentUserResolver;
 import com.greenlife.user.service.AdminUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
-    private final UserRepository userRepository;
+    private final CurrentUserResolver currentUserResolver;
 
     @GetMapping
     public ResponseEntity<Page<AdminUserResponse>> searchUsers(
@@ -52,7 +52,7 @@ public class AdminUserController {
             @PathVariable("id") Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User adminUser = resolveUserRequired(userDetails);
+        User adminUser = currentUserResolver.resolveUser(userDetails);
         AdminUserResponse user = adminUserService.lockUser(id, adminUser);
         return ResponseEntity.ok(user);
     }
@@ -62,7 +62,7 @@ public class AdminUserController {
             @PathVariable("id") Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User adminUser = resolveUserRequired(userDetails);
+        User adminUser = currentUserResolver.resolveUser(userDetails);
         AdminUserResponse user = adminUserService.unlockUser(id, adminUser);
         return ResponseEntity.ok(user);
     }
@@ -73,16 +73,16 @@ public class AdminUserController {
             @RequestParam("status") UserStatus status,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User adminUser = resolveUserRequired(userDetails);
+        User adminUser = currentUserResolver.resolveUser(userDetails);
         AdminUserResponse user = adminUserService.updateStatus(id, status, adminUser);
         return ResponseEntity.ok(user);
     }
 
-    private User resolveUserRequired(UserDetails userDetails) {
-        if (userDetails == null) {
-            throw new CustomException("Chưa đăng nhập", HttpStatus.UNAUTHORIZED);
-        }
-        return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-    }
+
+
+
+
+
+
+
 }

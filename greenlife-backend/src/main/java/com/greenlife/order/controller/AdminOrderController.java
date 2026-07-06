@@ -1,12 +1,11 @@
 package com.greenlife.order.controller;
 
 import com.greenlife.order.dto.OrderResponse;
-import com.greenlife.user.entity.User;
-import com.greenlife.exception.CustomException;
-import com.greenlife.user.repository.UserRepository;
+
+import com.greenlife.security.CurrentUserResolver;
 import com.greenlife.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,28 +21,19 @@ import java.util.List;
 public class AdminOrderController {
 
     private final OrderService orderService;
-    private final UserRepository userRepository;
-
-    private User getAuthenticatedUser(UserDetails userDetails) {
-        if (userDetails == null) {
-            throw new CustomException("Chưa đăng nhập", HttpStatus.UNAUTHORIZED);
-        }
-        return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-    }
+    private final CurrentUserResolver currentUserResolver;
 
     @GetMapping
     public ResponseEntity<List<OrderResponse>> getAllOrders(@AuthenticationPrincipal UserDetails userDetails) {
-        getAuthenticatedUser(userDetails);
+        currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(orderService.getAllOrdersForAdmin());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<OrderResponse> getOrderDetail(
             @PathVariable Integer id,
-            @AuthenticationPrincipal UserDetails userDetails
-    ) {
-        getAuthenticatedUser(userDetails);
+            @AuthenticationPrincipal UserDetails userDetails) {
+        currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(orderService.getOrderDetailsForAdmin(id));
     }
 }

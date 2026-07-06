@@ -4,8 +4,7 @@ import com.greenlife.review.dto.RatingSummaryResponse;
 import com.greenlife.review.dto.ReviewRequest;
 import com.greenlife.review.dto.ReviewResponse;
 import com.greenlife.user.entity.User;
-import com.greenlife.exception.CustomException;
-import com.greenlife.user.repository.UserRepository;
+import com.greenlife.security.CurrentUserResolver;
 import com.greenlife.review.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,7 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.validation.annotation.Validated;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -26,23 +25,23 @@ import org.springframework.web.bind.annotation.*;
 public class ReviewController {
 
     private final ReviewService reviewService;
-    private final UserRepository userRepository;
+    private final CurrentUserResolver currentUserResolver;
 
-    private User getAuthenticatedUser(UserDetails userDetails) {
-        if (userDetails == null) {
-            throw new CustomException("Chưa đăng nhập", HttpStatus.UNAUTHORIZED);
-        }
-        return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-    }
+
+
+
+
+
+
+
 
     @PostMapping
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ReviewResponse> createReview(
-            @Validated @RequestBody ReviewRequest request,
+            @Valid @RequestBody ReviewRequest request,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(reviewService.createReview(user.getId(), request));
     }
@@ -51,10 +50,10 @@ public class ReviewController {
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ReviewResponse> updateReview(
             @PathVariable Integer id,
-            @Validated @RequestBody ReviewRequest request,
+            @Valid @RequestBody ReviewRequest request,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(reviewService.updateReview(user.getId(), id, request));
     }
 
@@ -64,7 +63,7 @@ public class ReviewController {
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         reviewService.deleteReview(user.getId(), id);
         return ResponseEntity.noContent().build();
     }

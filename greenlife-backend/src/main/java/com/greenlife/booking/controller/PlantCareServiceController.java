@@ -3,8 +3,7 @@ package com.greenlife.booking.controller;
 import com.greenlife.booking.dto.PlantCareServiceRequest;
 import com.greenlife.booking.dto.PlantCareServiceResponse;
 import com.greenlife.user.entity.User;
-import com.greenlife.exception.CustomException;
-import com.greenlife.user.repository.UserRepository;
+import com.greenlife.security.CurrentUserResolver;
 import com.greenlife.booking.service.PlantCareServiceManager;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class PlantCareServiceController {
 
     private final PlantCareServiceManager serviceManager;
-    private final UserRepository userRepository;
+    private final CurrentUserResolver currentUserResolver;
 
     @GetMapping
     public ResponseEntity<Page<PlantCareServiceResponse>> getServices(
@@ -44,7 +43,7 @@ public class PlantCareServiceController {
             @Valid @RequestBody PlantCareServiceRequest request,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         PlantCareServiceResponse created = serviceManager.createService(user.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -56,7 +55,7 @@ public class PlantCareServiceController {
             @Valid @RequestBody PlantCareServiceRequest request,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(serviceManager.updateService(user.getId(), id, request));
     }
 
@@ -66,15 +65,15 @@ public class PlantCareServiceController {
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(serviceManager.deactivateService(user.getId(), id));
     }
 
-    private User resolveUser(UserDetails userDetails) {
-        if (userDetails == null) {
-            throw new CustomException("Chưa đăng nhập", HttpStatus.UNAUTHORIZED);
-        }
-        return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-    }
+
+
+
+
+
+
+
 }

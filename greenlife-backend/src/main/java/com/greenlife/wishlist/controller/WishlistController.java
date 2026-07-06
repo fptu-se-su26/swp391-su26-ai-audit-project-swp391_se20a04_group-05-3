@@ -3,8 +3,7 @@ package com.greenlife.wishlist.controller;
 import com.greenlife.wishlist.dto.WishlistCheckResponse;
 import com.greenlife.wishlist.dto.WishlistResponse;
 import com.greenlife.user.entity.User;
-import com.greenlife.exception.CustomException;
-import com.greenlife.user.repository.UserRepository;
+import com.greenlife.security.CurrentUserResolver;
 import com.greenlife.wishlist.service.WishlistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,15 +22,15 @@ import org.springframework.web.bind.annotation.*;
 public class WishlistController {
 
     private final WishlistService wishlistService;
-    private final UserRepository userRepository;
+    private final CurrentUserResolver currentUserResolver;
 
-    private User getAuthenticatedUser(UserDetails userDetails) {
-        if (userDetails == null) {
-            throw new CustomException("Chưa đăng nhập", HttpStatus.UNAUTHORIZED);
-        }
-        return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-    }
+
+
+
+
+
+
+
 
     @PostMapping("/{plantId}")
     @PreAuthorize("hasRole('CUSTOMER')")
@@ -39,7 +38,7 @@ public class WishlistController {
             @PathVariable Integer plantId,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         WishlistResponse response = wishlistService.addToWishlist(user.getId(), plantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -50,7 +49,7 @@ public class WishlistController {
             @PathVariable Integer plantId,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         wishlistService.removeFromWishlist(user.getId(), plantId);
         return ResponseEntity.noContent().build();
     }
@@ -62,7 +61,7 @@ public class WishlistController {
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(wishlistService.getWishlist(user.getId(), pageable));
     }
@@ -73,7 +72,7 @@ public class WishlistController {
             @PathVariable Integer plantId,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = getAuthenticatedUser(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(wishlistService.isFavorited(user.getId(), plantId));
     }
 }
