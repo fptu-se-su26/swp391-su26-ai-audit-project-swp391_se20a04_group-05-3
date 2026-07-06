@@ -2,10 +2,10 @@ package com.greenlife.diagnosis.controller;
 
 import com.greenlife.diagnosis.service.DiagnosisService;
 import com.greenlife.user.entity.User;
-import com.greenlife.user.repository.UserRepository;
-import com.greenlife.exception.CustomException;
+import com.greenlife.security.CurrentUserResolver;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,23 +19,23 @@ import org.springframework.web.bind.annotation.*;
 public class AdminDiagnosisController {
 
     private final DiagnosisService diagnosisService;
-    private final UserRepository userRepository;
+    private final CurrentUserResolver currentUserResolver;
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> purgeDiagnosis(
             @PathVariable("id") Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User adminUser = resolveUser(userDetails);
+        User adminUser = currentUserResolver.resolveUser(userDetails);
         diagnosisService.purgeDiagnosis(id, adminUser);
         return ResponseEntity.noContent().build();
     }
 
-    private User resolveUser(UserDetails userDetails) {
-        if (userDetails == null) {
-            throw new CustomException("Chưa đăng nhập", HttpStatus.UNAUTHORIZED);
-        }
-        return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-    }
+
+
+
+
+
+
+
 }

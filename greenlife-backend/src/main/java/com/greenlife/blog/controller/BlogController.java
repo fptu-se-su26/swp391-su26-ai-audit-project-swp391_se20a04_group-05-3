@@ -5,8 +5,8 @@ import com.greenlife.blog.dto.BlogResponse;
 import com.greenlife.user.entity.User;
 import com.greenlife.blog.entity.enums.BlogCategory;
 import com.greenlife.blog.entity.enums.BlogStatus;
-import com.greenlife.exception.CustomException;
-import com.greenlife.user.repository.UserRepository;
+
+import com.greenlife.security.CurrentUserResolver;
 import com.greenlife.blog.service.BlogService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ import java.util.List;
 public class BlogController {
 
     private final BlogService blogService;
-    private final UserRepository userRepository;
+    private final CurrentUserResolver currentUserResolver;
 
     @GetMapping
     public ResponseEntity<Page<BlogResponse>> getPublicBlogs(
@@ -46,7 +46,7 @@ public class BlogController {
             @PathVariable("id") Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUserOptional(userDetails);
+        User user = currentUserResolver.resolveUserOptional(userDetails);
         BlogResponse blog = blogService.getBlogById(id, user);
         return ResponseEntity.ok(blog);
     }
@@ -56,7 +56,7 @@ public class BlogController {
             @PathVariable("slug") String slug,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUserOptional(userDetails);
+        User user = currentUserResolver.resolveUserOptional(userDetails);
         BlogResponse blog = blogService.getBlogBySlug(slug, user);
         return ResponseEntity.ok(blog);
     }
@@ -75,7 +75,7 @@ public class BlogController {
             @AuthenticationPrincipal UserDetails userDetails,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        User user = resolveUserRequired(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         Page<BlogResponse> blogs = blogService.getMyBlogs(keyword, category, status, user, pageable);
         return ResponseEntity.ok(blogs);
     }
@@ -87,7 +87,7 @@ public class BlogController {
             @Valid @RequestBody BlogRequest request,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUserRequired(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         BlogResponse blog = blogService.createBlog(request, user);
         return ResponseEntity.status(HttpStatus.CREATED).body(blog);
     }
@@ -99,7 +99,7 @@ public class BlogController {
             @Valid @RequestBody BlogRequest request,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUserRequired(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         BlogResponse blog = blogService.updateBlog(id, request, user);
         return ResponseEntity.ok(blog);
     }
@@ -110,7 +110,7 @@ public class BlogController {
             @PathVariable("id") Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUserRequired(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         blogService.deleteBlog(id, user);
         return ResponseEntity.noContent().build();
     }
@@ -121,7 +121,7 @@ public class BlogController {
             @PathVariable("id") Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUserRequired(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         BlogResponse blog = blogService.publishBlog(id, user);
         return ResponseEntity.ok(blog);
     }
@@ -132,7 +132,7 @@ public class BlogController {
             @PathVariable("id") Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUserRequired(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         BlogResponse blog = blogService.archiveBlog(id, user);
         return ResponseEntity.ok(blog);
     }
@@ -143,24 +143,24 @@ public class BlogController {
             @PathVariable("id") Integer id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        User user = resolveUserRequired(userDetails);
+        User user = currentUserResolver.resolveUser(userDetails);
         BlogResponse blog = blogService.revertToDraft(id, user);
         return ResponseEntity.ok(blog);
     }
 
-    // Resolvers
-    private User resolveUserOptional(UserDetails userDetails) {
-        if (userDetails == null) {
-            return null;
-        }
-        return userRepository.findByEmail(userDetails.getUsername()).orElse(null);
-    }
 
-    private User resolveUserRequired(UserDetails userDetails) {
-        if (userDetails == null) {
-            throw new CustomException("Chưa đăng nhập", HttpStatus.UNAUTHORIZED);
-        }
-        return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }

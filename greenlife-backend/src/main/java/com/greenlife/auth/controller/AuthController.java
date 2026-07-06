@@ -122,6 +122,7 @@ public class AuthController {
     }
 
     @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserResponse> getMe(@AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(authService.getMe(userDetails.getUsername()));
     }
