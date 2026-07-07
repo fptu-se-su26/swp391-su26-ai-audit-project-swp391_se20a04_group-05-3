@@ -14,12 +14,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/store/profile")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('STORE_OWNER')")
 public class StoreProfileController {
 
     private final StoreService storeService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<StoreResponse> createStore(
             @Valid @RequestBody StoreRequest request,
             @AuthenticationPrincipal UserDetails userDetails
@@ -28,6 +28,7 @@ public class StoreProfileController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<StoreResponse> getStore(
             @AuthenticationPrincipal UserDetails userDetails
     ) {
@@ -35,6 +36,7 @@ public class StoreProfileController {
     }
 
     @PutMapping
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<StoreResponse> updateStore(
             @Valid @RequestBody StoreRequest request,
             @AuthenticationPrincipal UserDetails userDetails

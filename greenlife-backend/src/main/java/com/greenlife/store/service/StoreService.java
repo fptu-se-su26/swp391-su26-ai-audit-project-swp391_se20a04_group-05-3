@@ -11,6 +11,8 @@ import com.greenlife.exception.InvalidStoreStatusTransitionException;
 import com.greenlife.store.repository.StoreApprovalAuditRepository;
 import com.greenlife.store.repository.StoreRepository;
 import com.greenlife.user.repository.UserRepository;
+import com.greenlife.user.entity.Role;
+import com.greenlife.user.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -28,14 +30,16 @@ public class StoreService {
     private final UserRepository userRepository;
     private final StoreApprovalAuditRepository storeApprovalAuditRepository;
     private final FileStorageService fileStorageService;
+    private final RoleRepository roleRepository;
 
     @Transactional
     public StoreResponse createStore(StoreRequest request, String ownerEmail) {
         User owner = userRepository.findByEmail(ownerEmail)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
-        if (!"STORE_OWNER".equalsIgnoreCase(owner.getRole().getName())) {
-            throw new CustomException("Chỉ chủ cửa hàng (STORE_OWNER) mới có quyền đăng ký thông tin cửa hàng", HttpStatus.FORBIDDEN);
+        String currentRole = owner.getRole().getName();
+        if (!"CUSTOMER".equalsIgnoreCase(currentRole) && !"STORE_OWNER".equalsIgnoreCase(currentRole)) {
+            throw new CustomException("Chỉ khách hàng (CUSTOMER) hoặc chủ cửa hàng (STORE_OWNER) mới có quyền đăng ký cửa hàng", HttpStatus.FORBIDDEN);
         }
 
         // Check if store already exists
@@ -157,6 +161,15 @@ public class StoreService {
         store.setStatus(StoreStatus.APPROVED);
         store.setUpdatedAt(LocalDateTime.now());
         Store savedStore = storeRepository.save(store);
+
+        User owner = store.getOwner();
+        if (owner != null && "CUSTOMER".equalsIgnoreCase(owner.getRole().getName())) {
+            Role storeOwnerRole = roleRepository.findByName("STORE_OWNER")
+                .orElseThrow(() -> new CustomException("Vai trò STORE_OWNER không tồn tại trong hệ thống", HttpStatus.INTERNAL_SERVER_ERROR));
+            owner.setRole(storeOwnerRole);
+            userRepository.save(owner);
+        }
+
         return mapToStoreResponse(savedStore);
     }
 
