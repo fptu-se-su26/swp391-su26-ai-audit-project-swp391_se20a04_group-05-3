@@ -21,65 +21,53 @@ export const StoreDashboardGuard: React.FC<StoreDashboardGuardProps> = ({
   products,
   onAddProduct,
 }) => {
-  const { stores, currentUser } = useAppContext();
-  
-  // Decide loading based on whether user is STORE_OWNER ("store" role in frontend)
-  const isStoreOwner = currentUser?.role === "store";
-  
-  const [loading, setLoading] = useState(isStoreOwner);
-  const [verified, setVerified] = useState(false);
+  const { currentUser } = useAppContext();
+  const [storeState, setStoreState] = useState<"loading" | "none" | "pending" | "approved" | "rejected">("loading");
+  const [rejectReason, setRejectReason] = useState<string>("");
 
   useEffect(() => {
-    if (!isStoreOwner) {
-      setLoading(false);
+    if (!currentUser) {
+      setStoreState("none");
       return;
     }
 
     const abortController = new AbortController();
 
-    const checkStoreProfile = async () => {
+    const checkStore = async () => {
       try {
         const data = await HttpClient.get<any>("/api/store/profile", {
           signal: abortController.signal,
         });
-        if (data && data.status === "APPROVED") {
-          setVerified(true);
+        if (data) {
+          if (data.status === "APPROVED") {
+            setStoreState("approved");
+          } else if (data.status === "PENDING") {
+            setStoreState("pending");
+          } else if (data.status === "REJECTED") {
+            setStoreState("rejected");
+            setRejectReason(data.reason || "Hồ sơ không hợp lệ");
+          } else {
+            setStoreState("none");
+          }
         } else {
-          setVerified(false);
+          setStoreState("none");
         }
       } catch (err: any) {
         if (err.name !== "AbortError") {
-          logger.error("Lỗi khi kiểm tra hồ sơ cửa hàng:", err);
-          setVerified(false);
+          // If no store is registered or any error, fallback to none
+          setStoreState("none");
         }
-      } finally {
-        setLoading(false);
       }
     };
 
-    checkStoreProfile();
+    checkStore();
 
     return () => {
       abortController.abort();
     };
-  }, [isStoreOwner]);
+  }, [currentUser]);
 
-  // Non-store owners fallback to existing mock stores check behavior
-  if (!isStoreOwner) {
-    const myStore = stores.find((s) => s.ownerEmail === currentUser?.email);
-    if (!myStore || !myStore.verified) {
-      return <StoreProfileSetupView />;
-    }
-    return (
-      <StoreDashboardView
-        products={products}
-        onAddProduct={onAddProduct}
-      />
-    );
-  }
-
-  // Store owners checking logic
-  if (loading) {
+  if (storeState === "loading") {
     return (
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         <DashboardSkeleton />
@@ -87,7 +75,62 @@ export const StoreDashboardGuard: React.FC<StoreDashboardGuardProps> = ({
     );
   }
 
-  if (!verified) {
+  if (storeState === "pending") {
+    return (
+      <div className="p-6 max-w-2xl mx-auto mt-10">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-emerald-50 text-center space-y-6">
+          <div className="mx-auto w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-amber-500">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-gray-900">Hồ sơ cửa hàng đang chờ duyệt</h2>
+            <p className="text-gray-500 text-sm md:text-base leading-relaxed">
+              Thông tin đăng ký của bạn đã được gửi thành công và đang trong quá trình kiểm duyệt. 
+              Ban quản trị GreenLife sẽ xác minh tài liệu KYC của bạn trong vòng 24-48 giờ.
+            </p>
+          </div>
+          <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-100 text-left text-xs md:text-sm text-amber-800">
+            <span className="font-semibold">Lưu ý:</span> Bạn sẽ nhận được quyền truy cập đầy đủ vào trang quản trị ngay sau khi tài khoản được phê duyệt và nâng cấp thành chủ cửa hàng (STORE_OWNER).
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (storeState === "rejected") {
+    return (
+      <div className="p-6 max-w-2xl mx-auto mt-10">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-red-50 text-center space-y-6">
+          <div className="mx-auto w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-gray-900">Hồ sơ đăng ký bị từ chối</h2>
+            <p className="text-red-500 text-sm font-semibold">
+              Lý do từ chối: {rejectReason}
+            </p>
+            <p className="text-gray-500 text-sm">
+              Vui lòng cập nhật lại thông tin đăng ký hoặc tài liệu KYC của bạn để gửi yêu cầu phê duyệt mới.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              onClick={() => setStoreState("none")}
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition duration-200"
+            >
+              Chỉnh sửa thông tin đăng ký
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (storeState === "none") {
     return <StoreProfileSetupView />;
   }
 

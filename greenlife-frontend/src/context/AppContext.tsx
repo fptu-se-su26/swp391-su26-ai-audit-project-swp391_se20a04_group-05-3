@@ -523,32 +523,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const updatedUser = await AuthService.registerSeller(currentUser.id, details);
       setCurrentUser(updatedUser);
-
-      const addr = details.pickupAddress;
-      const mockFullAddressStr = addr
-        ? `${addr.detail_address}, ${addr.ward}, ${addr.district}, ${addr.province}`
-        : "Chưa cập nhật địa chỉ lấy hàng cụ thể";
-
-      const newStore: EcoStore = {
-        id: `store-${currentUser.id}`,
-        name: details.shopName,
-        ownerName: currentUser.name,
-        ownerEmail: currentUser.email,
-        rating: 5.0,
-        avatar: currentUser.avatar,
-        bannerImage: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=800&auto=format&fit=crop&q=80",
-        address: mockFullAddressStr,
-        workingHours: "08:00 - 18:00 (Hằng ngày)",
-        carbonOffsetKg: 0,
-        productsCount: 0,
-        verified: true,
-        city: addr?.province || "",
-        district: addr?.district || "",
-        serviceArea: ""
-      };
-      addStore(newStore);
-
-      setUserRole("store");
       setCurrentPage("store-dashboard");
     } catch (err) {
       logger.error("Lỗi đăng ký bán hàng:", err);
@@ -556,7 +530,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setLoading((prev) => ({ ...prev, auth: false }));
     }
-  }, [currentUser, addStore, setCurrentPage]);
+  }, [currentUser, setCurrentPage]);
 
   const login = useCallback(async (email: string, password?: string) => {
     setLoading((prev) => ({ ...prev, auth: true }));
