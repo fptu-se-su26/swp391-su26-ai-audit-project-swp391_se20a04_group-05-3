@@ -230,7 +230,7 @@ export const StoreProfileSetupView: React.FC = () => {
         shopName: storeName,
         shopEmail,
         shopPhone,
-        pickupAddressId: pickupAddress.address_id,
+        pickupAddress: pickupAddress,
         shippingSettings,
         kycImages: {
           frontImage: kycFrontImage,

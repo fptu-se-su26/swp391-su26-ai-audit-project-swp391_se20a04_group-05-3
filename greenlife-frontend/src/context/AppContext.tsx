@@ -51,7 +51,7 @@ interface AppContextType {
     shopName: string;
     shopEmail: string;
     shopPhone: string;
-    pickupAddressId: number;
+    pickupAddress: any;
     shippingSettings: {
       greenExpress: boolean;
       hoaToc: boolean;
@@ -506,7 +506,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     shopName: string;
     shopEmail: string;
     shopPhone: string;
-    pickupAddressId: number;
+    pickupAddress: any;
     shippingSettings: {
       greenExpress: boolean;
       hoaToc: boolean;
@@ -523,16 +523,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const updatedUser = await AuthService.registerSeller(currentUser.id, details);
       setCurrentUser(updatedUser);
-      
-      let mockFullAddressStr = "Chưa cập nhật địa chỉ lấy hàng cụ thể";
-      const storedAddrs = localStorage.getItem(`mock_addresses_${currentUser.id}`);
-      if (storedAddrs) {
-        const list = JSON.parse(storedAddrs);
-        const matched = list.find((a: any) => String(a.address_id) === String(details.pickupAddressId));
-        if (matched) {
-          mockFullAddressStr = `${matched.detail_address}, ${matched.ward}, ${matched.district}, ${matched.province}`;
-        }
-      }
+
+      const addr = details.pickupAddress;
+      const mockFullAddressStr = addr
+        ? `${addr.detail_address}, ${addr.ward}, ${addr.district}, ${addr.province}`
+        : "Chưa cập nhật địa chỉ lấy hàng cụ thể";
 
       const newStore: EcoStore = {
         id: `store-${currentUser.id}`,
@@ -547,12 +542,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         carbonOffsetKg: 0,
         productsCount: 0,
         verified: true,
-        city: "",
-        district: "",
+        city: addr?.province || "",
+        district: addr?.district || "",
         serviceArea: ""
       };
       addStore(newStore);
-      
+
       setUserRole("store");
       setCurrentPage("store-dashboard");
     } catch (err) {
