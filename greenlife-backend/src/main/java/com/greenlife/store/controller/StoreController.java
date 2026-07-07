@@ -16,12 +16,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/stores")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('STORE_OWNER')")
 public class StoreController {
 
     private final StoreService storeService;
 
     @PostMapping("/register")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<StoreResponse> registerStore(
             @Valid @RequestBody StoreRequest request,
             @AuthenticationPrincipal UserDetails userDetails
@@ -30,6 +30,7 @@ public class StoreController {
     }
 
     @GetMapping("/my")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<List<StoreResponse>> getMyStores(
             @AuthenticationPrincipal UserDetails userDetails
     ) {
