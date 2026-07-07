@@ -264,7 +264,7 @@ export class AuthService {
     shopName: string;
     shopEmail: string;
     shopPhone: string;
-    pickupAddressId: number;
+    pickupAddress: any;
     shippingSettings: {
       greenExpress: boolean;
       hoaToc: boolean;
@@ -276,12 +276,14 @@ export class AuthService {
       backImage: string;
     };
   }): Promise<User> {
+    const addr = details.pickupAddress;
     const data = await HttpClient.post("/api/stores/register", {
-      shopName: details.shopName,
-      shopEmail: details.shopEmail,
-      shopPhone: details.shopPhone,
-      pickupAddressId: details.pickupAddressId,
-      shippingSettings: details.shippingSettings
+      name:                 details.shopName,
+      phone:                details.shopPhone,
+      city:                 addr?.province || "",
+      district:             addr?.district || "",
+      address:              addr ? `${addr.detail_address}, ${addr.ward}` : "",
+      verificationDocument: details.kycImages?.frontImage || undefined
     });
 
     const updatedUser = await this.getCurrentUser();
