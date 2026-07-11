@@ -61,12 +61,36 @@ public class Order {
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
+    @Column(name = "payment_provider", length = 20)
+    private String paymentProvider;
+
+    @Column(name = "payos_link_id", length = 100)
+    private String payosLinkId;
+
+    @Column(name = "payos_checkout_url", length = 500)
+    private String payosCheckoutUrl;
+
+    @Column(name = "payos_qr_code", length = 1000)
+    private String payosQrCode;
+
+    @Column(name = "payos_order_code")
+    private Long payosOrderCode;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private OrderStatus status;
 
     @Column(length = 500)
     private String note;
+
+    @Column(name = "return_reject_reason", length = 500)
+    private String returnRejectReason;
+
+    @Column(name = "return_request_reason", length = 500)
+    private String returnRequestReason;
+
+    @Column(name = "return_request_reason_code", length = 100)
+    private String returnRequestReasonCode;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -77,4 +101,8 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderDetail> orderDetails = new ArrayList<>();
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<OrderReturnEvidence> returnEvidences = new ArrayList<>();
 }

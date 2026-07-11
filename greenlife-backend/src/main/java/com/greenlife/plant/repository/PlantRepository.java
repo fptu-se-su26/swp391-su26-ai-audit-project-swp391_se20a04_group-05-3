@@ -11,6 +11,7 @@ public interface PlantRepository extends JpaRepository<Plant, Integer> {
     boolean existsByNameIgnoreCaseAndStoreId(String name, Integer storeId);
     boolean existsBySlugAndStoreId(String slug, Integer storeId);
     boolean existsByCategoryId(Integer categoryId);
+    java.util.List<Plant> findByStoreId(Integer storeId);
 
     @Query("SELECT p FROM Plant p " +
            "LEFT JOIN p.category c " +

@@ -31,6 +31,9 @@ public class LocalFileStorageService implements FileStorageService {
     private Path diagnosesPath;
     private Path avatarsPath;
     private Path kycPath;
+    private Path returnsPath;
+    private Path productsPath;
+    private Path storeLogosPath;
 
     @PostConstruct
     public void init() {
@@ -39,11 +42,17 @@ public class LocalFileStorageService implements FileStorageService {
             this.diagnosesPath = this.baseUploadPath.resolve("diagnoses").normalize();
             this.avatarsPath = this.baseUploadPath.resolve("avatars").normalize();
             this.kycPath = this.baseUploadPath.resolve("kyc").normalize();
+            this.returnsPath = this.baseUploadPath.resolve("returns").normalize();
+            this.productsPath = this.baseUploadPath.resolve("products").normalize();
+            this.storeLogosPath = this.baseUploadPath.resolve("stores/logos").normalize();
 
             Files.createDirectories(this.baseUploadPath);
             Files.createDirectories(this.diagnosesPath);
             Files.createDirectories(this.avatarsPath);
             Files.createDirectories(this.kycPath);
+            Files.createDirectories(this.returnsPath);
+            Files.createDirectories(this.productsPath);
+            Files.createDirectories(this.storeLogosPath);
         } catch (IOException e) {
             throw new RuntimeException("Could not initialize file storage directories", e);
         }
@@ -57,6 +66,21 @@ public class LocalFileStorageService implements FileStorageService {
     @Override
     public String storeAvatar(MultipartFile file) {
         return storeFile(file, avatarsPath, "avatars", 2 * 1024 * 1024L);
+    }
+
+    @Override
+    public String storeReturnEvidence(MultipartFile file) {
+        return storeFile(file, returnsPath, "returns", 5 * 1024 * 1024L);
+    }
+
+    @Override
+    public String storeProductImage(MultipartFile file) {
+        return storeFile(file, productsPath, "products", 5 * 1024 * 1024L);
+    }
+
+    @Override
+    public String storeStoreLogo(MultipartFile file) {
+        return storeFile(file, storeLogosPath, "stores/logos", 2 * 1024 * 1024L);
     }
 
     private String storeFile(MultipartFile file, Path targetDir, String subfolder, long maxSize) {

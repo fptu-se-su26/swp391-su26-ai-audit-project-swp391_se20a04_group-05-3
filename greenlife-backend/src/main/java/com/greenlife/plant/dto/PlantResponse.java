@@ -25,6 +25,8 @@ public class PlantResponse {
     private String careLevel;
     private String sunlight;
     private String waterLevel;
+    private String sku;
+    private Boolean isBestSeller;
     private PlantStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

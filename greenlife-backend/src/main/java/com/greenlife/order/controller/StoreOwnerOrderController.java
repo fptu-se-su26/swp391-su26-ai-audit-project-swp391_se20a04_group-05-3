@@ -2,6 +2,7 @@ package com.greenlife.order.controller;
 
 import com.greenlife.order.dto.OrderResponse;
 import com.greenlife.order.dto.UpdateOrderStatusRequest;
+import com.greenlife.order.dto.ReturnRejectRequest;
 import com.greenlife.user.entity.User;
 
 import com.greenlife.security.CurrentUserResolver;
@@ -66,5 +67,24 @@ public class StoreOwnerOrderController {
     ) {
         User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(orderService.cancelStoreOwnerOrder(user.getId(), id));
+    }
+
+    @PutMapping("/{id}/return-approve")
+    public ResponseEntity<OrderResponse> approveReturnStoreOrder(
+            @PathVariable Integer id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = currentUserResolver.resolveUser(userDetails);
+        return ResponseEntity.ok(orderService.approveReturnRequestStoreOwner(user.getId(), id));
+    }
+
+    @PutMapping("/{id}/return-reject")
+    public ResponseEntity<OrderResponse> rejectReturnStoreOrder(
+            @PathVariable Integer id,
+            @Valid @RequestBody ReturnRejectRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = currentUserResolver.resolveUser(userDetails);
+        return ResponseEntity.ok(orderService.rejectReturnRequestStoreOwner(user.getId(), id, request.getReason()));
     }
 }

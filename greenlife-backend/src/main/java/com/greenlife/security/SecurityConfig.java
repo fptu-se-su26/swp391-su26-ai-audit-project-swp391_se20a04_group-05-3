@@ -56,6 +56,7 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories", "/api/categories/**", "/api/products", "/api/products/**", "/api/reviews/plants/**", "/api/reviews/stores/**", "/api/services", "/api/services/{id}", "/api/blogs", "/api/blogs/{id}", "/api/blogs/slug/**", "/api/blogs/categories").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/payment/vnpay-callback").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/payments/payos/webhook").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

@@ -11,6 +11,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class GoogleLoginRequest {
-    @NotBlank(message = "ID Token không được để trống")
     private String idToken;
+    private String credential;
+
+    public String getIdToken() {
+        return idToken != null ? idToken : credential;
+    }
 }

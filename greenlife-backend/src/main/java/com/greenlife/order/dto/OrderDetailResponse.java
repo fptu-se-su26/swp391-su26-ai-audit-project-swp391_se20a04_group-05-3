@@ -15,4 +15,5 @@ public class OrderDetailResponse {
     private Integer quantity;
     private BigDecimal unitPrice;
     private BigDecimal lineTotal;
+    private String imageUrl;
 }

@@ -25,7 +25,7 @@ public class CheckoutRequest {
     @Size(max = 500, message = "Ghi chú tối đa 500 ký tự")
     private String note;
 
-    @Pattern(regexp = "COD|VNPAY", message = "Phương thức thanh toán phải là COD hoặc VNPAY")
+    @Pattern(regexp = "COD|PAYOS", message = "Phương thức thanh toán phải là COD hoặc PAYOS")
     @Builder.Default
     private String paymentMethod = "COD";
 }

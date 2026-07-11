@@ -18,7 +18,7 @@ public class CurrentUserResolver {
         if (userDetails == null) {
             throw new CustomException("Chưa đăng nhập", HttpStatus.UNAUTHORIZED);
         }
-        return userRepository.findByEmail(userDetails.getUsername())
+        return userRepository.findByEmail(userDetails.getUsername().toLowerCase().trim())
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
     }
 
@@ -26,6 +26,6 @@ public class CurrentUserResolver {
         if (userDetails == null) {
             return null;
         }
-        return userRepository.findByEmail(userDetails.getUsername()).orElse(null);
+        return userRepository.findByEmail(userDetails.getUsername().toLowerCase().trim()).orElse(null);
     }
 }

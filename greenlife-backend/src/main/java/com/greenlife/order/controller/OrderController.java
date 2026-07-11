@@ -1,6 +1,7 @@
 package com.greenlife.order.controller;
 
 import com.greenlife.order.dto.OrderResponse;
+import com.greenlife.order.dto.ReturnRequestRequest;
 import com.greenlife.user.entity.User;
 import com.greenlife.security.CurrentUserResolver;
 import com.greenlife.order.service.OrderService;
@@ -54,5 +55,38 @@ public class OrderController {
     ) {
         User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(orderService.cancelCustomerOrder(user.getId(), id));
+    }
+
+    @PutMapping("/{id}/received")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<OrderResponse> confirmReceived(
+            @PathVariable Integer id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = currentUserResolver.resolveUser(userDetails);
+        return ResponseEntity.ok(orderService.confirmReceivedCustomerOrder(user.getId(), id));
+    }
+
+    @PutMapping("/{id}/return-request")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<OrderResponse> requestReturn(
+            @PathVariable Integer id,
+            @RequestBody ReturnRequestRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = currentUserResolver.resolveUser(userDetails);
+        return ResponseEntity.ok(orderService.requestReturnCustomerOrder(user.getId(), id, request));
+    }
+
+    @PostMapping("/{id}/return-evidence/upload")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<java.util.Map<String, String>> uploadReturnEvidence(
+            @PathVariable Integer id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = currentUserResolver.resolveUser(userDetails);
+        String url = orderService.uploadReturnEvidence(user.getId(), id, file);
+        return ResponseEntity.ok(java.util.Map.of("url", url));
     }
 }

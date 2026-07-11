@@ -54,7 +54,7 @@ public class ReviewService {
             
             // Check delivered purchase
             boolean hasPurchased = orderRepository.existsByCustomerIdAndStatusAndOrderDetailsPlantId(
-                    customerId, OrderStatus.DELIVERED, request.getPlantId());
+                    customerId, OrderStatus.RECEIVED, request.getPlantId());
             if (!hasPurchased) {
                 throw new CustomException("Bạn chỉ có thể đánh giá sản phẩm sau khi đã nhận hàng thành công", HttpStatus.BAD_REQUEST);
             }
@@ -70,7 +70,7 @@ public class ReviewService {
 
             // Check delivered purchase
             boolean hasPurchased = orderRepository.existsByCustomerIdAndStatusAndStoreId(
-                    customerId, OrderStatus.DELIVERED, request.getStoreId());
+                    customerId, OrderStatus.RECEIVED, request.getStoreId());
             if (!hasPurchased) {
                 throw new CustomException("Bạn chỉ có thể đánh giá cửa hàng sau khi đặt mua sản phẩm thành công", HttpStatus.BAD_REQUEST);
             }
