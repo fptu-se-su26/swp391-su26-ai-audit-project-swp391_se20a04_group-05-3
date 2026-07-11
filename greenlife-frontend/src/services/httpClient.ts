@@ -15,10 +15,38 @@ export interface RequestOptions extends RequestInit {
   skipAuthRedirect?: boolean;
 }
 
+/**
+ * Phase 4-J7: Auth request loop fix.
+ *
+ * Root causes of the previous loop:
+ *   1. A 401 on any non-auth endpoint triggered AuthService.logout()
+ *      (which calls POST /api/auth/logout), then after that the refresh
+ *      path was also attempted — creating a /logout → /refresh → /logout cycle.
+ *   2. AuthService.logout() in getCurrentUser() on 401 triggered another /logout.
+ *   3. 503 from a DB-busy backend was retried on POST endpoints.
+ *
+ * Fixed behavior:
+ *   - 401 on auth endpoints (login/register/google/refresh): clear local state only,
+ *     dispatch auth-unauthorized, do NOT call logout (no server round-trip).
+ *   - 401 on any other endpoint: attempt ONE refresh (if token exists and no
+ *     previous refresh failure this session). On refresh failure: clear local
+ *     state only (no /logout call), dispatch auth-unauthorized.
+ *   - refreshPromise provides single-flight deduplication.
+ *   - 503/502/504 retried only on idempotent GET/HEAD requests.
+ */
 export class HttpClient {
   private static DEFAULT_TIMEOUT = DEFAULT_TIMEOUT;
 
   private static refreshPromise: Promise<string> | null = null;
+
+  // Phase 4-J7: Prevents a second /refresh attempt after the first one fails
+  // within the same browser session. Cleared on successful login.
+  private static refreshFailed = false;
+
+  /** Called by AuthService after a successful login to reset the refresh-failed guard. */
+  public static resetRefreshFailedFlag(): void {
+    HttpClient.refreshFailed = false;
+  }
 
   public static async request<T = any>(
     url: string,
@@ -27,6 +55,7 @@ export class HttpClient {
     const { timeout = this.DEFAULT_TIMEOUT, retry = 2, signal, ...fetchOpts } = options;
 
     const method = (fetchOpts.method || "GET").toUpperCase();
+    // Only retry idempotent methods. Do NOT retry POST/PUT/PATCH/DELETE on 503.
     const canRetry = method === "GET" || method === "HEAD";
 
     let attempt = 0;
@@ -36,7 +65,6 @@ export class HttpClient {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      // Merge signals
       const onAbort = () => {
         controller.abort();
       };
@@ -100,24 +128,38 @@ export class HttpClient {
             else normalizedMessage = `Yêu cầu thất bại với mã lỗi ${status}`;
           }
 
-          // On HTTP 401: call AuthService.logout() and throw UnauthorizedError, DO NOT redirect.
           if (status === 401) {
+            // Phase 4-J7: Classify whether this is an auth endpoint.
+            // Auth endpoints that produce 401 mean credentials are invalid —
+            // do NOT call /logout (that would cause a loop) and do NOT attempt refresh.
             const isAuthEndpoint =
               url.includes("/api/auth/refresh") ||
               url.includes("/api/auth/login") ||
               url.includes("/api/auth/google") ||
-              url.includes("/api/auth/register");
+              url.includes("/api/auth/register") ||
+              url.includes("/api/auth/logout") ||
+              url.includes("/api/auth/me");
 
             if (isAuthEndpoint) {
-              if (url !== "/api/auth/logout" && url !== "/api/auth/me") {
-                await AuthService.logout();
-              } else {
-                storage.removeItem("greenlife_current_user");
+              // Just clear local storage — no server logout call.
+              storage.removeItem("greenlife_current_user");
+              if (url.includes("/api/auth/refresh") || url.includes("/api/auth/me")) {
+                window.dispatchEvent(new CustomEvent("auth-unauthorized"));
               }
               throw new UnauthorizedError(normalizedMessage);
             }
 
-            // Attempt to refresh token
+            // Phase 4-J7: Do NOT attempt refresh if:
+            //   (a) there is no token (user is not logged in), or
+            //   (b) a refresh already failed this session (prevents infinite retry).
+            const currentToken = AuthService.getAccessToken();
+            if (!currentToken || HttpClient.refreshFailed) {
+              storage.removeItem("greenlife_current_user");
+              window.dispatchEvent(new CustomEvent("auth-unauthorized"));
+              throw new UnauthorizedError(normalizedMessage);
+            }
+
+            // Attempt token refresh — single-flight via refreshPromise
             try {
               if (!HttpClient.refreshPromise) {
                 HttpClient.refreshPromise = (async () => {
@@ -141,7 +183,11 @@ export class HttpClient {
                     AuthService.setAccessToken(newToken);
                     return newToken;
                   } catch (err) {
-                    await AuthService.logout();
+                    // Mark refresh as failed for this session — no more retries.
+                    HttpClient.refreshFailed = true;
+                    // Clear local state only — do NOT call /logout (that creates a loop).
+                    storage.removeItem("greenlife_current_user");
+                    window.dispatchEvent(new CustomEvent("auth-unauthorized"));
                     throw err;
                   } finally {
                     HttpClient.refreshPromise = null;
@@ -150,13 +196,16 @@ export class HttpClient {
               }
 
               await HttpClient.refreshPromise;
+              // Retry original request once with new token
               return await HttpClient.request<T>(url, options);
-            } catch (refreshErr) {
+            } catch {
               throw new UnauthorizedError(normalizedMessage);
             }
           }
 
-          // Retry logic (502, 503, 504)
+          // Phase 4-J7: Retry only GET/HEAD on 502/503/504.
+          // Previously 503 was also retried on POSTs — this caused a storm when
+          // the DB was busy (e.g. login was retried 3x during pool exhaustion).
           const shouldRetryStatus = [502, 503, 504].includes(status);
           if (canRetry && shouldRetryStatus && attempt < retry) {
             attempt++;
@@ -186,13 +235,10 @@ export class HttpClient {
         }
         lastError = err;
 
-        // Check if aborted by timeout
         if (err.name === "AbortError") {
           if (signal && signal.aborted) {
-            // Aborted externally
             throw err;
           } else {
-            // It was our timeout controller that aborted the request
             if (canRetry && attempt < retry) {
               attempt++;
               const delay = attempt === 1 ? 1000 : 2000;
@@ -203,7 +249,11 @@ export class HttpClient {
           }
         }
 
-        // Check for network failure / type error
+        // Re-throw UnauthorizedError immediately — no retry
+        if (err instanceof UnauthorizedError) {
+          throw err;
+        }
+
         const isNetworkError =
           err.message?.includes("Failed to fetch") ||
           err.message?.includes("NetworkError") ||

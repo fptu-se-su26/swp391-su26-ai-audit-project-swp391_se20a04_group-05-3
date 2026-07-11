@@ -1,6 +1,7 @@
 import React from "react";
 import { CartItem } from "../../types";
 import { Minus, Plus, Trash2 } from "lucide-react";
+import { getMediaUrl } from "../../utils/mediaUrl";
 
 interface CartItemRowProps {
   item: CartItem;
@@ -17,7 +18,7 @@ export const CartItemRow: React.FC<CartItemRowProps> = React.memo(({
     <div className="bg-stone-900/30 border border-stone-850 p-3.5 rounded-2xl flex items-center justify-between gap-3 text-xs">
       <div className="flex items-center gap-3">
         <img
-          src={item.product.image}
+          src={getMediaUrl(item.product.image)}
           alt={item.product.name}
           className="w-12 h-12 object-cover rounded-xl"
           referrerPolicy="no-referrer"

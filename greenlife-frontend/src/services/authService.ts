@@ -54,10 +54,10 @@ export class AuthService {
 
       return mappedUser;
     } catch (err: any) {
-      logger.error("Error in getCurrentUser:", err);
-      if (err.name === "UnauthorizedError" || err.message === "Phiên đăng nhập đã hết hạn") {
-        await this.logout();
-      }
+      // Phase 4-J7: Do NOT call logout() here on 401 — that creates a
+      // /api/auth/me 401 → /api/auth/logout 401 loop.
+      // HttpClient already cleared local storage on 401; just return null.
+      logger.warn("getCurrentUser failed (session may have expired):", err?.message);
       return null;
     }
   }
@@ -74,6 +74,8 @@ export class AuthService {
         token: data.accessToken,
         user: mappedUser
       });
+      // Phase 4-J7: Reset the refresh-failed guard so the new session can refresh.
+      HttpClient.resetRefreshFailedFlag();
       return mappedUser;
     }
 
@@ -92,6 +94,8 @@ export class AuthService {
         token: data.accessToken,
         user: mappedUser
       });
+      // Phase 4-J7: Reset the refresh-failed guard so the new session can refresh.
+      HttpClient.resetRefreshFailedFlag();
       return mappedUser;
     }
     throw new Error("Đăng nhập bằng Google thất bại.");
@@ -124,13 +128,18 @@ export class AuthService {
    * Clears security context
    */
   public static async logout(): Promise<void> {
-    try {
-      await HttpClient.post("/api/auth/logout", {}, { credentials: "include", skipAuthRedirect: true });
-    } catch (err) {
-      logger.warn("Yêu cầu đăng xuất thất bại:", err);
-    } finally {
-      storage.removeItem(this.STORAGE_KEY);
+    // Phase 4-J7: Only call the server logout endpoint if we have a token.
+    // Calling /logout without a token returns 401, which previously triggered
+    // another logout() call — a recursive loop.
+    const token = this.getAccessToken();
+    if (token) {
+      try {
+        await HttpClient.post("/api/auth/logout", {}, { credentials: "include", skipAuthRedirect: true });
+      } catch (err) {
+        logger.warn("Yêu cầu đăng xuất thất bại:", err);
+      }
     }
+    storage.removeItem(this.STORAGE_KEY);
   }
 
   /**
@@ -257,33 +266,25 @@ export class AuthService {
     };
   }
 
-  /**
-   * Registers a customer as a seller
-   */
   public static async registerSeller(userId: string, details: {
-    shopName: string;
-    shopEmail: string;
-    shopPhone: string;
-    pickupAddress: any;
-    shippingSettings: {
-      greenExpress: boolean;
-      hoaToc: boolean;
-      spx: boolean;
-      ghtk: boolean;
-    };
-    kycImages: {
-      frontImage: string;
-      backImage: string;
-    };
+    name: string;
+    phone: string;
+    city: string;
+    district: string;
+    address: string;
+    description?: string;
+    logoUrl?: string;
+    verificationDocument?: string;
   }): Promise<User> {
-    const addr = details.pickupAddress;
     const data = await HttpClient.post("/api/stores/register", {
-      name:                 details.shopName,
-      phone:                details.shopPhone,
-      city:                 addr?.province || "",
-      district:             addr?.district || "",
-      address:              addr ? `${addr.detail_address}, ${addr.ward}` : "",
-      verificationDocument: details.kycImages?.frontImage || undefined
+      name: details.name,
+      phone: details.phone,
+      city: details.city,
+      district: details.district,
+      address: details.address,
+      description: details.description || "",
+      logoUrl: details.logoUrl || "",
+      verificationDocument: details.verificationDocument || ""
     });
 
     const updatedUser = await this.getCurrentUser();

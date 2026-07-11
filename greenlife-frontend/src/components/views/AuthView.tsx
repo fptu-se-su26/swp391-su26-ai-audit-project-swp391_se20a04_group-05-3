@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { User, Mail, ShieldAlert, Sparkles, Key, LogIn, UserPlus, Eye, EyeOff, Shield } from "lucide-react";
 import { useAppContext } from "../../context/AppContext";
 import { AuthService } from "../../services/authService";
@@ -6,6 +6,15 @@ import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { toast } from "react-hot-toast";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
+
+const isGoogleClientIdValid = (clientId: string | undefined): boolean => {
+  if (!clientId) return false;
+  const clean = clientId.trim();
+  if (clean === "" || clean.startsWith("YOUR_") || clean.startsWith("your_") || clean.startsWith("your-") || clean.includes("placeholder")) {
+    return false;
+  }
+  return true;
+};
 
 
 interface AuthViewProps {
@@ -21,6 +30,16 @@ export const AuthView: React.FC<AuthViewProps> = ({
 }) => {
   const { login, register, registerRequest, verifyRegistrationOTP, loginWithGoogle } = useAppContext();
   const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot-password">("login");
+
+  // Phase 4-J6: Guard to ensure Google Identity SDK is initialized exactly once per mount.
+  // Previously the useEffect depended on [activeTab], causing google.accounts.id.initialize()
+  // to be called on every tab change — triggering the [GSI_LOGGER] warning and creating
+  // multiple concurrent initialization states.
+  const googleInitializedRef = useRef(false);
+
+  // Phase 4-J6: Guard to prevent duplicate login submissions (double-click or rapid Enter).
+  const isLoginInFlight = useRef(false);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
 
   // Login Form States
   const [loginEmail, setLoginEmail] = useState("");
@@ -53,12 +72,31 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
+  // Phase 4-J6: Google Identity SDK initialization — runs exactly once per component mount.
+  // Using a ref guard (googleInitializedRef) ensures initialize() is not called again if the
+  // user switches between login/register tabs.
   React.useEffect(() => {
+    if (googleInitializedRef.current) return; // Already initialized — skip.
+
+    const isClientIdValid = (clientId: string | undefined): boolean => {
+      if (!clientId) return false;
+      const clean = clientId.trim();
+      if (clean === "" || clean.startsWith("YOUR_") || clean.startsWith("your_") || clean.startsWith("your-") || clean.includes("placeholder")) {
+        return false;
+      }
+      return true;
+    };
+
+    if (!isClientIdValid(GOOGLE_CLIENT_ID)) {
+      return;
+    }
+
     const initializeGoogleSignIn = () => {
       const google = (window as any).google;
       if (google && google.accounts) {
         google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
+          auto_select: false,
           callback: async (response: any) => {
             try {
               await loginWithGoogle(response.credential);
@@ -68,28 +106,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
             }
           }
         });
-        
-        const loginBtn = document.getElementById("google-signin-btn-login");
-        if (loginBtn) {
-          google.accounts.id.renderButton(loginBtn, {
-            theme: "outline",
-            size: "large",
-            width: 384,
-            text: "signin_with",
-            shape: "rectangular"
-          });
-        }
-
-        const registerBtn = document.getElementById("google-signin-btn-register");
-        if (registerBtn) {
-          google.accounts.id.renderButton(registerBtn, {
-            theme: "outline",
-            size: "large",
-            width: 384,
-            text: "signup_with",
-            shape: "rectangular"
-          });
-        }
+        googleInitializedRef.current = true; // Mark as initialized
       }
     };
 
@@ -102,7 +119,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }, 200);
 
     return () => clearInterval(timer);
-  }, [activeTab]);
+  }, []); // Empty deps — initialize only once per mount, not on tab change
 
 
 
@@ -271,8 +288,16 @@ export const AuthView: React.FC<AuthViewProps> = ({
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
+  // Phase 4-J6: Guard against duplicate login submissions.
+  // login() in AppContext already calls AuthService.login() and sets currentUser.
+  // The extra AuthService.getCurrentUser() call that was here previously fired a redundant
+  // GET /api/auth/me after every successful login — removed to reduce DB pressure.
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent double-submission
+    if (isLoginInFlight.current) return;
+
     const newErrors: Record<string, string> = {};
 
     if (!loginEmail.trim()) {
@@ -293,22 +318,28 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }
 
     setErrors({});
-    
+    isLoginInFlight.current = true;
+    setIsLoginLoading(true);
+
     try {
-      await login(loginEmail, loginPassword);
-      const actualUser = await AuthService.getCurrentUser();
-      
-      if (actualUser) {
-        if (actualUser.role === "admin") {
+      // login() sets currentUser and userRole in AppContext; no extra /api/auth/me needed.
+      const user = await login(loginEmail, loginPassword);
+
+      // Use the user object from AppContext (already set by login())
+      // Route based on role — AppContext.login() throws on failure, so if we reach here it succeeded.
+      // We can rely on the role that AppContext.login() already set.
+      // Navigate using a brief setTimeout so React state settles.
+      setTimeout(() => {
+        // Read the role that AppContext just set via login()
+        const savedRole = localStorage.getItem("greenlife_active_role");
+        if (savedRole === "admin") {
           setCurrentPage("admin-dashboard");
-        } else if (actualUser.is_seller) {
+        } else if (savedRole === "store") {
           setCurrentPage("store-dashboard");
         } else {
           setCurrentPage("customer-dashboard");
         }
-      } else {
-        throw new Error("Không thể tải thông tin đăng nhập.");
-      }
+      }, 50);
     } catch (err: any) {
       let errMsg = err.message || "Lỗi kết nối cổng xác thực hoặc thông tin mật khẩu không chính xác.";
       if (!errMsg.toLowerCase().includes("sai")) {
@@ -316,6 +347,9 @@ export const AuthView: React.FC<AuthViewProps> = ({
       }
       setErrors({ global: errMsg });
       toast.error(errMsg);
+    } finally {
+      isLoginInFlight.current = false;
+      setIsLoginLoading(false);
     }
   };
 
@@ -504,10 +538,15 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-950/25 text-black font-semibold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all"
+                disabled={isLoginLoading}
+                className={`w-full flex items-center justify-center gap-2 px-6 py-3 font-semibold text-xs uppercase tracking-wider rounded-xl transition-all ${
+                  isLoginLoading
+                    ? "bg-emerald-700 text-stone-400 cursor-not-allowed opacity-60"
+                    : "bg-emerald-500 hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-950/25 text-black cursor-pointer"
+                }`}
               >
                 <LogIn className="h-4 w-4" />
-                Đăng nhập
+                {isLoginLoading ? "Đang đăng nhập..." : "Đăng nhập"}
               </button>
 
               <div className="relative flex py-1 items-center">
@@ -517,29 +556,58 @@ export const AuthView: React.FC<AuthViewProps> = ({
               </div>
 
               <div className="flex justify-center w-full mt-2">
-                <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-                  <GoogleLogin
-                    onSuccess={async (credentialResponse) => {
-                      if (credentialResponse.credential) {
-                        try {
-                          await loginWithGoogle(credentialResponse.credential);
-                          setCurrentPage("home");
-                        } catch (err: any) {
-                          setErrors({ global: err.message || "Đăng nhập Google thất bại." });
-                        }
-                      }
-                    }}
-                    onError={() => {
-                      setErrors({ global: "Lỗi kết nối hoặc xác thực Google." });
-                    }}
-                    theme="filled_black"
-                    shape="pill"
-                    size="large"
-                    width="384"
-                  />
-                </GoogleOAuthProvider>
+                {isGoogleClientIdValid(GOOGLE_CLIENT_ID) ? (
+                  <div className="relative w-full max-w-[384px] h-[44px] overflow-hidden rounded-lg flex items-center justify-center">
+                    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+                      <GoogleLogin
+                        onSuccess={async (credentialResponse) => {
+                          if (credentialResponse.credential) {
+                            try {
+                              await loginWithGoogle(credentialResponse.credential);
+                              setCurrentPage("home");
+                            } catch (err: any) {
+                              setErrors({ global: err.message || "Đăng nhập Google thất bại." });
+                            }
+                          }
+                        }}
+                        onError={() => {
+                          setErrors({ global: "Lỗi kết nối hoặc xác thực Google." });
+                        }}
+                        text="continue_with"
+                        theme="filled_black"
+                        shape="rectangular"
+                        size="large"
+                        width="384"
+                      />
+                    </GoogleOAuthProvider>
+                    <div className="absolute inset-0 flex items-center justify-center gap-2 bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-200 font-medium rounded-lg pointer-events-none text-sm select-none">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <path
+                          fill="#EA4335"
+                          d="M5.2662 9.7653C6.1995 6.9363 8.854 4.8571 12 4.8571C13.6952 4.8571 15.2238 5.4857 16.3905 6.5143L19.781 3.1238C17.7048 1.1905 14.9905 0 12 0C7.3048 0 3.2571 2.7238 1.3238 6.6952L5.2662 9.7653Z"
+                        />
+                        <path
+                          fill="#4285F4"
+                          d="M23.4952 12.2762C23.4952 11.5143 23.4286 10.7524 23.3 10.0286H12V14.6286H18.4571C18.181 16.1429 17.2952 17.4381 16.019 18.2952L19.781 21.2095C21.9905 19.1714 23.4952 16.0095 23.4952 12.2762Z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.2662 14.2347C5.019 13.4952 4.8857 12.7143 4.8857 11.9048C4.8857 11.0952 5.019 10.3143 5.2662 9.5762L1.3238 6.5048C0.4762 8.2476 0 10.1905 0 12.2381C0 14.2857 0.4762 16.2286 1.3238 17.9714L5.2662 14.2347Z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 24C15.2429 24 17.9619 22.9238 19.781 21.0952L16.019 18.181C14.981 18.8762 13.6286 19.2952 12 19.2952C8.854 19.2952 6.1995 17.2157 5.2662 14.3867L1.3238 17.4586C3.2571 21.4305 7.3048 24 12 24Z"
+                        />
+                      </svg>
+                      <span>Tiếp tục với Google</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-stone-400 text-xs text-center py-2.5 px-4 border border-dashed border-stone-850 rounded-lg bg-stone-900/50 w-full max-w-[384px]">
+                    Đăng nhập Google chưa được cấu hình trong môi trường này.
+                  </div>
+                )}
               </div>
-
 
             </form>
           )}
@@ -706,27 +774,57 @@ export const AuthView: React.FC<AuthViewProps> = ({
               </div>
 
               <div className="flex justify-center w-full mt-2">
-                <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-                  <GoogleLogin
-                    onSuccess={async (credentialResponse) => {
-                      if (credentialResponse.credential) {
-                        try {
-                          await loginWithGoogle(credentialResponse.credential);
-                          setCurrentPage("home");
-                        } catch (err: any) {
-                          setErrors({ global: err.message || "Đăng nhập Google thất bại." });
-                        }
-                      }
-                    }}
-                    onError={() => {
-                      setErrors({ global: "Lỗi kết nối hoặc xác thực Google." });
-                    }}
-                    theme="filled_black"
-                    shape="pill"
-                    size="large"
-                    width="384"
-                  />
-                </GoogleOAuthProvider>
+                {isGoogleClientIdValid(GOOGLE_CLIENT_ID) ? (
+                  <div className="relative w-full max-w-[384px] h-[44px] overflow-hidden rounded-lg flex items-center justify-center">
+                    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+                      <GoogleLogin
+                        onSuccess={async (credentialResponse) => {
+                          if (credentialResponse.credential) {
+                            try {
+                              await loginWithGoogle(credentialResponse.credential);
+                              setCurrentPage("home");
+                            } catch (err: any) {
+                              setErrors({ global: err.message || "Đăng nhập Google thất bại." });
+                            }
+                          }
+                        }}
+                        onError={() => {
+                          setErrors({ global: "Lỗi kết nối hoặc xác thực Google." });
+                        }}
+                        text="continue_with"
+                        theme="filled_black"
+                        shape="rectangular"
+                        size="large"
+                        width="384"
+                      />
+                    </GoogleOAuthProvider>
+                    <div className="absolute inset-0 flex items-center justify-center gap-2 bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-200 font-medium rounded-lg pointer-events-none text-sm select-none">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <path
+                          fill="#EA4335"
+                          d="M5.2662 9.7653C6.1995 6.9363 8.854 4.8571 12 4.8571C13.6952 4.8571 15.2238 5.4857 16.3905 6.5143L19.781 3.1238C17.7048 1.1905 14.9905 0 12 0C7.3048 0 3.2571 2.7238 1.3238 6.6952L5.2662 9.7653Z"
+                        />
+                        <path
+                          fill="#4285F4"
+                          d="M23.4952 12.2762C23.4952 11.5143 23.4286 10.7524 23.3 10.0286H12V14.6286H18.4571C18.181 16.1429 17.2952 17.4381 16.019 18.2952L19.781 21.2095C21.9905 19.1714 23.4952 16.0095 23.4952 12.2762Z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.2662 14.2347C5.019 13.4952 4.8857 12.7143 4.8857 11.9048C4.8857 11.0952 5.019 10.3143 5.2662 9.5762L1.3238 6.5048C0.4762 8.2476 0 10.1905 0 12.2381C0 14.2857 0.4762 16.2286 1.3238 17.9714L5.2662 14.2347Z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 24C15.2429 24 17.9619 22.9238 19.781 21.0952L16.019 18.181C14.981 18.8762 13.6286 19.2952 12 19.2952C8.854 19.2952 6.1995 17.2157 5.2662 14.3867L1.3238 17.4586C3.2571 21.4305 7.3048 24 12 24Z"
+                        />
+                      </svg>
+                      <span>Tiếp tục với Google</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-stone-400 text-xs text-center py-2.5 px-4 border border-dashed border-stone-850 rounded-lg bg-stone-900/50 w-full max-w-[384px]">
+                    Đăng nhập Google chưa được cấu hình trong môi trường này.
+                  </div>
+                )}
               </div>
 
             </form>

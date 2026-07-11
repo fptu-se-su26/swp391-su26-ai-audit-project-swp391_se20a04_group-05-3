@@ -22,6 +22,7 @@ import { StoreDashboardGuard } from "./components/common/StoreDashboardGuard";
 import { CartDrawer } from "./components/common/CartDrawer";
 import { Chatbot } from "./components/ui/Chatbot";
 import { Toaster } from "react-hot-toast";
+import { PaymentStatusView } from "./components/views/PaymentStatusView";
 
 export default function App() {
   const {
@@ -55,10 +56,19 @@ export default function App() {
   const [cartOpen, setCartOpen] = useState(false);
   const [shopSearch, setShopSearch] = useState("");
 
+  // Simple path routing hook/effect
+  React.useEffect(() => {
+    const path = window.location.pathname;
+    if (path === "/payment/success") {
+      setCurrentPage("payment-success");
+    } else if (path === "/payment/cancel") {
+      setCurrentPage("payment-cancel");
+    }
+  }, [setCurrentPage]);
+
   // Cart Handlers bridging UI events
   const handleAddToCart = (product: Product, quantity: number = 1) => {
     addToCart(product, quantity);
-    setCartOpen(true);
   };
 
 
@@ -183,6 +193,14 @@ export default function App() {
                   <ProtectedRoute allowedRoles={["admin"]} onPageRedirect={setCurrentPage}>
                     <AdminDashboardView />
                   </ProtectedRoute>
+                );
+              case "payment-success":
+                return (
+                  <PaymentStatusView type="success" setCurrentPage={setCurrentPage} />
+                );
+              case "payment-cancel":
+                return (
+                  <PaymentStatusView type="cancel" setCurrentPage={setCurrentPage} />
                 );
               default:
                 return (

@@ -46,6 +46,7 @@ import { AdminOrderService } from "../../services/adminOrderService";
 import { ReviewService, ReviewResponse } from "../../services/reviewService";
 import { MessageSquare, ShieldAlert } from "lucide-react";
 import { AdminSecurityService, AdminLoginAuditResponse } from "../../services/adminSecurityService";
+import { getMediaUrl } from "../../utils/mediaUrl";
 
 export const AdminDashboardView: React.FC = () => {
   const { 
@@ -71,6 +72,12 @@ export const AdminDashboardView: React.FC = () => {
   const [storeTab, setStoreTab] = useState<"pending" | "active">("pending");
   const [storeSearch, setStoreSearch] = useState("");
   const [storeCityFilter, setStoreCityFilter] = useState("");
+
+  // Modals & Rejection States
+  const [rejectStoreOpen, setRejectStoreOpen] = useState(false);
+  const [rejectStoreId, setRejectStoreId] = useState<string | null>(null);
+  const [rejectStoreReason, setRejectStoreReason] = useState("");
+  const [rejectStoreError, setRejectStoreError] = useState("");
 
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("");
@@ -467,20 +474,39 @@ export const AdminDashboardView: React.FC = () => {
     }
   }, [updateStoreInfo, loadAllData]);
 
-  const handleRejectStore = useCallback(async (storeId: string) => {
-    if (!confirm("Bạn có chắc chắn muốn từ chối hồ sơ này?")) return;
+  const handleRejectStore = useCallback((storeId: string) => {
+    setRejectStoreId(storeId);
+    setRejectStoreReason("");
+    setRejectStoreError("");
+    setRejectStoreOpen(true);
+  }, []);
 
-    const numericId = parseInt(storeId);
-    const reason = prompt("Nhập lý do từ chối:") || "Không đáp ứng tiêu chuẩn sinh thái";
+  const handleRejectStoreConfirmed = useCallback(async () => {
+    if (!rejectStoreId) return;
+    const trimmedReason = rejectStoreReason.trim();
+    if (!trimmedReason) {
+      setRejectStoreError("Vui lòng nhập lý do từ chối.");
+      return;
+    }
+    if (trimmedReason.length > 500) {
+      setRejectStoreError("Lý do từ chối không được vượt quá 500 ký tự.");
+      return;
+    }
+
+    const numericId = parseInt(rejectStoreId);
     try {
-      await AdminStoreService.rejectStore(numericId, reason);
+      await AdminStoreService.rejectStore(numericId, trimmedReason);
       toast.success("Đã từ chối hồ sơ đăng ký kinh doanh.");
-      updateStoreInfo(storeId, { verified: false, name: `${stores.find(s=>s.id === storeId)?.name} (Bị từ chối)` });
+      updateStoreInfo(rejectStoreId, { verified: false, name: `${stores.find(s=>s.id === rejectStoreId)?.name} (Bị từ chối)` });
+      setRejectStoreOpen(false);
+      setRejectStoreId(null);
+      setRejectStoreReason("");
+      setRejectStoreError("");
       loadAllData();
     } catch (err: any) {
       toast.error(`Không thể từ chối hồ sơ: ${err.message || err}`);
     }
-  }, [stores, updateStoreInfo, loadAllData]);
+  }, [rejectStoreId, rejectStoreReason, stores, updateStoreInfo, loadAllData]);
 
   // Product Filtering logic
   const filteredProducts = useMemo(() => {
@@ -892,7 +918,7 @@ export const AdminDashboardView: React.FC = () => {
                       
                       <div className="flex justify-between items-start gap-4">
                         <div className="flex items-center gap-3">
-                          <img src={store.avatar || "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=100"} alt={store.name} className="w-11 h-11 object-cover rounded-xl border border-stone-200 dark:border-stone-800" />
+                          <img src={getMediaUrl(store.avatar) || "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=100"} alt={store.name} className="w-11 h-11 object-cover rounded-xl border border-stone-200 dark:border-stone-800" />
                           <div>
                             <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100 leading-snug">{store.name}</h4>
                             <p className="text-[10px] text-stone-400 mt-0.5">Chủ vườn: {store.ownerName} ({store.ownerEmail})</p>
@@ -995,7 +1021,7 @@ export const AdminDashboardView: React.FC = () => {
                         <tr key={store.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
                           <td className="p-4.5">
                             <div className="flex items-center gap-2.5">
-                              <img src={store.avatar || "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=100"} alt={store.name} className="w-7 h-7 object-cover rounded-md" />
+                              <img src={getMediaUrl(store.avatar) || "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=100"} alt={store.name} className="w-7 h-7 object-cover rounded-md" />
                               <div>
                                 <span className="font-semibold text-stone-900 dark:text-stone-100 block">{store.name}</span>
                                 <span className="text-[9px] text-stone-450 dark:text-stone-500 font-mono block">ID: {store.id}</span>
@@ -1250,7 +1276,7 @@ export const AdminDashboardView: React.FC = () => {
                       <tr key={p.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
                         <td className="p-4.5">
                           <div className="flex items-center gap-3">
-                            <img src={p.image} alt={p.name} className="w-9 h-9 object-cover rounded-lg border border-stone-200 dark:border-stone-800" />
+                            <img src={getMediaUrl(p.image)} alt={p.name} className="w-9 h-9 object-cover rounded-lg border border-stone-200 dark:border-stone-800" />
                             <div className="space-y-0.5">
                               <span className="font-semibold text-stone-900 dark:text-stone-100 block">{p.name}</span>
                               <span className="text-[10px] text-stone-400 block">⭐ {p.rating} | Đánh giá tốt</span>
@@ -1986,7 +2012,7 @@ export const AdminDashboardView: React.FC = () => {
                 selectedOrderDetails.map((item, idx) => (
                   <div key={idx} className="flex justify-between items-center gap-4 bg-stone-900/40 p-2.5 rounded-xl border border-stone-850 text-xs">
                     <div className="flex items-center gap-2.5">
-                      <img src={item.img} alt={item.name} className="w-8 h-8 object-cover rounded-md" />
+                      <img src={getMediaUrl(item.img)} alt={item.name} className="w-8 h-8 object-cover rounded-md" />
                       <div>
                         <span className="font-semibold text-stone-200 block max-w-xs truncate">{item.name}</span>
                         <span className="text-[10px] text-stone-500 font-mono block">Số lượng: x{item.qty}</span>
@@ -2049,6 +2075,79 @@ export const AdminDashboardView: React.FC = () => {
                   );
                 })}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal for Store Profile */}
+      {rejectStoreOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative text-left">
+            <button
+              onClick={() => {
+                setRejectStoreOpen(false);
+                setRejectStoreId(null);
+                setRejectStoreReason("");
+                setRejectStoreError("");
+              }}
+              className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-750 dark:hover:text-stone-250 transition-all cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-500">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-bold text-stone-900 dark:text-stone-100 font-display">
+                Từ chối hồ sơ cửa hàng
+              </h3>
+            </div>
+
+            <div className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed font-sans space-y-3">
+              <p>Vui lòng nhập lý do từ chối để cửa hàng có thể theo dõi và cập nhật lại hồ sơ.</p>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-stone-500 dark:text-stone-450 block uppercase tracking-wider">Lý do từ chối *</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={rejectStoreReason}
+                  onChange={(e) => {
+                    setRejectStoreReason(e.target.value);
+                    if (e.target.value.trim()) {
+                      setRejectStoreError("");
+                    }
+                  }}
+                  placeholder="Ví dụ: Hồ sơ chưa đáp ứng tiêu chuẩn sinh thái hoặc thiếu thông tin xác minh."
+                  className="w-full p-3 bg-stone-50 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl text-stone-950 dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-xs animate-none"
+                />
+                {rejectStoreError && (
+                  <span className="text-rose-500 text-[10px] block font-semibold">{rejectStoreError}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectStoreOpen(false);
+                  setRejectStoreId(null);
+                  setRejectStoreReason("");
+                  setRejectStoreError("");
+                }}
+                className="flex-1 py-2.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-750 text-stone-700 dark:text-stone-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleRejectStoreConfirmed}
+                className="flex-1 py-2.5 text-white bg-rose-600 hover:bg-rose-700 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm"
+              >
+                Xác nhận từ chối
+              </button>
             </div>
           </div>
         </div>
@@ -2417,7 +2516,7 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
                   <div key={post.id} className="group flex flex-col justify-between bg-stone-100 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-850 rounded-2xl overflow-hidden shadow-xs hover:border-emerald-500/30 transition-all duration-300">
                     <div className="relative h-44 overflow-hidden bg-stone-900">
                       <img 
-                        src={post.image} 
+                        src={getMediaUrl(post.image)} 
                         alt={post.title} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
                       />
@@ -2717,7 +2816,7 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <img src={prod.image} alt={prod.name} className="w-8 h-8 object-cover rounded" />
+                            <img src={getMediaUrl(prod.image)} alt={prod.name} className="w-8 h-8 object-cover rounded" />
                             <div>
                               <span className="font-bold text-[10px] block line-clamp-1">{prod.name}</span>
                               <span className="text-[9px] text-stone-455 dark:text-stone-550 font-mono font-semibold">{prod.price.toLocaleString("vi-VN")}₫</span>
@@ -2744,7 +2843,7 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
 
             {/* Publishing Box */}
             <div className="bg-stone-100 dark:bg-stone-900/50 p-4 border border-stone-250 dark:border-stone-850 rounded-2xl space-y-3.5 shrink-0">
-              <span className="text-[9px] text-stone-450 dark:text-stone-500 font-mono block uppercase font-bold">Quy chế đăng chuyên đề xanh:</span>
+              <span className="text-[9px] text-stone-455 dark:text-stone-550 font-mono block uppercase font-bold">Quy chế đăng chuyên đề xanh:</span>
               <p className="text-[10px] text-stone-500 leading-normal">
                 Bài viết sau khi phát hành dưới danh nghĩa Ban Biên Tập sẽ hiển thị trực tiếp trong mục cẩm nang của khách hàng và có hiệu lực tham khảo chính thức.
               </p>
@@ -2752,7 +2851,7 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold uppercase rounded-xl text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 tracking-wider font-mono shadow-md shadow-emerald-500/10 disabled:opacity-50"
+                className="w-full py-3 bg-emerald-50 hover:bg-emerald-400 text-black font-bold uppercase rounded-xl text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 tracking-wider font-mono shadow-md shadow-emerald-500/10 disabled:opacity-50"
               >
                 {submitting ? (
                   <>
@@ -2770,7 +2869,6 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
 
         </form>
       )}
-
     </div>
   );
 };
