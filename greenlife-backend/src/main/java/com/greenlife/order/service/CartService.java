@@ -146,6 +146,7 @@ public class CartService {
                 .plantPrice(cartItem.getPlant().getPrice())
                 .plantImageUrl(cartItem.getPlant().getImageUrl())
                 .quantity(cartItem.getQuantity())
+                .plantStock(cartItem.getPlant().getStock())
                 .addedAt(cartItem.getAddedAt())
                 .updatedAt(cartItem.getUpdatedAt())
                 .build();

@@ -2,6 +2,7 @@ package com.greenlife.plant.service;
 
 import com.greenlife.plant.dto.PlantRequest;
 import com.greenlife.plant.dto.PlantResponse;
+import com.greenlife.plant.dto.StoreOwnerPlantRequest;
 import com.greenlife.category.entity.Category;
 import com.greenlife.plant.entity.Plant;
 import com.greenlife.store.entity.Store;
@@ -17,6 +18,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import com.greenlife.store.entity.enums.StoreStatus;
+import com.greenlife.user.entity.User;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 
 @Service
@@ -27,6 +32,26 @@ public class PlantService {
     private final StoreRepository storeRepository;
     private final CategoryRepository categoryRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final com.greenlife.order.repository.OrderDetailRepository orderDetailRepository;
+
+    private List<Integer> cachedBestSellerIds = null;
+    private long lastCacheTime = 0;
+
+    private synchronized List<Integer> getBestSellerPlantIds() {
+        long now = System.currentTimeMillis();
+        if (cachedBestSellerIds == null || (now - lastCacheTime > 60000)) {
+            try {
+                cachedBestSellerIds = orderDetailRepository.findTopSellingPlants().stream()
+                        .limit(5)
+                        .map(arr -> (Integer) arr[0])
+                        .collect(Collectors.toList());
+                lastCacheTime = now;
+            } catch (Exception e) {
+                return java.util.Collections.emptyList();
+            }
+        }
+        return cachedBestSellerIds;
+    }
 
     @Transactional(readOnly = true)
     public Page<PlantResponse> getActivePlants(String search, String category, Pageable pageable) {
@@ -96,6 +121,7 @@ public class PlantService {
                 .careLevel(request.getCareLevel())
                 .sunlight(request.getSunlight())
                 .waterLevel(request.getWaterLevel())
+                .sku(request.getSku() != null ? request.getSku().trim() : null)
                 .status(initialStatus)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -151,6 +177,7 @@ public class PlantService {
         plant.setCareLevel(request.getCareLevel());
         plant.setSunlight(request.getSunlight());
         plant.setWaterLevel(request.getWaterLevel());
+        plant.setSku(request.getSku() != null ? request.getSku().trim() : null);
         plant.setStatus(updatedStatus);
         plant.setUpdatedAt(LocalDateTime.now());
 
@@ -177,6 +204,7 @@ public class PlantService {
     }
 
     public PlantResponse mapToPlantResponse(Plant plant) {
+        boolean best = getBestSellerPlantIds().contains(plant.getId());
         return PlantResponse.builder()
                 .id(plant.getId())
                 .storeId(plant.getStore().getId())
@@ -193,9 +221,130 @@ public class PlantService {
                 .careLevel(plant.getCareLevel())
                 .sunlight(plant.getSunlight())
                 .waterLevel(plant.getWaterLevel())
+                .sku(plant.getSku())
+                .isBestSeller(best)
                 .status(plant.getStatus())
                 .createdAt(plant.getCreatedAt())
                 .updatedAt(plant.getUpdatedAt())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PlantResponse> getStoreOwnerPlants(User user) {
+        Store store = getApprovedStoreForUser(user);
+        return plantRepository.findByStoreId(store.getId()).stream()
+                .map(this::mapToPlantResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Converts a StoreOwnerPlantRequest into a full PlantRequest with storeId injected,
+     * then delegates to the standard createPlant logic.
+     */
+    @Transactional
+    public PlantResponse createStoreOwnerPlant(StoreOwnerPlantRequest request, User user) {
+        Store store = getApprovedStoreForUser(user);
+        PlantRequest adminReq = toPlantRequest(request, store.getId());
+
+        if (adminReq.getStock() != null && adminReq.getStock() == 0) {
+            adminReq.setStatus("OUT_OF_STOCK");
+        } else if (adminReq.getStatus() == null || adminReq.getStatus().trim().isEmpty()) {
+            adminReq.setStatus("ACTIVE");
+        }
+
+        return createPlant(adminReq);
+    }
+
+    /**
+     * Converts a StoreOwnerPlantRequest into a full PlantRequest with storeId injected,
+     * verifies product ownership, then delegates to the standard updatePlant logic.
+     */
+    @Transactional
+    public PlantResponse updateStoreOwnerPlant(Integer id, StoreOwnerPlantRequest request, User user) {
+        Store store = getApprovedStoreForUser(user);
+        Plant plant = plantRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Sản phẩm không tồn tại", HttpStatus.NOT_FOUND));
+
+        if (!plant.getStore().getId().equals(store.getId())) {
+            throw new CustomException("Bạn không có quyền chỉnh sửa sản phẩm này", HttpStatus.FORBIDDEN);
+        }
+
+        PlantRequest adminReq = toPlantRequest(request, store.getId());
+        // Preserve existing slug if request slug is blank
+        if (adminReq.getSlug() == null || adminReq.getSlug().isBlank()) {
+            adminReq.setSlug(plant.getSlug());
+        }
+
+        if (adminReq.getStock() != null && adminReq.getStock() == 0) {
+            adminReq.setStatus("OUT_OF_STOCK");
+        } else if (adminReq.getStatus() == null || adminReq.getStatus().trim().isEmpty()) {
+            adminReq.setStatus("ACTIVE");
+        }
+
+        return updatePlant(id, adminReq);
+    }
+
+    /**
+     * Bridges StoreOwnerPlantRequest into PlantRequest, injecting storeId and
+     * auto-generating a unique slug from the product name if none is provided.
+     */
+    private PlantRequest toPlantRequest(StoreOwnerPlantRequest src, Integer storeId) {
+        String slug = (src.getSlug() != null && !src.getSlug().isBlank())
+                ? src.getSlug().trim()
+                : generateSlug(src.getName()) + "-" + System.currentTimeMillis();
+
+        return PlantRequest.builder()
+                .name(src.getName())
+                .slug(slug)
+                .storeId(storeId)
+                .categoryId(src.getCategoryId())
+                .description(src.getDescription())
+                .price(src.getPrice())
+                .stock(src.getStock())
+                .imageUrl(src.getImageUrl())
+                .careLevel(src.getCareLevel())
+                .sunlight(src.getSunlight())
+                .waterLevel(src.getWaterLevel())
+                .sku(src.getSku())
+                .status(src.getStatus())
+                .build();
+    }
+
+    /**
+     * Creates a URL-safe ASCII slug from a Vietnamese product name.
+     */
+    private static String generateSlug(String name) {
+        if (name == null) return "san-pham";
+        String normalized = java.text.Normalizer.normalize(name, java.text.Normalizer.Form.NFD);
+        return normalized
+                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
+                .replaceAll("[đĐ]", "d")
+                .toLowerCase()
+                .replaceAll("[^a-z0-9\\s-]", "")
+                .trim()
+                .replaceAll("\\s+", "-");
+    }
+
+    @Transactional
+    public void deleteStoreOwnerPlant(Integer id, User user) {
+        Store store = getApprovedStoreForUser(user);
+        Plant plant = plantRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Sản phẩm không tồn tại", HttpStatus.NOT_FOUND));
+        
+        if (!plant.getStore().getId().equals(store.getId())) {
+            throw new CustomException("Bạn không có quyền xóa sản phẩm này", HttpStatus.FORBIDDEN);
+        }
+        
+        plant.setStatus(PlantStatus.INACTIVE);
+        plant.setUpdatedAt(LocalDateTime.now());
+        plantRepository.save(plant);
+    }
+
+    private Store getApprovedStoreForUser(User user) {
+        List<Store> stores = storeRepository.findByOwnerId(user.getId());
+        return stores.stream()
+                .filter(s -> s.getStatus() == StoreStatus.APPROVED)
+                .findFirst()
+                .orElseThrow(() -> new CustomException("Tài khoản chưa có cửa hàng được duyệt", HttpStatus.FORBIDDEN));
     }
 }

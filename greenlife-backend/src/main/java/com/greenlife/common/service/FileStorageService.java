@@ -6,5 +6,8 @@ public interface FileStorageService {
     String storeDiagnosisImage(MultipartFile file);
     String storeAvatar(MultipartFile file);
     String storeKycDocument(String base64Content);
+    String storeReturnEvidence(MultipartFile file);
+    String storeProductImage(MultipartFile file);
+    String storeStoreLogo(MultipartFile file);
     void deleteFile(String relativePath);
 }

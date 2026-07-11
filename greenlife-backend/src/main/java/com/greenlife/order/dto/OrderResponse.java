@@ -24,7 +24,15 @@ public class OrderResponse {
     private String paymentStatus;
     private String status;
     private String note;
+    private String returnRejectReason;
+    private String returnRequestReason;
+    private String returnRequestReasonCode;
+    private List<String> evidenceImages;
     private LocalDateTime createdAt;
     private String paymentUrl;
+    private String paymentProvider;
+    private String payosCheckoutUrl;
+    private String payosQrCode;
+    private Long payosOrderCode;
     private List<OrderDetailResponse> details;
 }

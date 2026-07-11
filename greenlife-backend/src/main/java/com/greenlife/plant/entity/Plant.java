@@ -62,6 +62,9 @@ public class Plant {
     @Builder.Default
     private PlantStatus status = PlantStatus.ACTIVE;
 
+    @Column(length = 100)
+    private String sku;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

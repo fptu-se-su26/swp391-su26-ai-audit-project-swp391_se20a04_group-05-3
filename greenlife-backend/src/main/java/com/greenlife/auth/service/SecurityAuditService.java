@@ -9,6 +9,7 @@ import com.greenlife.auth.entity.enums.SuspiciousActivityType;
 import com.greenlife.auth.repository.SecurityAuditRepository;
 import com.greenlife.auth.repository.LoginAuditRepository;
 import com.greenlife.user.repository.UserRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -23,17 +24,22 @@ public class SecurityAuditService {
     private final SecurityAuditRepository securityAuditRepository;
     private final LoginAuditRepository loginAuditRepository;
     private final UserRepository userRepository;
+    private final EntityManager entityManager;
 
     // NOTE: Sprint 12 retention hook: Add scheduled job to archive/clean up records older than 90 days.
+    // Phase 4-J6 fix: Use EntityManager.getReference() instead of userRepository.findById() to avoid
+    // an extra SELECT per REQUIRES_NEW audit call. getReference() returns a proxy — no DB query needed
+    // just to persist the FK. This saves one DB round-trip per audit event.
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordSecurityAudit(User user, String email, SecurityAuditAction action, SuspiciousActivityType suspiciousActivityType, String details) {
         User managedUser = null;
         if (user != null && user.getId() != null) {
-            managedUser = userRepository.findById(user.getId()).orElse(null);
+            managedUser = entityManager.getReference(User.class, user.getId());
         }
+        String resolvedEmail = email != null ? email : (user != null ? user.getEmail() : null);
         securityAuditRepository.save(SecurityAudit.builder()
                  .user(managedUser)
-                 .email(email != null ? email : (managedUser != null ? managedUser.getEmail() : null))
+                 .email(resolvedEmail)
                  .action(action)
                  .suspiciousActivityType(suspiciousActivityType)
                  .details(details)
@@ -47,11 +53,12 @@ public class SecurityAuditService {
     }
 
     // NOTE: Sprint 12 retention hook: Add scheduled job to archive/clean up records older than 90 days.
+    // Phase 4-J6 fix: Use EntityManager.getReference() to avoid an extra SELECT per audit call.
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordLoginAudit(User user, String email, boolean success, String ipAddress, String userAgent, LoginFailureReason failureReason) {
         User managedUser = null;
         if (user != null && user.getId() != null) {
-            managedUser = userRepository.findById(user.getId()).orElse(null);
+            managedUser = entityManager.getReference(User.class, user.getId());
         }
         loginAuditRepository.save(LoginAudit.builder()
                 .user(managedUser)

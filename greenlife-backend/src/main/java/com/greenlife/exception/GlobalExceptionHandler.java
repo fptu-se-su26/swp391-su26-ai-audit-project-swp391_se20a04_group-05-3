@@ -137,7 +137,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(buildResponse("Dữ liệu không hợp lệ hoặc đã tồn tại trong hệ thống"));
+        String message = "Dữ liệu không hợp lệ hoặc đã tồn tại trong hệ thống";
+        Throwable rootCause = ex.getRootCause();
+        if (rootCause != null && rootCause.getMessage() != null) {
+            String rootMsg = rootCause.getMessage();
+            if (rootMsg.contains("chk_orders_payment_method") || rootMsg.contains("payment_method")) {
+                message = "Cấu hình database chưa hỗ trợ PAYOS trong orders.payment_method. Vui lòng chạy patch_13_orders_payment_method_constraint.sql.";
+            }
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(buildResponse(message));
     }
 
     @ExceptionHandler({
@@ -170,6 +178,12 @@ public class GlobalExceptionHandler {
             throw (RuntimeException) ex;
         }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(buildResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(org.springframework.transaction.CannotCreateTransactionException.class)
+    public ResponseEntity<ApiErrorResponse> handleCannotCreateTransactionException(org.springframework.transaction.CannotCreateTransactionException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(buildResponse("Hệ thống đang bận hoặc quá tải kết nối cơ sở dữ liệu. Vui lòng thử lại sau giây lát."));
     }
 
     @ExceptionHandler(RuntimeException.class)

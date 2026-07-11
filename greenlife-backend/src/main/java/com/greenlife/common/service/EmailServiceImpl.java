@@ -87,7 +87,7 @@ public class EmailServiceImpl implements EmailService {
             helper.setText(htmlTemplate, true);
             mailSender.send(mimeMessage);
         } catch (Exception e) {
-            log.error("SMTP send failed, bypassing error in local/sandbox environment. Verification OTP code: {}", otp, e);
+            log.error("SMTP send failed, bypassing error in local/sandbox environment.", e);
         }
     }
 
@@ -156,7 +156,7 @@ public class EmailServiceImpl implements EmailService {
             helper.setText(htmlTemplate, true);
             mailSender.send(mimeMessage);
         } catch (Exception e) {
-            log.error("SMTP send failed, bypassing error in local/sandbox environment. Password reset OTP code: {}", otp, e);
+            log.error("SMTP send failed, bypassing error in local/sandbox environment.", e);
         }
     }
 }

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class StoreProfileController {
 
     private final StoreService storeService;
+    private final com.greenlife.common.service.FileStorageService fileStorageService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
@@ -42,5 +43,14 @@ public class StoreProfileController {
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         return ResponseEntity.ok(storeService.updateStoreProfile(request, userDetails.getUsername()));
+    }
+
+    @PostMapping("/logo/upload")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
+    public ResponseEntity<java.util.Map<String, String>> uploadLogo(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file
+    ) {
+        String url = fileStorageService.storeStoreLogo(file);
+        return ResponseEntity.ok(java.util.Map.of("url", url));
     }
 }

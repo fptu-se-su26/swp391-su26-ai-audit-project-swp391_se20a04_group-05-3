@@ -16,6 +16,7 @@ public class CartItemResponse {
     private BigDecimal plantPrice;
     private String plantImageUrl;
     private Integer quantity;
+    private Integer plantStock;
     private LocalDateTime addedAt;
     private LocalDateTime updatedAt;
 }

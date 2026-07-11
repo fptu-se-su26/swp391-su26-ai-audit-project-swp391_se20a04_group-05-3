@@ -4,22 +4,26 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 import java.math.BigDecimal;
 
+/**
+ * DTO for Store Owner product create/update operations.
+ * <p>
+ * This DTO intentionally does NOT contain {@code storeId}.
+ * The owning store is always derived from the authenticated user's
+ * approved store on the backend — the frontend must never send storeId.
+ * </p>
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PlantRequest {
+public class StoreOwnerPlantRequest {
 
     @NotBlank(message = "Tên sản phẩm không được để trống")
     @Size(max = 150, message = "Tên sản phẩm không được vượt quá 150 ký tự")
     private String name;
 
-    @NotBlank(message = "Slug không được để trống")
     @Size(max = 180, message = "Slug không được vượt quá 180 ký tự")
-    private String slug;
-
-    @NotNull(message = "ID cửa hàng không được để trống")
-    private Integer storeId;
+    private String slug; // optional; if blank, will be auto-generated from name
 
     @NotNull(message = "ID danh mục không được để trống")
     private Integer categoryId;
@@ -49,5 +53,5 @@ public class PlantRequest {
     @Size(max = 100, message = "Mã SKU không được vượt quá 100 ký tự")
     private String sku;
 
-    private String status; // ACTIVE, INACTIVE, OUT_OF_STOCK
+    private String status; // ACTIVE, INACTIVE, OUT_OF_STOCK — optional; derived from stock if blank
 }
