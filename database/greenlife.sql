@@ -21,7 +21,6 @@ IF OBJECT_ID('blogs', 'U') IS NOT NULL DROP TABLE blogs;
 IF OBJECT_ID('diagnosis_history', 'U') IS NOT NULL DROP TABLE diagnosis_history;
 IF OBJECT_ID('bookings', 'U') IS NOT NULL DROP TABLE bookings;
 IF OBJECT_ID('services', 'U') IS NOT NULL DROP TABLE services;
-IF OBJECT_ID('order_return_evidence', 'U') IS NOT NULL DROP TABLE order_return_evidence;
 IF OBJECT_ID('order_details', 'U') IS NOT NULL DROP TABLE order_details;
 IF OBJECT_ID('orders', 'U') IS NOT NULL DROP TABLE orders;
 IF OBJECT_ID('cart_items', 'U') IS NOT NULL DROP TABLE cart_items;
@@ -170,17 +169,14 @@ CREATE TABLE orders (
     payment_status VARCHAR(30) NOT NULL DEFAULT 'UNPAID',
     status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
     note NVARCHAR(500) NULL,
-    return_reject_reason NVARCHAR(500) NULL,
-    return_request_reason NVARCHAR(500) NULL,
-    return_request_reason_code NVARCHAR(100) NULL,
     created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
     updated_at DATETIME2 NULL,
     CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES users(id),
     CONSTRAINT fk_orders_store FOREIGN KEY (store_id) REFERENCES stores(id),
     CONSTRAINT chk_orders_amounts CHECK (subtotal >= 0 AND shipping_fee >= 0 AND total_amount >= 0),
-    CONSTRAINT chk_orders_payment_method CHECK (payment_method IN ('COD', 'PAYOS', 'BANK_TRANSFER', 'MOMO', 'VNPAY')),
+    CONSTRAINT chk_orders_payment_method CHECK (payment_method IN ('COD', 'BANK_TRANSFER', 'MOMO', 'VNPAY')),
     CONSTRAINT chk_orders_payment_status CHECK (payment_status IN ('UNPAID', 'PAID', 'REFUNDED', 'FAILED')),
-    CONSTRAINT chk_orders_status CHECK (status IN ('PENDING', 'CONFIRMED', 'SHIPPING', 'DELIVERED', 'CANCELLED', 'RECEIVED', 'RETURN_REQUESTED', 'RETURN_APPROVED', 'RETURN_REJECTED'))
+    CONSTRAINT chk_orders_status CHECK (status IN ('PENDING', 'CONFIRMED', 'SHIPPING', 'DELIVERED', 'CANCELLED'))
 );
 GO
 
@@ -201,18 +197,6 @@ CREATE TABLE order_details (
     CONSTRAINT fk_order_details_plant FOREIGN KEY (plant_id) REFERENCES plants(id),
     CONSTRAINT chk_order_details_quantity CHECK (quantity > 0),
     CONSTRAINT chk_order_details_price CHECK (unit_price >= 0 AND line_total >= 0)
-);
-GO
-
--- =========================================================
--- 8b. Order return evidence
--- =========================================================
-CREATE TABLE order_return_evidence (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    order_id INT NOT NULL,
-    image_url NVARCHAR(500) NOT NULL,
-    created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
-    CONSTRAINT fk_order_return_evidence_orders FOREIGN KEY (order_id) REFERENCES orders(id)
 );
 GO
 
@@ -342,7 +326,6 @@ CREATE INDEX ix_plants_status ON plants(status);
 CREATE INDEX ix_orders_customer_id ON orders(customer_id);
 CREATE INDEX ix_orders_store_id ON orders(store_id);
 CREATE INDEX ix_orders_status ON orders(status);
-CREATE INDEX ix_order_return_evidence_order_id ON order_return_evidence(order_id);
 CREATE INDEX ix_bookings_customer_id ON bookings(customer_id);
 CREATE INDEX ix_bookings_store_id ON bookings(store_id);
 CREATE INDEX ix_bookings_status ON bookings(status);
