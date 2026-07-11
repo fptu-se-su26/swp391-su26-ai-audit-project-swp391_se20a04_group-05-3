@@ -48,20 +48,16 @@ interface AppContextType {
   registerRequest: (name: string, email: string, role: "customer" | "store" | "admin", password?: string) => Promise<{ success: boolean; message: string }>;
   verifyRegistrationOTP: (email: string, code: string) => Promise<void>;
   registerSeller: (details: {
-    shopName: string;
+    name: string;
+    phone: string;
+    city: string;
+    district: string;
+    address: string;
+    description?: string;
+    logoUrl?: string;
+    verificationDocument?: string;
     shopEmail: string;
-    shopPhone: string;
-    pickupAddress: any;
-    shippingSettings: {
-      greenExpress: boolean;
-      hoaToc: boolean;
-      spx: boolean;
-      ghtk: boolean;
-    };
-    kycImages: {
-      frontImage: string;
-      backImage: string;
-    };
+    pickupAddressId: number;
   }) => Promise<void>;
   sendOTP: (email: string) => Promise<{ success: boolean; message: string }>;
   verifyOTP: (email: string, code: string) => Promise<{ success: boolean; message: string }>;
@@ -79,7 +75,7 @@ interface AppContextType {
   logout: () => Promise<void>;
   
   // Shopping Cart handlers
-  addToCart: (product: Product, quantity?: number) => void;
+  addToCart: (product: Product, quantity?: number, event?: React.MouseEvent) => void;
   updateCartQuantity: (productId: string, delta: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
@@ -327,28 +323,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     loadUnreadCount();
     loadNotifications(0, 10);
-    loadCart();
 
-    const syncWishlist = async () => {
-      try {
-        const wishlistItems = await WishlistService.getWishlist(0, 100);
-        const savedIds = wishlistItems.map((item: any) => String(item.id));
-        setCurrentUser((prevUser) => {
-          if (!prevUser) return null;
-          const currentIds = prevUser.savedProductIds || [];
-          const hasChanged = currentIds.length !== savedIds.length ||
-            !savedIds.every((id) => currentIds.includes(id));
-          if (!hasChanged) return prevUser;
-          return {
-            ...prevUser,
-            savedProductIds: savedIds
-          };
-        });
-      } catch (err) {
-        logger.warn("Lỗi đồng bộ danh sách yêu thích:", err);
-      }
-    };
-    syncWishlist();
+    if (userRole === "customer") {
+      loadCart();
+
+      const syncWishlist = async () => {
+        try {
+          const wishlistItems = await WishlistService.getWishlist(0, 100);
+          const savedIds = wishlistItems.map((item: any) => String(item.id));
+          setCurrentUser((prevUser) => {
+            if (!prevUser) return null;
+            const currentIds = prevUser.savedProductIds || [];
+            const hasChanged = currentIds.length !== savedIds.length ||
+              !savedIds.every((id) => currentIds.includes(id));
+            if (!hasChanged) return prevUser;
+            return {
+              ...prevUser,
+              savedProductIds: savedIds
+            };
+          });
+        } catch (err) {
+          logger.warn("Lỗi đồng bộ danh sách yêu thích:", err);
+        }
+      };
+      syncWishlist();
+    } else {
+      setCart([]);
+    }
 
     let intervalId: any;
 
@@ -391,7 +392,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stopPolling();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, userRole]);
+
+  // Listen to global unrecoverable auth failures
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logger.warn("Received unauthorized event. Cleaning up auth states.");
+      localStorage.removeItem("greenlife_active_role");
+      setCurrentUser(null);
+      setUserRole("customer");
+      setCurrentPageState("auth");
+    };
+
+    window.addEventListener("auth-unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("auth-unauthorized", handleUnauthorized);
+    };
+  }, []);
 
   // Load initial datasets from service layer
   useEffect(() => {
@@ -401,13 +418,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const user = await AuthService.getCurrentUser();
         if (user) {
           setCurrentUser(user);
-          if (user.role === "admin") {
-            setUserRole("admin");
-          } else if (user.is_seller) {
-            setUserRole("store");
-            setCurrentPageState("store-dashboard");
+          const savedActiveRole = localStorage.getItem("greenlife_active_role") as "customer" | "store" | "admin";
+          if (savedActiveRole && (savedActiveRole === "customer" || savedActiveRole === "admin" || (savedActiveRole === "store" && user.is_seller))) {
+            setUserRole(savedActiveRole);
+            if (savedActiveRole === "store") {
+              setCurrentPageState("store-dashboard");
+            } else if (savedActiveRole === "admin") {
+              setCurrentPageState("admin-dashboard");
+            }
           } else {
-            setUserRole(user.role);
+            if (user.role === "admin") {
+              setUserRole("admin");
+            } else if (user.is_seller) {
+              setUserRole("store");
+              setCurrentPageState("store-dashboard");
+            } else {
+              setUserRole(user.role);
+            }
           }
         } else {
           setCurrentUser(null);
@@ -421,8 +448,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         setDiagnosisLogs([]);
 
-        const loadedArticles = await ArticleService.getArticles();
-        setBlogPosts(loadedArticles.content);
+        // Phase 4-J6: Articles/blogs are deferred from startup to reduce DB pressure.
+        // They were previously loaded unconditionally during app init alongside products
+        // and /api/auth/me \u2014 creating a 3-request burst on startup even before login.
+        // loadArticles() is called lazily when the user navigates to blog-related pages.
+        // setBlogPosts([]) keeps the initial state clean.
       } catch (err) {
         logger.error("Initialization failed: ", err);
         setCurrentUser(null);
@@ -454,7 +484,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Sync current user's seller store - Removed for Phase 2 restricted scope lazy loading
 
+  // History synchronization listener for back/forward navigation
+  useEffect(() => {
+    // Set initial page history state if not already set
+    if (!window.history.state || !window.history.state.page) {
+      window.history.replaceState({ page: currentPage }, "", "");
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      const page = event.state?.page;
+      if (page) {
+        setCurrentPageState(page);
+        if (page !== "product-detail") {
+          setSelectedProductState(null);
+        }
+      } else {
+        setCurrentPageState("home");
+        setSelectedProductState(null);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [currentPage]);
+
   const setCurrentPage = useCallback((pageId: string) => {
+    if (pageId && (!window.history.state || window.history.state.page !== pageId)) {
+      window.history.pushState({ page: pageId }, "", "");
+    }
     setCurrentPageState(pageId);
     setSelectedProductState(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -463,6 +522,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setSelectedProduct = useCallback((prod: Product | null) => {
     setSelectedProductState(prod);
     if (prod) {
+      if (!window.history.state || window.history.state.page !== "product-detail") {
+        window.history.pushState({ page: "product-detail" }, "", "");
+      }
       setCurrentPageState("product-detail");
     }
   }, []);
@@ -475,6 +537,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           throw new Error("Tài khoản chưa kích hoạt người bán.");
         }
         setUserRole(role);
+        localStorage.setItem("greenlife_active_role", role);
         
         // Auto routing according to role dashboards
         if (role === "customer") setCurrentPage("customer-dashboard");
@@ -503,41 +566,83 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [currentUser]);
 
   const registerSeller = useCallback(async (details: {
-    shopName: string;
+    name: string;
+    phone: string;
+    city: string;
+    district: string;
+    address: string;
+    description?: string;
+    logoUrl?: string;
+    verificationDocument?: string;
     shopEmail: string;
-    shopPhone: string;
-    pickupAddress: any;
-    shippingSettings: {
-      greenExpress: boolean;
-      hoaToc: boolean;
-      spx: boolean;
-      ghtk: boolean;
-    };
-    kycImages: {
-      frontImage: string;
-      backImage: string;
-    };
+    pickupAddressId: number;
   }) => {
     if (!currentUser) return;
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
-      const updatedUser = await AuthService.registerSeller(currentUser.id, details);
+      const updatedUser = await AuthService.registerSeller(currentUser.id, {
+        name: details.name,
+        phone: details.phone,
+        city: details.city,
+        district: details.district,
+        address: details.address,
+        description: details.description,
+        logoUrl: details.logoUrl,
+        verificationDocument: details.verificationDocument
+      });
       setCurrentUser(updatedUser);
-      setCurrentPage("store-dashboard");
+      
+      let mockFullAddressStr = "Chưa cập nhật địa chỉ lấy hàng cụ thể";
+      const storedAddrs = localStorage.getItem(`mock_addresses_${currentUser.id}`);
+      if (storedAddrs) {
+        const list = JSON.parse(storedAddrs);
+        const matched = list.find((a: any) => String(a.address_id) === String(details.pickupAddressId));
+        if (matched) {
+          mockFullAddressStr = `${matched.detail_address}, ${matched.ward}, ${matched.district}, ${matched.province}`;
+        }
+      }
+
+      const newStore: EcoStore = {
+        id: `store-${currentUser.id}`,
+        name: details.name,
+        ownerName: currentUser.name,
+        ownerEmail: details.shopEmail || currentUser.email,
+        rating: 5.0,
+        avatar: details.logoUrl || currentUser.avatar,
+        bannerImage: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=800&auto=format&fit=crop&q=80",
+        address: mockFullAddressStr,
+        workingHours: "08:00 - 18:00 (Hằng ngày)",
+        carbonOffsetKg: 0,
+        productsCount: 0,
+        verified: false,
+        city: details.city,
+        district: details.district,
+        serviceArea: ""
+      };
+      addStore(newStore);
+      toast.success("Gửi hồ sơ đăng ký bán hàng thành công! Đang chờ Admin duyệt.");
     } catch (err) {
       logger.error("Lỗi đăng ký bán hàng:", err);
       throw err;
     } finally {
       setLoading((prev) => ({ ...prev, auth: false }));
     }
-  }, [currentUser, setCurrentPage]);
+  }, [currentUser, addStore]);
 
   const login = useCallback(async (email: string, password?: string) => {
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
       const user = await AuthService.login(email, password);
       setCurrentUser(user);
-      setUserRole(user.role);
+      localStorage.removeItem("greenlife_active_role");
+      if (user.role === "admin") {
+        setUserRole("admin");
+      } else if (user.is_seller) {
+        setUserRole("store");
+        setCurrentPageState("store-dashboard");
+      } else {
+        setUserRole(user.role);
+      }
     } catch (err) {
       logger.error(err);
       throw err;
@@ -551,7 +656,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const user = await AuthService.googleLogin(idToken);
       setCurrentUser(user);
-      setUserRole(user.role);
+      localStorage.removeItem("greenlife_active_role");
+      if (user.role === "admin") {
+        setUserRole("admin");
+      } else if (user.is_seller) {
+        setUserRole("store");
+        setCurrentPageState("store-dashboard");
+      } else {
+        setUserRole(user.role);
+      }
     } catch (err) {
       logger.error(err);
       throw err;
@@ -600,9 +713,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
       await AuthService.logout();
+      const google = (window as any).google;
+      if (google && google.accounts && google.accounts.id) {
+        try {
+          google.accounts.id.disableAutoSelect();
+        } catch (e) {
+          logger.warn("Could not disable Google auto-select:", e);
+        }
+      }
     } catch (err) {
       logger.error(err);
     } finally {
+      localStorage.removeItem("greenlife_active_role");
       setCurrentUser(null);
       setUserRole("customer");
       setCurrentPage("home");
@@ -623,11 +745,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  const addToCart = useCallback(async (product: Product, quantity = 1) => {
+  const addToCart = useCallback(async (product: Product, quantity = 1, event?: React.MouseEvent) => {
     if (!currentUser) {
       setCurrentPage("auth");
       toast.error("Vui lòng đăng nhập để sử dụng giỏ hàng.");
       return;
+    }
+
+    const existing = cart.find((item) => item.product.id === product.id);
+    const targetQty = (existing ? existing.quantity : 0) + quantity;
+    if (product.stock !== undefined && targetQty > product.stock) {
+      toast.error(`Rất tiếc, sản phẩm này chỉ còn ${product.stock} sản phẩm trong kho.`);
+      return;
+    }
+
+    // Phase 4-J7: Fly-to-cart animation.
+    // If the caller provides the click MouseEvent, we create a small CSS-animated
+    // dot that flies from the click point toward the cart icon in the header.
+    // Animation is fire-and-forget — failure never blocks the actual cart add.
+    if (event) {
+      try {
+        const cartIconEl = document.querySelector('[aria-label="Giỏ hàng"]');
+        const startX = event.clientX;
+        const startY = event.clientY;
+        let endX = startX;
+        let endY = 80; // fallback: top-right area
+        if (cartIconEl) {
+          const rect = cartIconEl.getBoundingClientRect();
+          endX = rect.left + rect.width / 2;
+          endY = rect.top + rect.height / 2;
+        }
+        const dx = endX - startX;
+        const dy = endY - startY;
+
+        const dot = document.createElement("div");
+        dot.className = "fly-to-cart-dot";
+        dot.style.left = `${startX - 9}px`;
+        dot.style.top = `${startY - 9}px`;
+        // Custom properties drive the final translate direction
+        dot.style.setProperty("--fly-dx", `${dx}px`);
+        dot.style.setProperty("--fly-dy", `${dy}px`);
+        document.body.appendChild(dot);
+        setTimeout(() => {
+          if (dot.parentNode) dot.parentNode.removeChild(dot);
+        }, 700);
+      } catch (_) {
+        // Animation errors must never surface to the user
+      }
     }
 
     const originalCart = [...cart];
@@ -646,6 +810,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await CartService.addToCart(Number(product.id), quantity);
       await loadCart();
+      toast.success("Đã thêm vào giỏ hàng! 🌿");
     } catch (err) {
       logger.error("Lỗi khi thêm sản phẩm:", err);
       setCart(originalCart);
@@ -659,6 +824,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!item) return;
 
     const newQty = item.quantity + delta;
+
+    if (delta > 0 && item.product.stock !== undefined && newQty > item.product.stock) {
+      toast.error(`Rất tiếc, sản phẩm này chỉ còn ${item.product.stock} sản phẩm trong kho.`);
+      return;
+    }
 
     if (newQty <= 0) {
       setCart((prev) => prev.filter((i) => i.product.id !== productId));

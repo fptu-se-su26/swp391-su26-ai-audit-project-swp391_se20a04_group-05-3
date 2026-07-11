@@ -16,9 +16,11 @@ import {
 import { useAppContext } from "../../context/AppContext";
 import { useCart } from "../../hooks/useCart";
 import { AddressService } from "../../services/addressService";
+import { OrderService } from "../../services/orderService";
 import { UserAddress } from "../../types";
 import { toast } from "react-hot-toast";
 import { EmptyState } from "./EmptyState";
+import { getMediaUrl } from "../../utils/mediaUrl";
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -83,7 +85,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
   });
 
   // Step 3 state
-  const [paymentMethod, setPaymentMethod] = useState<"COD" | "VNPAY">("COD");
+  const [paymentMethod, setPaymentMethod] = useState<"COD" | "PAYOS">("COD");
   const [note, setNote] = useState("");
 
   const handleClose = () => {
@@ -245,11 +247,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
 
       const orders = await checkoutCart(checkoutPayload);
       
-      // VNPay redirect logic
-      const vnpayOrder = orders.find((o: any) => o.paymentUrl);
-      if (vnpayOrder && vnpayOrder.paymentUrl) {
-        window.location.href = vnpayOrder.paymentUrl;
-        return;
+      // PayOS redirect logic
+      if (paymentMethod === "PAYOS" && orders.length > 0) {
+        const payosOrder = orders[0];
+        try {
+          const data = await OrderService.createPayOSPaymentLink(payosOrder.id);
+          if (data && data.checkoutUrl) {
+            window.location.href = data.checkoutUrl;
+            return;
+          }
+        } catch (payosErr: any) {
+          toast.error("Không thể tạo liên kết thanh toán PayOS: " + (payosErr.message || payosErr));
+        }
       }
 
       setCheckoutComplete(true);
@@ -379,7 +388,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                       >
                         <div className="flex items-center gap-3">
                           <img
-                            src={item.product.image}
+                            src={getMediaUrl(item.product.image)}
                             alt={item.product.name}
                             className="w-12 h-12 object-cover rounded-xl"
                             referrerPolicy="no-referrer"
@@ -638,15 +647,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                         </div>
 
                         <div
-                          onClick={() => setPaymentMethod("VNPAY")}
+                          onClick={() => setPaymentMethod("PAYOS")}
                           className={`p-4 border rounded-2xl cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5 text-center select-none ${
-                            paymentMethod === "VNPAY"
+                            paymentMethod === "PAYOS"
                               ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 font-bold shadow-sm"
                               : "border-stone-250 dark:border-stone-850 bg-stone-100/50 dark:bg-stone-900/10 hover:border-stone-400 dark:hover:border-stone-700 text-stone-600 dark:text-stone-450"
                           }`}
                         >
-                          <span className={`text-sm font-black tracking-tighter ${paymentMethod === "VNPAY" ? "text-emerald-600 dark:text-emerald-400" : "text-stone-550 dark:text-stone-450"}`}>VNPay</span>
-                          <span className="font-semibold text-[11px]">Cổng VNPay Sandbox</span>
+                          <span className={`text-sm font-black tracking-tighter ${paymentMethod === "PAYOS" ? "text-emerald-600 dark:text-emerald-400" : "text-stone-550 dark:text-stone-450"}`}>PayOS</span>
+                          <span className="font-semibold text-[11px]">Cổng PayOS QR</span>
                         </div>
 
                       </div>
@@ -750,7 +759,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                         onClick={handleCheckoutSubmit}
                         className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                       >
-                        {submitting ? "Đang xử lý..." : paymentMethod === "VNPAY" ? "Thanh Toán VNPAY" : "Đặt Hàng COD"}
+                        {submitting ? "Đang xử lý..." : paymentMethod === "PAYOS" ? "THANH TOÁN PAYOS" : "ĐẶT HÀNG COD"}
                         <Check className="h-4 w-4" />
                       </button>
                     </div>

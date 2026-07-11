@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { logger } from "../../utils/logger";
 import { ArrowLeft, Leaf, ShieldCheck, Heart, ShoppingBag, MessageSquare, Star, X } from "lucide-react";
 import { Product } from "../../types";
+import { getMediaUrl } from "../../utils/mediaUrl";
 import { PlantService } from "../../services/plantService";
 import { WishlistService } from "../../services/wishlistService";
 import { ReviewService, ReviewResponse, RatingSummaryResponse } from "../../services/reviewService";
@@ -10,11 +11,12 @@ import toast from "react-hot-toast";
 import { ListSkeleton } from "../common/Skeleton";
 import { ReviewCard } from "../common/ReviewCard";
 import { EmptyState } from "../common/EmptyState";
+import { ConfirmModal } from "../common/ConfirmModal";
 
 interface ProductDetailViewProps {
   product: Product;
   onBackToShop: () => void;
-  onAddToCart: (product: Product, quantity: number) => void;
+  onAddToCart: (product: Product, quantity: number, event?: React.MouseEvent) => void;
 }
 
 export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
@@ -68,6 +70,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const [potOption, setPotOption] = useState("classic-clay");
   const [soilAddon, setSoilAddon] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [deleteReviewOpen, setDeleteReviewOpen] = useState(false);
+  const [deleteReviewId, setDeleteReviewId] = useState<number | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -208,20 +212,38 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     }
   }, [editingReview, editRating, editComment, updateReview, loadReviewsAndSummary]);
 
-  const handleDeleteReview = useCallback(async (id: number) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa đánh giá này?")) return;
+  const handleDeleteReview = useCallback((id: number) => {
+    setDeleteReviewId(id);
+    setDeleteReviewOpen(true);
+  }, []);
+
+  const handleDeleteReviewConfirmed = useCallback(async () => {
+    if (!deleteReviewId) return;
+    setDeleteReviewOpen(false);
     try {
-      await deleteReview(id);
+      await deleteReview(deleteReviewId);
       setReviewPage(0);
       loadReviewsAndSummary();
     } catch (err: any) {
       toast.error(err.message || "Không thể xóa đánh giá.");
+    } finally {
+      setDeleteReviewId(null);
     }
-  }, [deleteReview, loadReviewsAndSummary]);
+  }, [deleteReviewId, deleteReview, loadReviewsAndSummary]);
 
   const handlePageChange = useCallback((newPage: number) => {
     setReviewPage(newPage);
   }, []);
+
+  const stockBadgeInfo = useMemo(() => {
+    if (product.stock <= 0) {
+      return { text: "Hết hàng", classes: "bg-rose-500/10 text-rose-500 border border-rose-500/20" };
+    }
+    if (product.stock <= 10) {
+      return { text: "Sắp hết hàng", classes: "bg-amber-500/10 text-amber-500 border border-amber-500/20" };
+    }
+    return { text: "Còn hàng", classes: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" };
+  }, [product.stock]);
 
   const specEntries = useMemo(() => {
     return Object.entries(product.specs || {});
@@ -260,7 +282,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </div>
             ) : (
               <img
-                src={product.image}
+                src={getMediaUrl(product.image)}
                 alt={product.name}
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -299,9 +321,14 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <span className="font-mono font-semibold">{product.rating}</span>
               </div>
               <span className="text-xs font-mono text-stone-300 dark:text-stone-800">|</span>
-              <span className="text-xs font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 rounded-xl border border-emerald-250 dark:border-emerald-900/20 font-medium">
-                Sẵn hàng: {product.stock} sản phẩm tại kho
+              <span className={`text-xs font-mono px-3 py-1.5 rounded-xl font-bold uppercase ${stockBadgeInfo.classes}`}>
+                {stockBadgeInfo.text} {product.stock > 0 ? `(${product.stock})` : ""}
               </span>
+              {product.isBestSeller && (
+                <span className="text-xs font-mono bg-amber-500/15 text-amber-500 border border-amber-500/30 px-3 py-1.5 rounded-xl font-bold uppercase flex items-center gap-1.5 animate-pulse">
+                  🔥 Bán chạy
+                </span>
+              )}
             </div>
           </div>
 
@@ -396,14 +423,14 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
             <button
               disabled={product.stock <= 0}
-              onClick={() => {
+              onClick={(e) => {
                 // Adjust price if extra features are active
                 let finalProduct = { ...product };
                 if (soilAddon) {
                   finalProduct.price += 35000;
                   finalProduct.name += " (Kèm Phân trùn quế)";
                 }
-                onAddToCart(finalProduct, quantity);
+                onAddToCart(finalProduct, quantity, e);
               }}
               className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-8 py-3 font-semibold rounded-xl tracking-tight transition-all cursor-pointer ${
                 product.stock <= 0
@@ -696,7 +723,20 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           </div>
         </div>
       )}
-
+      {/* Modals for Native Dialog Replacements */}
+      <ConfirmModal
+        isOpen={deleteReviewOpen}
+        title="Xác nhận xóa đánh giá"
+        message="Bạn có chắc chắn muốn xóa đánh giá này? Thao tác này không thể hoàn tác."
+        confirmLabel="Xác nhận xóa"
+        cancelLabel="Không"
+        onConfirm={handleDeleteReviewConfirmed}
+        onCancel={() => {
+          setDeleteReviewOpen(false);
+          setDeleteReviewId(null);
+        }}
+        isDanger={true}
+      />
     </div>
   );
 };

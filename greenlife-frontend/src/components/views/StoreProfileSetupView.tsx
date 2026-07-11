@@ -19,6 +19,7 @@ import {
 import { useAppContext } from "../../context/AppContext";
 import { EcoStore } from "../../types";
 import toast from "react-hot-toast";
+import { HttpClient } from "../../services/httpClient";
 
 const vietnamDivisions: Record<string, Record<string, string[]>> = {
   "Đà Nẵng": {
@@ -100,6 +101,10 @@ export const StoreProfileSetupView: React.FC = () => {
   const [kycBackImage, setKycBackImage] = useState("");
   const [kycFrontPreview, setKycFrontPreview] = useState("");
   const [kycBackPreview, setKycBackPreview] = useState("");
+
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoPreview, setLogoPreview] = useState("");
+  const [logoUploading, setLogoUploading] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -221,21 +226,45 @@ export const StoreProfileSetupView: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLogoPreview(URL.createObjectURL(file));
+    setLogoUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await HttpClient.post<any>("/api/store/profile/logo/upload", formData);
+      setLogoUrl(response.url);
+      toast.success("Tải logo cửa hàng lên thành công!");
+    } catch (err: any) {
+      toast.error("Không thể tải logo lên: " + (err.message || err));
+      setLogoPreview("");
+      setLogoUrl("");
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
   // Submit Wizard
   const handleCompleteRegistration = async () => {
     if (!currentUser) return;
     setSubmitting(true);
     try {
       await registerSeller({
-        shopName: storeName,
+        name: storeName,
+        phone: shopPhone,
+        city: pickupAddress.province,
+        district: pickupAddress.district,
+        address: `${pickupAddress.detail_address}, ${pickupAddress.ward}`,
+        description: "Nhà vườn sinh thái GreenLife",
+        logoUrl: logoUrl,
+        verificationDocument: kycFrontImage,
         shopEmail,
-        shopPhone,
-        pickupAddress: pickupAddress,
-        shippingSettings,
-        kycImages: {
-          frontImage: kycFrontImage,
-          backImage: kycBackImage
-        }
+        pickupAddressId: pickupAddress.address_id
       });
     } catch (err: any) {
       toast.error("Đăng ký bán hàng thất bại: " + (err.message || err));
@@ -496,6 +525,34 @@ export const StoreProfileSetupView: React.FC = () => {
                 onChange={(e) => setShopPhone(e.target.value.replace(/\D/g, ""))}
                 className="w-full bg-stone-50 dark:bg-stone-950 text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 focus:outline-none"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-stone-500 dark:text-stone-400 font-mono flex items-center gap-1.5 font-semibold">
+                <Store className="h-3.5 w-3.5 text-stone-400" />
+                Logo của Shop (Tùy chọn):
+              </label>
+              <div className="flex items-center gap-4">
+                {logoPreview ? (
+                  <div className="relative w-16 h-16 rounded-full overflow-hidden border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 flex items-center justify-center group shadow-sm">
+                    <img src={logoPreview} alt="Logo preview" className="w-full h-full object-cover" />
+                    {logoUploading && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-[10px] text-white font-semibold">
+                        ...
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-full border border-dashed border-stone-300 dark:border-stone-800 flex items-center justify-center text-stone-450 dark:text-stone-600 bg-stone-50 dark:bg-stone-950/20">
+                    <Store className="w-6 h-6 text-stone-400" />
+                  </div>
+                )}
+                <label className="cursor-pointer bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-750 border border-stone-200 dark:border-stone-850 px-3 py-1.5 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1">
+                  <Upload className="w-3.5 h-3.5" />
+                  {logoUploading ? "Đang tải..." : logoUrl ? "Thay đổi logo" : "Tải logo lên"}
+                  <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" disabled={logoUploading} />
+                </label>
+              </div>
             </div>
           </div>
         )}

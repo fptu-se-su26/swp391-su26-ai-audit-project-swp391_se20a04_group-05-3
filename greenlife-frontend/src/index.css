@@ -381,3 +381,48 @@ body {
   width: 100%;
 }
 
+/* Cart Zoom/Shake Animation */
+@keyframes cart-zoom-shake {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.2) rotate(-6deg); }
+  50% { transform: scale(1.2) rotate(6deg); }
+  75% { transform: scale(1.2) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.animate-cart-zoom-shake {
+  animation: cart-zoom-shake 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ── Phase 4-J7: Fly-to-Cart Animation ──────────────────────────────────── */
+/* A small emerald dot flies from the "Add to Cart" click point to the cart  */
+/* icon in the header. Created and destroyed by JS in AppContext.addToCart.  */
+
+@keyframes fly-to-cart {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  60% {
+    transform: scale(0.65);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(0.2) translate(var(--fly-dx), var(--fly-dy));
+    opacity: 0;
+  }
+}
+
+.fly-to-cart-dot {
+  position: fixed;
+  z-index: 9999;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #6ee7b7, #10b981);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.7);
+  pointer-events: none;
+  /* dx/dy are set inline via JS so the dot arc toward the cart icon */
+  animation: fly-to-cart 0.62s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+

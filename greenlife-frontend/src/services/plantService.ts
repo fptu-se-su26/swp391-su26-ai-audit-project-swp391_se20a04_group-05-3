@@ -41,7 +41,9 @@ export function mapBackendProductToFrontend(item: any): Product {
       "Tần suất tưới": item.waterLevel || "Tươi vừa phải"
     },
     stock: item.stock || 0,
-    shopId: item.storeId ? String(item.storeId) : undefined
+    shopId: item.storeId ? String(item.storeId) : undefined,
+    sku: item.sku || "",
+    isBestSeller: !!item.isBestSeller
   };
 }
 
@@ -116,6 +118,37 @@ export class PlantService {
       default:
         return 5;
     }
+  }
+
+  /**
+   * Retrieves products belonging to the logged-in store owner
+   */
+  public static async getMyStoreProducts(): Promise<Product[]> {
+    const data = await HttpClient.get<any[]>("/api/store-owner/products");
+    return data.map((item: any) => mapBackendProductToFrontend(item));
+  }
+
+  /**
+   * Creates a new product for the logged-in store owner's approved store
+   */
+  public static async createMyStoreProduct(payload: any): Promise<Product> {
+    const data = await HttpClient.post<any>("/api/store-owner/products", payload);
+    return mapBackendProductToFrontend(data);
+  }
+
+  /**
+   * Updates an existing product information and stock
+   */
+  public static async updateMyStoreProduct(id: string | number, payload: any): Promise<Product> {
+    const data = await HttpClient.put<any>(`/api/store-owner/products/${id}`, payload);
+    return mapBackendProductToFrontend(data);
+  }
+
+  /**
+   * Soft deletes a product for the logged-in store owner
+   */
+  public static async deleteMyStoreProduct(id: string | number): Promise<void> {
+    await HttpClient.delete<void>(`/api/store-owner/products/${id}`);
   }
 }
 export default PlantService;

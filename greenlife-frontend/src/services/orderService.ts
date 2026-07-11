@@ -7,17 +7,21 @@ export interface CheckoutPayload {
   recipientPhone?: string;
   shippingAddress?: string;
   note?: string;
-  paymentMethod: "COD" | "VNPAY";
+  paymentMethod: "COD" | "PAYOS";
 }
 
 export class OrderService {
-  private static normalizeStatus(status: string): "pending" | "processing" | "shipped" | "cancelled" | "completed" {
+  private static normalizeStatus(status: string): "pending" | "processing" | "shipped" | "cancelled" | "completed" | "received" | "return_requested" | "return_approved" | "return_rejected" {
     if (!status) return "pending";
     const upper = status.toUpperCase();
     if (upper === "CONFIRMED") return "processing";
     if (upper === "SHIPPING") return "shipped";
     if (upper === "DELIVERED") return "completed";
     if (upper === "CANCELLED") return "cancelled";
+    if (upper === "RECEIVED") return "received";
+    if (upper === "RETURN_REQUESTED") return "return_requested";
+    if (upper === "RETURN_APPROVED") return "return_approved";
+    if (upper === "RETURN_REJECTED") return "return_rejected";
     return "pending";
   }
 
@@ -40,11 +44,18 @@ export class OrderService {
       paymentMethod: backend.paymentMethod || "COD",
       paymentStatus: backend.paymentStatus || "PENDING",
       paymentUrl: backend.paymentUrl || null,
+      paymentProvider: backend.paymentProvider || null,
+      payosCheckoutUrl: backend.payosCheckoutUrl || null,
+      payosQrCode: backend.payosQrCode || null,
       backendStatus: backend.status,
+      returnRejectReason: backend.returnRejectReason || undefined,
+      returnRequestReason: backend.returnRequestReason || undefined,
+      returnRequestReasonCode: backend.returnRequestReasonCode || undefined,
+      evidenceImages: backend.evidenceImages || [],
       itemsList: details.map((d: any) => ({
         productId: String(d.plantId),
         productName: d.productName || "Sản phẩm",
-        imageUrl: "https://images.unsplash.com/photo-1463936575829-25148e1db1b8?w=150",
+        imageUrl: d.imageUrl || "https://images.unsplash.com/photo-1463936575829-25148e1db1b8?w=150",
         quantity: d.quantity,
         unitPrice: d.unitPrice
       }))
@@ -91,6 +102,44 @@ export class OrderService {
       { status },
       { signal }
     );
+    return this.mapBackendToOrder(data);
+  }
+
+  public static async createPayOSPaymentLink(orderId: number | string, signal?: AbortSignal): Promise<any> {
+    return HttpClient.post("/api/payments/payos/create-link", { orderId: Number(orderId) }, { signal });
+  }
+
+  public static async getPayOSPaymentStatus(orderCode: number | string, signal?: AbortSignal): Promise<any> {
+    return HttpClient.get(`/api/payments/payos/${orderCode}/status`, { signal });
+  }
+
+  public static async confirmReceived(id: string, signal?: AbortSignal): Promise<StoreOrder> {
+    const data = await HttpClient.put(`/api/orders/${id}/received`, {}, { signal });
+    return this.mapBackendToOrder(data);
+  }
+
+  public static async requestReturn(
+    id: string,
+    payload: { reasonCode: string; reasonText: string; evidenceImages: string[] },
+    signal?: AbortSignal
+  ): Promise<StoreOrder> {
+    const data = await HttpClient.put(`/api/orders/${id}/return-request`, payload, { signal });
+    return this.mapBackendToOrder(data);
+  }
+
+  public static async uploadReturnEvidence(orderId: string, file: File, signal?: AbortSignal): Promise<{ url: string }> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return HttpClient.post<{ url: string }>(`/api/orders/${orderId}/return-evidence/upload`, formData, { signal });
+  }
+
+  public static async approveReturnRequest(orderId: string | number, signal?: AbortSignal): Promise<StoreOrder> {
+    const data = await HttpClient.put(`/api/store-owner/orders/${orderId}/return-approve`, {}, { signal });
+    return this.mapBackendToOrder(data);
+  }
+
+  public static async rejectReturnRequest(orderId: string | number, reason: string, signal?: AbortSignal): Promise<StoreOrder> {
+    const data = await HttpClient.put(`/api/store-owner/orders/${orderId}/return-reject`, { reason }, { signal });
     return this.mapBackendToOrder(data);
   }
 }

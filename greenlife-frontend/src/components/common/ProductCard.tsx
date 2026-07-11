@@ -1,11 +1,12 @@
 import React from "react";
 import { Product } from "../../types";
 import { Leaf, Heart } from "lucide-react";
+import { getMediaUrl } from "../../utils/mediaUrl";
 
 interface ProductCardProps {
   product: Product;
   onSelectProduct: (p: Product) => void;
-  onAddToCart?: (p: Product) => void;
+  onAddToCart?: (p: Product, quantity?: number, event?: React.MouseEvent) => void;
   toggleWishlist?: (id: number) => Promise<void>;
   isSaved?: boolean;
   showDetailsStyle?: boolean;
@@ -28,20 +29,33 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
           onClick={() => onSelectProduct(product)}
         >
           <img
-            src={product.image}
+            src={getMediaUrl(product.image)}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             referrerPolicy="no-referrer"
             loading="lazy"
           />
-          <div className="absolute top-3 left-3 flex gap-2">
-            <span className="px-2 py-0.5 rounded bg-emerald-950/95 border border-emerald-500/30 font-mono text-[9px] text-emerald-400 flex items-center gap-1">
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[85%]">
+            <span className="px-2 py-0.5 rounded bg-emerald-950/95 border border-emerald-500/30 font-mono text-[9px] text-emerald-400 flex items-center gap-1 shrink-0">
               <Leaf className="h-2.5 w-2.5" />
               ECO {product.ecoScore}%
             </span>
-            {product.stock <= 5 && (
-              <span className="px-2 py-0.5 rounded bg-amber-950/90 border border-amber-500/30 font-mono text-[9px] text-amber-400">
-                Chỉ còn {product.stock} sản phẩm
+            {product.stock <= 0 ? (
+              <span className="px-2 py-0.5 rounded bg-rose-950/95 border border-rose-500/30 font-mono text-[9px] text-rose-400 font-bold uppercase shrink-0">
+                Hết hàng
+              </span>
+            ) : product.stock <= 10 ? (
+              <span className="px-2 py-0.5 rounded bg-amber-950/95 border border-amber-500/30 font-mono text-[9px] text-amber-400 font-bold uppercase shrink-0">
+                Sắp hết hàng ({product.stock})
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded bg-emerald-950/95 border border-emerald-500/30 font-mono text-[9px] text-emerald-400 font-bold uppercase shrink-0">
+                Còn hàng
+              </span>
+            )}
+            {product.isBestSeller && (
+              <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 font-mono text-[9px] text-amber-300 font-bold uppercase shrink-0 animate-pulse">
+                🔥 Bán chạy
               </span>
             )}
           </div>
@@ -89,10 +103,15 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
 
             {onAddToCart && (
               <button
-                onClick={() => onAddToCart(product)}
-                className="px-4 py-2 bg-stone-800 hover:bg-emerald-500 hover:text-black font-semibold text-xs text-stone-200 rounded-xl transition-all cursor-pointer"
+                disabled={product.stock <= 0}
+                onClick={(e) => onAddToCart(product, 1, e)}
+                className={`px-4 py-2 font-semibold text-xs rounded-xl transition-all cursor-pointer ${
+                  product.stock <= 0
+                    ? "bg-stone-900 text-stone-600 border border-stone-850 cursor-not-allowed opacity-50"
+                    : "bg-stone-800 hover:bg-emerald-500 hover:text-black text-stone-200"
+                }`}
               >
-                Thêm vào giỏ
+                {product.stock <= 0 ? "Hết hàng" : "Thêm vào giỏ"}
               </button>
             )}
           </div>
@@ -110,14 +129,35 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
       {/* Product Image */}
       <div className="relative h-56 bg-stone-950 overflow-hidden">
         <img
-          src={product.image}
+          src={getMediaUrl(product.image)}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           referrerPolicy="no-referrer"
           loading="lazy"
         />
-        <div className="absolute top-3 left-3 px-2 py-1 rounded bg-stone-900/95 border border-emerald-500/30 font-mono text-[10px] text-emerald-400">
-          ECO {product.ecoScore}%
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[85%]">
+          <span className="px-2 py-0.5 rounded bg-stone-900/95 border border-emerald-500/30 font-mono text-[9px] text-emerald-400 flex items-center gap-1 shrink-0">
+            <Leaf className="h-2.5 w-2.5" />
+            ECO {product.ecoScore}%
+          </span>
+          {product.stock <= 0 ? (
+            <span className="px-2 py-0.5 rounded bg-rose-950/95 border border-rose-500/30 font-mono text-[9px] text-rose-400 font-bold uppercase shrink-0">
+              Hết hàng
+            </span>
+          ) : product.stock <= 10 ? (
+            <span className="px-2 py-0.5 rounded bg-amber-950/95 border border-amber-500/30 font-mono text-[9px] text-amber-400 font-bold uppercase shrink-0">
+              Sắp hết hàng ({product.stock})
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded bg-emerald-950/95 border border-emerald-500/30 font-mono text-[9px] text-emerald-400 font-bold uppercase shrink-0">
+              Còn hàng
+            </span>
+          )}
+          {product.isBestSeller && (
+            <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 font-mono text-[9px] text-amber-300 font-bold uppercase shrink-0 animate-pulse">
+              🔥 Bán chạy
+            </span>
+          )}
         </div>
       </div>
 

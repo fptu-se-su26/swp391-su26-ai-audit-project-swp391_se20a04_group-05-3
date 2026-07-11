@@ -10,14 +10,14 @@ export class CartService {
         id: String(item.plantId),
         name: item.plantName,
         price: item.plantPrice,
-        image: item.plantImageUrl || "https://images.unsplash.com/photo-1545241047-6083a3684587?w=600",
+        image: item.plantImageUrl,
         rating: 5,
         category: "plants",
         description: "",
         ecoScore: 100,
         details: [],
         specs: {},
-        stock: 999
+        stock: item.plantStock !== undefined ? item.plantStock : 999
       },
       quantity: item.quantity
     }));
@@ -36,14 +36,14 @@ export class CartService {
         id: String(item.plantId),
         name: item.plantName,
         price: item.plantPrice,
-        image: item.plantImageUrl || "https://images.unsplash.com/photo-1545241047-6083a3684587?w=600",
+        image: item.plantImageUrl,
         rating: 5,
         category: "plants",
         description: "",
         ecoScore: 100,
         details: [],
         specs: {},
-        stock: 999
+        stock: item.plantStock !== undefined ? item.plantStock : 999
       },
       quantity: item.quantity
     };
@@ -57,14 +57,14 @@ export class CartService {
         id: String(item.plantId),
         name: item.plantName,
         price: item.plantPrice,
-        image: item.plantImageUrl || "https://images.unsplash.com/photo-1545241047-6083a3684587?w=600",
+        image: item.plantImageUrl,
         rating: 5,
         category: "plants",
         description: "",
         ecoScore: 100,
         details: [],
         specs: {},
-        stock: 999
+        stock: item.plantStock !== undefined ? item.plantStock : 999
       },
       quantity: item.quantity
     };

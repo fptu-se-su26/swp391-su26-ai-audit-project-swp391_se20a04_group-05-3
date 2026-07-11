@@ -38,6 +38,8 @@ import { useAppContext } from "../../context/AppContext";
 import { OrderService } from "../../services/orderService";
 import { ArticleService } from "../../services/articleService";
 import { CategoryService } from "../../services/categoryService";
+import { PlantService } from "../../services/plantService";
+import { ConfirmModal } from "../common/ConfirmModal";
 import { ReviewService, ReviewResponse, RatingSummaryResponse } from "../../services/reviewService";
 import { Star, MessageSquare } from "lucide-react";
 import { AuthService } from "../../services/authService";
@@ -45,6 +47,7 @@ import { HttpClient } from "../../services/httpClient";
 import toast from "react-hot-toast";
 import { DashboardSkeleton, ListSkeleton } from "../common/Skeleton";
 import { EmptyState } from "../common/EmptyState";
+import { getMediaUrl } from "../../utils/mediaUrl";
 
 const getAuthToken = (): string | null => {
   return AuthService.getAccessToken();
@@ -82,13 +85,48 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<StoreOrder["itemsList"] | null>(null);
   const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
 
+  // Custom modal states for dialog replacements
+  const [approveReturnOpen, setApproveReturnOpen] = useState(false);
+  const [approveReturnOrderId, setApproveReturnOrderId] = useState<string | null>(null);
+
+  const [rejectReturnOpen, setRejectReturnOpen] = useState(false);
+  const [rejectReturnOrderId, setRejectReturnOrderId] = useState<string | null>(null);
+  const [rejectReasonText, setRejectReasonText] = useState("");
+  const [rejectReasonError, setRejectReasonError] = useState("");
+
+  const [deleteProductOpen, setDeleteProductOpen] = useState(false);
+  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+  const [deleteProductName, setDeleteProductName] = useState("");
+
   // Form states for listing new product
   const [productName, setProductName] = useState("");
-  const [productPrice, setProductPrice] = useState(150000);
+  const [productPrice, setProductPrice] = useState("150000");
   const [productCategory, setProductCategory] = useState<"plants" | "care" | "nutrients" | "smarthome">("plants");
-  const [productStock, setProductStock] = useState(50);
+  const [productStock, setProductStock] = useState("50");
+  const [productSku, setProductSku] = useState("");
   const [productDescription, setProductDescription] = useState("");
+  const [productImageUrl, setProductImageUrl] = useState("");
   const [productSuccess, setProductSuccess] = useState(false);
+  const [productImageUploading, setProductImageUploading] = useState(false);
+
+  const handleProductImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setProductImageUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await HttpClient.post<any>("/api/store-owner/plants/images/upload", formData);
+      setProductImageUrl(response.url);
+      toast.success("Tải ảnh sản phẩm lên thành công!");
+    } catch (err: any) {
+      toast.error("Không thể tải ảnh lên: " + (err.message || err));
+    } finally {
+      setProductImageUploading(false);
+    }
+  };
 
   // Search & Filter States
   const [productSearch, setProductSearch] = useState("");
@@ -100,6 +138,21 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
   const [loadingStore, setLoadingStore] = useState(true);
   const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [rawProducts, setRawProducts] = useState<any[]>([]);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  const fetchMyProducts = useCallback(async () => {
+    setLoadingProducts(true);
+    try {
+      const data = await PlantService.getMyStoreProducts();
+      setDbProducts(data);
+    } catch (err) {
+      logger.error("Lỗi khi tải sản phẩm của bạn:", err);
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, []);
 
   const fetchStoreOrders = useCallback(async (signal?: AbortSignal) => {
     setLoadingOrders(true);
@@ -184,6 +237,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
     fetchCategories();
     fetchRawProducts();
     fetchStoreOrders(controller.signal);
+    fetchMyProducts();
     if (loadProducts) {
       loadProducts("", "", controller.signal);
     }
@@ -191,7 +245,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
     return () => {
       controller.abort();
     };
-  }, [currentUser?.id, fetchStoreOrders, loadProducts]);
+  }, [currentUser?.id, fetchStoreOrders, loadProducts, fetchMyProducts]);
 
   // Form states for Store settings
   const [storeName, setStoreName] = useState(myStore?.name || "");
@@ -234,36 +288,88 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
     setTimeout(() => setSettingsSuccess(false), 3000);
   }, [myStore, storeName, storeCity, storeDistrict, storeAddress, storeServiceArea, storeLat, storeLng, updateStoreInfo]);
 
-  const handleAddNewProductSubmit = useCallback((e: React.FormEvent) => {
+  const handleAddNewProductSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productName.trim()) return;
 
-    const newProd: Product = {
-      id: `prod-${Date.now()}`,
-      name: productName,
-      category: productCategory,
-      price: productPrice,
-      rating: 5.0,
-      image: "https://images.unsplash.com/photo-1545241047-6083a3684587?w=600&auto=format&fit=crop&q=80",
-      description: productDescription || "Sản phẩm do nhà vườn đối tác chịu trách nhiệm gieo cấy sinh học, đã thông qua giám định hàm lượng carbon.",
-      ecoScore: 92,
-      details: ["Nguồn tự nhiên gieo trồng bản địa", "Bao bì hữu cơ tự hoại màng gạo"],
-      specs: {
-        "Nguồn gốc": myStore?.name || "Nhà Vườn Thảo Mộc Đô Thị GreenLife",
-        "Dấu chân carbon": "-18kg CO2eq"
-      },
-      stock: productStock,
-      shopId: myStore?.id
+    // Find the correct categoryId based on productCategory
+    let categoryId = 1; // default to first category
+    if (categoriesList && categoriesList.length > 0) {
+      let slug = "cay-trong-nha";
+      if (productCategory === "care") slug = "phu-kien";
+      else if (productCategory === "nutrients") slug = "phan-bon";
+      else if (productCategory === "smarthome") slug = "thiet-bi-thong-minh";
+      
+      const found = categoriesList.find((c) => c.slug === slug);
+      if (found) {
+        categoryId = found.id;
+      } else {
+        categoryId = categoriesList[0].id;
+      }
+    }
+
+    // Clean price and stock by trimming and stripping leading zeros
+    const cleanPrice = productPrice.trim().replace(/^0+/, "");
+    const cleanStock = productStock.trim().replace(/^0+/, "");
+
+    const parsedPrice = cleanPrice === "" ? 0 : Number(cleanPrice);
+    const parsedStock = cleanStock === "" ? 0 : Number(cleanStock);
+
+    if (isNaN(parsedPrice) || parsedPrice < 0) {
+      toast.error("Đơn giá không hợp lệ");
+      return;
+    }
+    if (isNaN(parsedStock) || parsedStock < 0) {
+      toast.error("Tồn kho không hợp lệ");
+      return;
+    }
+
+    const defaultImage = "https://images.unsplash.com/photo-1545241047-6083a3684587?w=600";
+    const payload = {
+      name: productName.trim(),
+      sku: productSku.trim() || null,
+      slug: productName.trim().toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d").replace(/Đ/g, "d")
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-") + "-" + Date.now(), // Ensure uniqueness
+      categoryId: categoryId,
+      description: productDescription || "Sản phẩm sinh học hữu cơ sạch từ GreenLife.",
+      price: parsedPrice,
+      stock: parsedStock,
+      imageUrl: productImageUrl.trim() || defaultImage,
+      careLevel: "Dễ",
+      sunlight: "Ánh sáng gián tiếp",
+      waterLevel: "Tưới vừa phải",
+      status: parsedStock === 0 ? "OUT_OF_STOCK" : "ACTIVE"
     };
 
-    onAddProduct(newProd);
-    setProductName("");
-    setProductPrice(150000);
-    setProductStock(50);
-    setProductDescription("");
-    setProductSuccess(true);
-    setTimeout(() => setProductSuccess(false), 4000);
-  }, [productName, productCategory, productPrice, productDescription, myStore?.name, myStore?.id, productStock, onAddProduct]);
+    try {
+      if (editingProduct) {
+        await PlantService.updateMyStoreProduct(editingProduct.id, payload);
+        toast.success("Cập nhật sản phẩm thành công!");
+      } else {
+        await PlantService.createMyStoreProduct(payload);
+        toast.success("Thêm mới sản phẩm thành công!");
+      }
+      
+      setProductName("");
+      setProductPrice("150000");
+      setProductStock("50");
+      setProductSku("");
+      setProductDescription("");
+      setProductImageUrl("");
+      setEditingProduct(null);
+      setProductSuccess(true);
+      setTimeout(() => setProductSuccess(false), 4000);
+      
+      // Refresh list
+      fetchMyProducts();
+    } catch (err: any) {
+      toast.error("Lỗi khi lưu sản phẩm: " + err.message);
+    }
+  }, [productName, productCategory, productPrice, productDescription, productStock, productSku, productImageUrl, editingProduct, categoriesList, fetchMyProducts]);
 
   const handleUpdateOrderStatus = useCallback(async (orderId: string, newStatus: "processing" | "shipped" | "completed" | "cancelled") => {
     let backendStatus = "";
@@ -293,6 +399,86 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       toast.error(err.message || "Không thể cập nhật trạng thái đơn hàng.");
     }
   }, [fetchStoreOrders]);
+
+  const handleDeleteProductConfirmed = useCallback(async () => {
+    if (!deleteProductId) return;
+    setDeleteProductOpen(false);
+    try {
+      await PlantService.deleteMyStoreProduct(deleteProductId);
+      toast.success("Đã xóa sản phẩm!");
+      fetchMyProducts();
+    } catch (err: any) {
+      toast.error("Lỗi xóa sản phẩm: " + err.message);
+    } finally {
+      setDeleteProductId(null);
+      setDeleteProductName("");
+    }
+  }, [deleteProductId, fetchMyProducts]);
+
+  const handleApproveReturn = useCallback((orderId: string) => {
+    setApproveReturnOrderId(orderId);
+    setApproveReturnOpen(true);
+  }, []);
+
+  const handleApproveReturnConfirmed = useCallback(async () => {
+    if (!approveReturnOrderId) return;
+    setApproveReturnOpen(false);
+    try {
+      await OrderService.approveReturnRequest(approveReturnOrderId);
+      toast.success(`Đã chấp nhận yêu cầu trả hàng của đơn hàng ${approveReturnOrderId} thành công.`);
+      await fetchStoreOrders();
+      setSelectedOrder(prev => {
+        if (prev && prev.id === approveReturnOrderId) {
+          return { ...prev, status: "return_approved", backendStatus: "RETURN_APPROVED" };
+        }
+        return prev;
+      });
+    } catch (err: any) {
+      logger.error("Lỗi chấp nhận yêu cầu trả hàng:", err);
+      toast.error(err.message || "Không thể chấp nhận yêu cầu trả hàng.");
+    } finally {
+      setApproveReturnOrderId(null);
+    }
+  }, [approveReturnOrderId, fetchStoreOrders]);
+
+  const handleRejectReturn = useCallback((orderId: string) => {
+    setRejectReturnOrderId(orderId);
+    setRejectReasonText("");
+    setRejectReasonError("");
+    setRejectReturnOpen(true);
+  }, []);
+
+  const handleRejectReturnConfirmed = useCallback(async () => {
+    if (!rejectReturnOrderId) return;
+    const trimmed = rejectReasonText.trim();
+    if (!trimmed) {
+      setRejectReasonError("Vui lòng nhập lý do từ chối.");
+      return;
+    }
+    if (trimmed.length > 500) {
+      setRejectReasonError("Lý do từ chối không được vượt quá 500 ký tự.");
+      return;
+    }
+    setRejectReturnOpen(false);
+    try {
+      await OrderService.rejectReturnRequest(rejectReturnOrderId, trimmed);
+      toast.success(`Đã từ chối yêu cầu trả hàng của đơn hàng ${rejectReturnOrderId}.`);
+      await fetchStoreOrders();
+      setSelectedOrder(prev => {
+        if (prev && prev.id === rejectReturnOrderId) {
+          return { ...prev, status: "return_rejected", backendStatus: "RETURN_REJECTED", returnRejectReason: trimmed };
+        }
+        return prev;
+      });
+    } catch (err: any) {
+      logger.error("Lỗi từ chối yêu cầu trả hàng:", err);
+      toast.error(err.message || "Không thể từ chối yêu cầu trả hàng.");
+    } finally {
+      setRejectReturnOrderId(null);
+      setRejectReasonText("");
+      setRejectReasonError("");
+    }
+  }, [rejectReturnOrderId, rejectReasonText, fetchStoreOrders]);
 
   const handleOpenOrderDetail = useCallback(async (order: StoreOrder) => {
     setSelectedOrder(order);
@@ -334,8 +520,13 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
   // Filter products owned by this store specifically
   const myProducts = useMemo(() => {
-    return filteredProducts.filter((p) => String(p.shopId) === String(myStore?.id));
-  }, [filteredProducts, myStore?.id]);
+    return dbProducts.filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
+                            p.description.toLowerCase().includes(productSearch.toLowerCase());
+      const matchesCategory = productCategoryFilter === "" || p.category === productCategoryFilter;
+      return matchesSearch && matchesCategory;
+    });
+  }, [dbProducts, productSearch, productCategoryFilter]);
 
   const otherProducts = useMemo(() => {
     return filteredProducts.filter((p) => String(p.shopId) !== String(myStore?.id));
@@ -365,6 +556,10 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       case "shipped": return "Đang vận chuyển";
       case "completed": return "Đã hoàn thành";
       case "cancelled": return "Đã hủy đơn";
+      case "received": return "Đã nhận hàng";
+      case "return_requested": return "Yêu cầu hoàn hàng";
+      case "return_approved": return "Yêu cầu hoàn hàng đã được chấp nhận";
+      case "return_rejected": return "Từ chối hoàn hàng";
       default: return "Chờ xử lý";
     }
   }, []);
@@ -374,7 +569,11 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       case "processing": return "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30";
       case "shipped": return "bg-indigo-100 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/30";
       case "completed": return "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 border border-emerald-250 dark:border-emerald-900/30";
-      case "cancelled": return "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-400 border border-rose-250 dark:border-rose-900/30";
+      case "received": return "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 border border-emerald-250 dark:border-emerald-900/30";
+      case "cancelled": return "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-455 border border-rose-250 dark:border-rose-900/30";
+      case "return_requested": return "bg-rose-100 dark:bg-rose-950/40 text-rose-850 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30";
+      case "return_approved": return "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30";
+      case "return_rejected": return "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-455 border border-rose-250 dark:border-rose-900/30";
       default: return "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-250 dark:border-stone-700";
     }
   }, []);
@@ -657,6 +856,9 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   <option value="shipped">Đang vận chuyển</option>
                   <option value="completed">Đã hoàn thành</option>
                   <option value="cancelled">Đã hủy đơn</option>
+                  <option value="return_requested">Yêu cầu hoàn hàng</option>
+                  <option value="return_approved">Đã chấp nhận trả hàng</option>
+                  <option value="return_rejected">Đã từ chối trả hàng</option>
                 </select>
               </div>
             </div>
@@ -714,6 +916,13 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                         </div>
                       </div>
 
+                      {(ord.status === "return_requested" || ord.status === "return_approved" || ord.status === "return_rejected") && ord.returnRequestReason && (
+                        <div className="p-2.5 bg-stone-100 dark:bg-stone-950/40 rounded-xl text-[10px] text-stone-500 border border-stone-200/30 dark:border-stone-850/50">
+                          <span className="font-bold text-stone-700 dark:text-stone-300 block">Lý do khách hàng:</span>
+                          <span className="italic text-stone-600 dark:text-stone-400">"{ord.returnRequestReason}"</span>
+                        </div>
+                      )}
+
                       <div className="flex gap-2 pt-2.5 border-t border-stone-200/50 dark:border-stone-850/40 justify-end">
                         <button
                           onClick={() => handleOpenOrderDetail(ord)}
@@ -752,6 +961,22 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                           >
                             <Check className="w-3.5 h-3.5" /> Hoàn Tất
                           </button>
+                        )}
+                        {ord.status === "return_requested" && (
+                          <>
+                            <button
+                              onClick={() => handleApproveReturn(ord.id)}
+                              className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-450 text-black font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                            >
+                              <Check className="w-3.5 h-3.5" /> Chấp Nhận
+                            </button>
+                            <button
+                              onClick={() => handleRejectReturn(ord.id)}
+                              className="px-2.5 py-1.5 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 font-bold rounded-lg border border-rose-500/25 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                            >
+                              <X className="w-3.5 h-3.5" /> Từ Chối
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -802,9 +1027,16 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                             {ord.total.toLocaleString("vi-VN")}₫
                           </td>
                           <td className="p-4.5">
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${getOrderStatusColor(ord.status)}`}>
-                              {getOrderStatusLabel(ord.status)}
-                            </span>
+                            <div className="space-y-1">
+                              <span className={`inline-flex px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${getOrderStatusColor(ord.status)}`}>
+                                {getOrderStatusLabel(ord.status)}
+                              </span>
+                              {(ord.status === "return_requested" || ord.status === "return_approved" || ord.status === "return_rejected") && ord.returnRequestReason && (
+                                <span className="block text-[10px] text-stone-400 max-w-[150px] truncate italic" title={ord.returnRequestReason}>
+                                  Lý do khách: {ord.returnRequestReason}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="p-4.5 text-right">
                             <div className="flex gap-1.5 justify-end">
@@ -850,6 +1082,24 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                                 >
                                   <Check className="h-3 w-3" /> Hoàn Tất
                                 </button>
+                              )}
+                              {ord.status === "return_requested" && (
+                                <>
+                                  <button
+                                    onClick={() => handleApproveReturn(ord.id)}
+                                    className="px-2 py-1 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                    title="Chấp nhận yêu cầu trả hàng"
+                                  >
+                                    <Check className="h-3 w-3" /> Chấp Nhận
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectReturn(ord.id)}
+                                    className="px-2 py-1 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 font-semibold rounded-lg border border-rose-500/20 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                    title="Từ chối yêu cầu trả hàng"
+                                  >
+                                    <X className="h-3 w-3" /> Từ Chối
+                                  </button>
+                                </>
                               )}
                               {ord.status === "completed" && (
                                 <span className="text-[10px] text-stone-400 dark:text-stone-500 font-mono italic">Đã hoàn tất</span>
@@ -913,8 +1163,11 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                     <div key={p.id} className="bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-850 rounded-2xl p-4 flex flex-col justify-between gap-3.5 hover:shadow-md transition-all duration-300">
                       <div className="flex gap-3">
                         <img 
-                          src={p.image} 
+                          src={getMediaUrl(p.image)} 
                           alt={p.name} 
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1545241047-6083a3684587?w=600";
+                          }}
                           className="w-14 h-14 object-cover rounded-xl border border-stone-200 dark:border-stone-850 shrink-0" 
                           loading="lazy" 
                         />
@@ -923,7 +1176,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                             {p.category === "plants" ? "🌱 Cây xanh" : p.category === "care" ? "🪴 Chăm sóc" : p.category === "nutrients" ? "🧪 Dinh dưỡng" : "⚙️ IoT"}
                           </span>
                           <h4 className="font-bold text-stone-900 dark:text-stone-100 text-xs mt-0.5 truncate">{p.name}</h4>
-                          <span className="text-[9px] text-stone-450 dark:text-stone-500 font-mono block mt-0.5">ID: {p.id}</span>
+                          <span className="text-[9px] text-stone-450 dark:text-stone-500 font-mono block mt-0.5">ID: {p.id} {p.sku && `| SKU: ${p.sku}`}</span>
                         </div>
                       </div>
 
@@ -962,6 +1215,36 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                           )}
                         </div>
                       </div>
+
+                      <div className="flex gap-2 mt-2 pt-2 border-t border-stone-200/50 dark:border-stone-850/40">
+                        <button
+                          onClick={() => {
+                            setEditingProduct(p);
+                            setProductName(p.name);
+                            setProductPrice(String(p.price));
+                            setProductStock(String(p.stock));
+                            setProductSku(p.sku || "");
+                            setProductCategory(p.category);
+                            setProductDescription(p.description);
+                            setProductImageUrl(p.image || "");
+                          }}
+                          className="flex-1 py-1.5 px-3 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 transition-all"
+                        >
+                          <Pencil className="h-3 w-3 text-stone-500" />
+                          Sửa thông tin
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeleteProductId(p.id);
+                            setDeleteProductName(p.name);
+                            setDeleteProductOpen(true);
+                          }}
+                          className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all border border-transparent hover:border-rose-500/10"
+                          title="Xóa sản phẩm"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -974,7 +1257,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {otherProducts.slice(0, 4).map((p) => (
                   <div key={p.id} className="p-2.5 bg-stone-100 dark:bg-stone-900/30 border border-stone-200 dark:border-stone-850 rounded-xl space-y-1">
-                    <img src={p.image} alt={p.name} className="w-full h-18 object-cover rounded-lg" loading="lazy" />
+                    <img src={getMediaUrl(p.image)} alt={p.name} className="w-full h-18 object-cover rounded-lg" loading="lazy" />
                     <span className="font-semibold text-stone-900 dark:text-stone-100 block text-[10px] line-clamp-1 mt-1">{p.name}</span>
                     <div className="flex justify-between items-center text-[9px] font-mono mt-0.5">
                       <span className="text-emerald-500 font-bold">{p.price.toLocaleString("vi-VN")}₫</span>
@@ -991,16 +1274,22 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
           <div className="lg:col-span-4 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-4 shadow-xs">
             <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase flex items-center gap-1.5">
               <PlusCircle className="h-4.5 w-4.5 text-emerald-500" />
-              Niêm Yết Mầm Xanh Mới
+              {editingProduct ? "Chỉnh Sửa Mầm Xanh" : "Niêm Yết Mầm Xanh Mới"}
             </h3>
 
-            <div className="p-3.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-250 dark:border-amber-900/30 rounded-2xl text-xs text-amber-800 dark:text-amber-400 space-y-1.5 leading-relaxed">
-              <span className="font-bold block">⚠️ Chức năng đăng sản phẩm đang được nâng cấp. Vui lòng liên hệ quản trị viên.</span>
-              <p className="text-[10px] text-stone-500">Hệ thống đang đồng bộ dữ liệu chuẩn mã định danh carbon nông nghiệp LCA.</p>
-            </div>
+            <form onSubmit={handleAddNewProductSubmit} className="space-y-4 text-xs">
+              {editingProduct && (
+                <div className="space-y-1.5">
+                  <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">ID hệ thống (Mã tự động):</label>
+                  <input
+                    type="text"
+                    value={editingProduct.id}
+                    disabled
+                    className="w-full bg-stone-200 dark:bg-stone-850 text-stone-500 dark:text-stone-400 border border-stone-250 dark:border-stone-800 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono cursor-not-allowed"
+                  />
+                </div>
+              )}
 
-            {/* TODO: replace with /api/store/products endpoints when backend is available */}
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-4 text-xs opacity-40 pointer-events-none select-none">
               <div className="space-y-1.5">
                 <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Tên mặt hàng hữu cơ:</label>
                 <input
@@ -1009,8 +1298,18 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none"
-                  disabled
                   required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Mã SKU / mã quản lý nội bộ:</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: SKU-PL-TRAUBA-01"
+                  value={productSku}
+                  onChange={(e) => setProductSku(e.target.value)}
+                  className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono"
                 />
               </div>
 
@@ -1018,11 +1317,21 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                 <div className="space-y-1.5">
                   <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Đơn giá (VND):</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={productPrice}
-                    onChange={(e) => setProductPrice(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^[0-9]+$/.test(val)) {
+                        setProductPrice(val);
+                      }
+                    }}
+                    onBlur={() => {
+                      const clean = productPrice.trim().replace(/^0+/, "");
+                      setProductPrice(clean === "" ? "0" : clean);
+                    }}
                     className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono"
-                    disabled
                     required
                   />
                 </div>
@@ -1030,14 +1339,56 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                 <div className="space-y-1.5">
                   <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Số lượng tồn kho:</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={productStock}
-                    onChange={(e) => setProductStock(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^[0-9]+$/.test(val)) {
+                        setProductStock(val);
+                      }
+                    }}
+                    onBlur={() => {
+                      const clean = productStock.trim().replace(/^0+/, "");
+                      setProductStock(clean === "" ? "0" : clean);
+                    }}
                     className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono"
-                    disabled
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Ảnh sản phẩm:</label>
+                <div className="flex items-center gap-4">
+                  {productImageUrl ? (
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-stone-250 dark:border-stone-800 bg-stone-100 dark:bg-stone-900 flex items-center justify-center group shadow-sm">
+                      <img src={productImageUrl} alt="Product preview" className="w-full h-full object-cover" />
+                      {productImageUploading && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-[10px] text-white font-semibold">
+                          ...
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl border border-dashed border-stone-300 dark:border-stone-800 flex items-center justify-center text-stone-400">
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                  )}
+                  <label className="cursor-pointer bg-stone-200 hover:bg-stone-300 dark:bg-stone-800 dark:hover:bg-stone-750 px-3 py-1.5 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1">
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    {productImageUploading ? "Đang tải..." : productImageUrl ? "Thay đổi ảnh" : "Tải ảnh lên"}
+                    <input type="file" accept="image/*" onChange={handleProductImageChange} className="hidden" disabled={productImageUploading} />
+                  </label>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Hoặc dán URL ảnh sản phẩm..."
+                  value={productImageUrl}
+                  onChange={(e) => setProductImageUrl(e.target.value)}
+                  className="w-full mt-2 bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none"
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -1046,7 +1397,6 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   value={productCategory}
                   onChange={(e) => setProductCategory(e.target.value as any)}
                   className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono cursor-pointer"
-                  disabled
                 >
                   <option value="plants">Cây Xanh (Plants)</option>
                   <option value="care">Chăm Sóc (Care)</option>
@@ -1063,7 +1413,6 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   onChange={(e) => setProductDescription(e.target.value)}
                   rows={3}
                   className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none resize-none leading-relaxed"
-                  disabled
                 />
               </div>
 
@@ -1073,11 +1422,28 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
               <button
                 type="submit"
-                disabled
-                className="w-full py-2.5 bg-stone-750 text-stone-450 font-bold rounded-xl text-xs cursor-not-allowed transition-all uppercase tracking-wider"
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all uppercase tracking-wider"
               >
-                Đăng Sản Phẩm (Đã Khóa)
+                {editingProduct ? "Cập Nhật Sản Phẩm" : "Đăng Sản Phẩm"}
               </button>
+
+              {editingProduct && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProductName("");
+                    setProductPrice("150000");
+                    setProductStock("50");
+                    setProductSku("");
+                    setProductDescription("");
+                    setProductImageUrl("");
+                    setEditingProduct(null);
+                  }}
+                  className="w-full py-2 bg-stone-200 dark:bg-stone-850 text-stone-700 dark:text-stone-300 font-semibold rounded-xl text-xs transition-all"
+                >
+                  Hủy Cập Nhật
+                </button>
+              )}
             </form>
           </div>
         </div>
@@ -1292,6 +1658,47 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                       <span className="text-stone-400 italic">"{selectedOrder.note}"</span>
                     </div>
                   )}
+                  {(selectedOrder.status === "return_requested" || selectedOrder.status === "return_approved" || selectedOrder.status === "return_rejected") && (
+                    <div className="mt-3 pt-3 border-t border-stone-850 space-y-2.5">
+                      <div>
+                        <span className="text-stone-400 font-mono text-[10px] block uppercase font-bold text-rose-455">Yêu Cầu Hoàn Hàng</span>
+                        <span className="text-stone-300 font-semibold mt-1 block">
+                          Lý do: {(() => {
+                            switch (selectedOrder.returnRequestReasonCode) {
+                              case "PRODUCT_DAMAGED": return "Sản phẩm bị hư hỏng / dập nát";
+                              case "WRONG_DESCRIPTION": return "Sản phẩm không đúng mô tả";
+                              case "WRONG_PRODUCT": return "Giao sai sản phẩm";
+                              case "MISSING_ITEMS": return "Thiếu sản phẩm / phụ kiện";
+                              case "PLANT_DEAD": return "Cây bị héo úa / chết khi nhận";
+                              case "NO_LONGER_NEEDED": return "Không còn nhu cầu";
+                              case "OTHER": return "Lý do khác";
+                              default: return selectedOrder.returnRequestReasonCode || "Chưa xác định";
+                            }
+                          })()}
+                        </span>
+                      </div>
+                      {selectedOrder.returnRequestReason && (
+                        <div>
+                          <span className="text-stone-505 font-mono text-[9px] block">MÔ TẢ CHI TIẾT từ khách hàng:</span>
+                          <p className="text-amber-400 italic bg-stone-950/50 p-2.5 rounded-xl border border-stone-850 mt-1 leading-relaxed whitespace-pre-wrap">
+                            "{selectedOrder.returnRequestReason}"
+                          </p>
+                        </div>
+                      )}
+                      {selectedOrder.evidenceImages && selectedOrder.evidenceImages.length > 0 && (
+                        <div>
+                          <span className="text-stone-505 font-mono text-[9px] block mb-1">ẢNH MINH CHỨNG:</span>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {selectedOrder.evidenceImages.map((img: string, idx: number) => (
+                              <a key={idx} href={getMediaUrl(img)} target="_blank" rel="noopener noreferrer" className="relative block w-14 h-14 rounded-lg overflow-hidden border border-stone-800 hover:opacity-80 transition-opacity">
+                                <img src={getMediaUrl(img)} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1306,7 +1713,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                     {selectedOrderDetails.map((item) => (
                       <div key={item.productId} className="flex gap-3 bg-stone-950/20 p-3 rounded-2xl border border-stone-850/50 text-stone-300">
                         <img 
-                          src={item.imageUrl} 
+                          src={getMediaUrl(item.imageUrl)} 
                           alt={item.productName} 
                           className="w-12 h-12 object-cover rounded-xl border border-stone-800"
                         />
@@ -1395,6 +1802,35 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   )}
                   {selectedOrder.status === "cancelled" && (
                     <span className="text-[10px] text-rose-455 font-mono italic">Đơn hàng đã bị hủy</span>
+                  )}
+                  {selectedOrder.status === "return_requested" && (
+                    <>
+                      <button
+                        onClick={() => handleApproveReturn(selectedOrder.id)}
+                        className="py-1.5 px-3 bg-emerald-500 hover:bg-emerald-400 text-black rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                      >
+                        Chấp Nhận
+                      </button>
+                      <button
+                        onClick={() => handleRejectReturn(selectedOrder.id)}
+                        className="py-1.5 px-3 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 border border-rose-500/20 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                      >
+                        Từ Chối
+                      </button>
+                    </>
+                  )}
+                  {selectedOrder.status === "return_approved" && (
+                    <span className="text-[10px] text-emerald-450 font-mono italic">Yêu cầu hoàn hàng đã được chấp nhận</span>
+                  )}
+                  {selectedOrder.status === "return_rejected" && (
+                    <div className="space-y-1 w-full">
+                      <span className="text-[10px] text-rose-455 font-mono italic block">Yêu cầu hoàn hàng đã bị từ chối</span>
+                      {selectedOrder.returnRejectReason && (
+                        <p className="text-[10px] bg-stone-950/50 p-2 rounded-xl text-stone-300 italic border border-stone-850">
+                          Lý do từ chối: "{selectedOrder.returnRejectReason}"
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -1906,7 +2342,7 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <img src={prod.image} alt={prod.name} className="w-8 h-8 object-cover rounded" loading="lazy" />
+                            <img src={getMediaUrl(prod.image)} alt={prod.name} className="w-8 h-8 object-cover rounded" loading="lazy" />
                             <div>
                               <span className="font-bold text-[10px] block line-clamp-1">{prod.name}</span>
                               <span className="text-[9px] text-stone-455 dark:text-stone-550 font-mono font-semibold">{prod.price.toLocaleString("vi-VN")}₫</span>
@@ -2099,8 +2535,113 @@ const StoreReviewsSection: React.FC<StoreReviewsSectionProps> = ({ myStore }) =>
             ))}
           </div>
         )}
-      </div>
+      {/* Modals for Native Dialog Replacements */}
+      <ConfirmModal
+        isOpen={approveReturnOpen}
+        title="Xác nhận chấp nhận yêu cầu hoàn hàng"
+        message="Sau khi chấp nhận, hệ thống sẽ ghi nhận yêu cầu này để tiếp tục xử lý theo chính sách. Dòng tiền sẽ được xử lý ở bước đối soát sau."
+        confirmLabel="Xác nhận"
+        cancelLabel="Hủy"
+        onConfirm={handleApproveReturnConfirmed}
+        onCancel={() => {
+          setApproveReturnOpen(false);
+          setApproveReturnOrderId(null);
+        }}
+      />
+
+      {rejectReturnOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative text-left">
+            <button
+              onClick={() => {
+                setRejectReturnOpen(false);
+                setRejectReturnOrderId(null);
+                setRejectReasonText("");
+                setRejectReasonError("");
+              }}
+              className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-750 dark:hover:text-stone-250 transition-all cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-500">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-bold text-stone-900 dark:text-stone-100 font-display">
+                Từ chối yêu cầu hoàn hàng
+              </h3>
+            </div>
+
+            <div className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed font-sans space-y-3">
+              <p>Vui lòng nhập lý do từ chối để khách hàng có thể theo dõi phản hồi từ cửa hàng.</p>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-stone-500 dark:text-stone-450 block uppercase tracking-wider">Lý do từ chối *</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={rejectReasonText}
+                  onChange={(e) => {
+                    setRejectReasonText(e.target.value);
+                    if (e.target.value.trim()) {
+                      setRejectReasonError("");
+                    }
+                  }}
+                  placeholder="Nhập lý do từ chối..."
+                  className="w-full p-3 bg-stone-50 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl text-stone-950 dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-xs"
+                />
+                {rejectReasonError && (
+                  <span className="text-rose-500 text-[10px] block font-semibold">{rejectReasonError}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectReturnOpen(false);
+                  setRejectReturnOrderId(null);
+                  setRejectReasonText("");
+                  setRejectReasonError("");
+                }}
+                className="flex-1 py-2.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-750 text-stone-700 dark:text-stone-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleRejectReturnConfirmed}
+                className="flex-1 py-2.5 text-white bg-rose-600 hover:bg-rose-700 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm"
+              >
+                Xác nhận từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal
+        isOpen={deleteProductOpen}
+        title="Xác nhận xóa sản phẩm"
+        message={
+          <div className="space-y-1">
+            <p>Bạn có chắc muốn xóa sản phẩm này không?</p>
+            <p className="font-semibold text-rose-500">"{deleteProductName}"</p>
+          </div>
+        }
+        confirmLabel="Xóa sản phẩm"
+        cancelLabel="Hủy"
+        onConfirm={handleDeleteProductConfirmed}
+        onCancel={() => {
+          setDeleteProductOpen(false);
+          setDeleteProductId(null);
+          setDeleteProductName("");
+        }}
+        isDanger={true}
+      />
     </div>
-  );
+  </div>
+);
 };
 

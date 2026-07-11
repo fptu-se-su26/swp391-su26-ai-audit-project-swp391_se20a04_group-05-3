@@ -46,6 +46,18 @@ export const Navigation: React.FC<NavigationProps> = ({
   const [notifError, setNotifError] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const [animateCart, setAnimateCart] = useState(false);
+  const prevCartCountRef = useRef(cartCount);
+
+  useEffect(() => {
+    if (cartCount > prevCartCountRef.current) {
+      setAnimateCart(true);
+      const timer = setTimeout(() => setAnimateCart(false), 500);
+      return () => clearTimeout(timer);
+    }
+    prevCartCountRef.current = cartCount;
+  }, [cartCount]);
+
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -243,12 +255,11 @@ export const Navigation: React.FC<NavigationProps> = ({
               )}
             </button>
 
-            {/* Cart Button with ambient pulse when not empty */}
             <button
               onClick={openCart}
               className={`relative p-2.5 rounded-xl bg-stone-800/80 hover:bg-stone-850 text-stone-300 hover:text-stone-100 border border-stone-700/40 transition-all cursor-pointer btn-animated shadow-xs ${
                 cartCount > 0 ? "cart-glow-pulse" : ""
-              }`}
+              } ${animateCart ? "animate-cart-zoom-shake" : ""}`}
               aria-label="Giỏ hàng"
             >
               <ShoppingBag className="h-5 w-5 text-emerald-500 hover:text-emerald-450 hover:scale-110 transition-all duration-300" />
@@ -483,12 +494,11 @@ export const Navigation: React.FC<NavigationProps> = ({
               </div>
             )}
 
-            {/* Cart Button */}
             <button
               onClick={openCart}
               className={`relative p-2.5 rounded-xl bg-stone-800/80 hover:bg-stone-850 text-stone-300 hover:text-stone-100 border border-stone-700/40 transition-all cursor-pointer animate-badge-pop shadow-xs ${
                 cartCount > 0 ? "cart-glow-pulse" : ""
-              }`}
+              } ${animateCart ? "animate-cart-zoom-shake" : ""}`}
               aria-label="Giỏ hàng"
             >
               <ShoppingBag className="h-5 w-5 text-emerald-500 hover:text-emerald-450 hover:scale-110 transition-all duration-300" />

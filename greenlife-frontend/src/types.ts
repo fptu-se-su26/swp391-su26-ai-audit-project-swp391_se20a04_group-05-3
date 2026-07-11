@@ -11,6 +11,8 @@ export interface Product {
   specs: Record<string, string>;
   stock: number;
   shopId?: string;
+  sku?: string;
+  isBestSeller?: boolean;
 }
 
 export interface CartItem {
@@ -81,7 +83,7 @@ export interface StoreOrder {
   customerName: string;
   date: string;
   total: number;
-  status: "pending" | "processing" | "shipped" | "cancelled" | "completed";
+  status: "pending" | "processing" | "shipped" | "cancelled" | "completed" | "received" | "return_requested" | "return_approved" | "return_rejected";
   itemsCount: number;
   recipientPhone?: string;
   shippingAddress?: string;
@@ -89,8 +91,15 @@ export interface StoreOrder {
   paymentMethod?: string;
   paymentStatus?: string;
   paymentUrl?: string | null;
+  paymentProvider?: string;
+  payosCheckoutUrl?: string | null;
+  payosQrCode?: string | null;
   items?: string;
   backendStatus?: string;
+  returnRejectReason?: string;
+  returnRequestReason?: string;
+  returnRequestReasonCode?: string;
+  evidenceImages?: string[];
   itemsList?: Array<{
     productId: string;
     productName: string;

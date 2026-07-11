@@ -8,6 +8,7 @@ import { AIDiagnosisService } from "../../services/aiDiagnosisService";
 import { CardSkeleton } from "../common/Skeleton";
 import { logger } from "../../utils/logger";
 import toast from "react-hot-toast";
+import { getMediaUrl } from "../../utils/mediaUrl";
 
 
 interface AIDiagnosisViewProps {
@@ -244,7 +245,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
             {fileBase64 ? (
               <>
                 <img
-                  src={fileBase64}
+                  src={getMediaUrl(fileBase64)}
                   alt="Scanned specimen"
                   className="absolute inset-0 w-full h-full object-cover rounded-2xl opacity-75 group-hover:opacity-60 transition-opacity"
                   referrerPolicy="no-referrer"
@@ -294,7 +295,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
                   }`}
                 >
                   <img
-                    src={preset.imageUrl}
+                    src={getMediaUrl(preset.imageUrl)}
                     alt={preset.name}
                     className="w-10 h-10 object-cover rounded-md"
                     referrerPolicy="no-referrer"
@@ -419,7 +420,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
                         >
                           <div className="flex items-center gap-2.5">
                             <img
-                              src={p.image}
+                              src={getMediaUrl(p.image)}
                               alt={p.name}
                               className="w-12 h-12 object-cover rounded-xl"
                               referrerPolicy="no-referrer"
