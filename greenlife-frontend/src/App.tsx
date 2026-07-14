@@ -1,18 +1,19 @@
 import React, { useState, Suspense, lazy } from "react";
 import { Navigation, Footer } from "./components/common/Navigation";
 import { HomeView } from "./components/views/HomeView";
-import { ExpertDirectoryView } from "./components/views/ExpertDirectoryView";
 import { BlogView } from "./components/views/BlogView";
 import { AuthView } from "./components/views/AuthView";
 import { DashboardSkeleton } from "./components/common/Skeleton";
 
 // Lazy-loaded views
+const PlantCareServicesView = lazy(() => import("./components/views/PlantCareServicesView").then(m => ({ default: m.PlantCareServicesView })));
 const ShopView = lazy(() => import("./components/views/ShopView").then(m => ({ default: m.ShopView })));
 const ProductDetailView = lazy(() => import("./components/views/ProductDetailView").then(m => ({ default: m.ProductDetailView })));
 const AIDiagnosisView = lazy(() => import("./components/views/AIDiagnosisView").then(m => ({ default: m.AIDiagnosisView })));
 const CustomerDashboardView = lazy(() => import("./components/views/CustomerDashboardView").then(m => ({ default: m.CustomerDashboardView })));
 const AdminDashboardView = lazy(() => import("./components/views/AdminDashboardView").then(m => ({ default: m.AdminDashboardView })));
 const StoreProfileSetupView = lazy(() => import("./components/views/StoreProfileSetupView").then(m => ({ default: m.StoreProfileSetupView })));
+
 
 import { Product, DiagnosisLog } from "./types";
 import { useAppContext } from "./context/AppContext";
@@ -151,7 +152,7 @@ export default function App() {
                 );
               case "booking":
                 return (
-                  <ExpertDirectoryView />
+                  <PlantCareServicesView />
                 );
               case "blog":
                 return <BlogView initialSearch={shopSearch} />;

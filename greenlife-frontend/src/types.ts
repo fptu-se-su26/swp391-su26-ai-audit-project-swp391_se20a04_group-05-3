@@ -43,11 +43,45 @@ export interface Appointment {
   time: string;
   type: "online" | "offline";
   price: number;
-  status: "pending" | "confirmed" | "completed";
+  status: "pending" | "confirmed" | "in_progress" | "completed" | "cancelled";
   durationMinutes?: number;
   expertAvatar?: string;
   userNotes?: string;
+  customerId?: number | string;
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  issueDescription?: string;
+  storeId?: number;
+  serviceId?: number;
+  serviceAddress?: string;
+  customerNote?: string;
+  cancelReason?: string;
+  confirmedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+export interface PlantCareService {
+  id: number;
+  storeId: number;
+  storeName: string;
+  storeCity: string;
+  storeDistrict: string;
+  storeAddress: string;
+  storePhone: string;
+  name: string;
+  description: string;
+  price: number;
+  durationMinutes: number;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 
 export interface BlogPost {
   id: string;
