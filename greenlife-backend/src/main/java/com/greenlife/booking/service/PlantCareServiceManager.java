@@ -91,25 +91,68 @@ public class PlantCareServiceManager {
 
     @Transactional(readOnly = true)
     public Page<PlantCareServiceResponse> listActiveServices(Integer storeId, int page, int size) {
+        return listActiveServices(storeId, null, null, null, null, null, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PlantCareServiceResponse> listActiveServices(
+            Integer storeId, String city, String district, String keyword,
+            java.math.BigDecimal minPrice, java.math.BigDecimal maxPrice, int page, int size) {
         int cappedSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, cappedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return serviceRepository.findActiveServices(storeId, ServiceStatus.ACTIVE, pageable)
+
+        String trimmedCity = (city != null && !city.trim().isEmpty()) ? city.trim() : null;
+        String trimmedDistrict = (district != null && !district.trim().isEmpty()) ? district.trim() : null;
+        String trimmedKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+
+        return serviceRepository.findActiveServicesWithFilters(
+                storeId, ServiceStatus.ACTIVE, trimmedCity, trimmedDistrict, trimmedKeyword, minPrice, maxPrice, pageable)
                 .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
     public Page<PlantCareServiceResponse> listStoreServices(Integer currentUserId, Integer storeId, int page, int size) {
-        Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new CustomException("Cửa hàng không tồn tại", HttpStatus.NOT_FOUND));
-
-        if (!store.getOwner().getId().equals(currentUserId)) {
-            throw new CustomException("Bạn không có quyền xem danh sách dịch vụ của cửa hàng này", HttpStatus.FORBIDDEN);
-        }
-
         int cappedSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, cappedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return serviceRepository.findByStoreId(storeId, pageable)
-                .map(this::mapToResponse);
+
+        if (storeId != null) {
+            Store store = storeRepository.findById(storeId)
+                    .orElseThrow(() -> new CustomException("Cửa hàng không tồn tại", HttpStatus.NOT_FOUND));
+
+            if (!store.getOwner().getId().equals(currentUserId)) {
+                throw new CustomException("Bạn không có quyền xem danh sách dịch vụ của cửa hàng này", HttpStatus.FORBIDDEN);
+            }
+            return serviceRepository.findByStoreId(storeId, pageable)
+                    .map(this::mapToResponse);
+        } else {
+            java.util.List<Store> stores = storeRepository.findByOwnerId(currentUserId);
+            if (stores.isEmpty()) {
+                return new PageImpl<>(java.util.Collections.emptyList(), pageable, 0);
+            }
+            java.util.List<Integer> storeIds = stores.stream().map(Store::getId).collect(java.util.stream.Collectors.toList());
+            return serviceRepository.findByStoreIdIn(storeIds, pageable)
+                    .map(this::mapToResponse);
+        }
+    }
+
+    @Transactional
+    public PlantCareServiceResponse updateServiceStatus(Integer currentUserId, Integer serviceId, ServiceStatus status) {
+        PlantCareService service = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new CustomException("Dịch vụ không tồn tại", HttpStatus.NOT_FOUND));
+
+        if (!service.getStore().getOwner().getId().equals(currentUserId)) {
+            throw new CustomException("Bạn không có quyền chỉnh sửa dịch vụ của cửa hàng này", HttpStatus.FORBIDDEN);
+        }
+
+        if (status == ServiceStatus.ACTIVE && service.getStore().getStatus() != StoreStatus.APPROVED) {
+            throw new CustomException("Cửa hàng chưa được phê duyệt, không thể kích hoạt dịch vụ", HttpStatus.BAD_REQUEST);
+        }
+
+        service.setStatus(status);
+        service.setUpdatedAt(LocalDateTime.now());
+
+        PlantCareService saved = serviceRepository.save(service);
+        return mapToResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -120,10 +163,18 @@ public class PlantCareServiceManager {
     }
 
     private PlantCareServiceResponse mapToResponse(PlantCareService service) {
+        String storePhone = null;
+        if (service.getStore().getStatus() == StoreStatus.APPROVED && service.getStatus() == ServiceStatus.ACTIVE) {
+            storePhone = service.getStore().getPhone();
+        }
         return PlantCareServiceResponse.builder()
                 .id(service.getId())
                 .storeId(service.getStore().getId())
                 .storeName(service.getStore().getName())
+                .storeCity(service.getStore().getCity())
+                .storeDistrict(service.getStore().getDistrict())
+                .storeAddress(service.getStore().getAddress())
+                .storePhone(storePhone)
                 .name(service.getName())
                 .description(service.getDescription())
                 .price(service.getPrice())

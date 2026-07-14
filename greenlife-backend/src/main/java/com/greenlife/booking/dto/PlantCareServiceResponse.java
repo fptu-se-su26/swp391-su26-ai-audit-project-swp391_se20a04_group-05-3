@@ -13,6 +13,10 @@ public class PlantCareServiceResponse {
     private Integer id;
     private Integer storeId;
     private String storeName;
+    private String storeCity;
+    private String storeDistrict;
+    private String storeAddress;
+    private String storePhone;
     private String name;
     private String description;
     private BigDecimal price;

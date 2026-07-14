@@ -17,6 +17,7 @@ public class PlantCareServiceRequest {
     @Size(max = 150, message = "Tên dịch vụ không được vượt quá 150 ký tự")
     private String name;
 
+    @Size(max = 1000, message = "Mô tả không được vượt quá 1000 ký tự")
     private String description;
 
     @NotNull(message = "Giá dịch vụ không được để trống")

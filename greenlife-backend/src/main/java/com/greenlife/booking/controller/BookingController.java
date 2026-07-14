@@ -50,7 +50,7 @@ public class BookingController {
     @GetMapping("/store")
     @PreAuthorize("hasRole('STORE_OWNER')")
     public ResponseEntity<Page<BookingResponse>> getStoreBookings(
-            @RequestParam Integer storeId,
+            @RequestParam(required = false) Integer storeId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal UserDetails userDetails

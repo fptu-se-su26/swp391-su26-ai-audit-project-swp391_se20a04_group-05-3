@@ -84,6 +84,30 @@ public class BookingService {
             throw new CustomException("Dịch vụ này đã có lịch hẹn được đặt vào thời gian đã chọn", HttpStatus.BAD_REQUEST);
         }
 
+        String resolvedAddress = request.getCustomerAddress() != null && !request.getCustomerAddress().trim().isEmpty()
+                ? request.getCustomerAddress().trim()
+                : (request.getServiceAddress() != null ? request.getServiceAddress().trim() : "");
+
+        if (resolvedAddress.isEmpty()) {
+            throw new CustomException("Địa chỉ thực hiện dịch vụ không được để trống", HttpStatus.BAD_REQUEST);
+        }
+
+        String resolvedPhone = null;
+        if (request.getCustomerPhone() != null && !request.getCustomerPhone().trim().isEmpty()) {
+            String trimmedPhone = request.getCustomerPhone().trim();
+            if (trimmedPhone.length() > 20) {
+                throw new CustomException("Số điện thoại không được vượt quá 20 ký tự", HttpStatus.BAD_REQUEST);
+            }
+            if (!trimmedPhone.matches("^[0-9+\\s\\-]+$")) {
+                throw new CustomException("Số điện thoại chứa ký tự không hợp lệ", HttpStatus.BAD_REQUEST);
+            }
+            resolvedPhone = trimmedPhone;
+        }
+
+        String resolvedNote = request.getIssueDescription() != null && !request.getIssueDescription().trim().isEmpty()
+                ? request.getIssueDescription().trim()
+                : (request.getCustomerNote() != null ? request.getCustomerNote().trim() : null);
+
         Booking booking = Booking.builder()
                 .customer(customer)
                 .store(store)
@@ -92,8 +116,9 @@ public class BookingService {
                 .servicePriceSnapshot(service.getPrice())
                 .storeNameSnapshot(store.getName())
                 .scheduledAt(request.getScheduledAt())
-                .serviceAddress(request.getServiceAddress())
-                .customerNote(request.getCustomerNote())
+                .serviceAddress(resolvedAddress)
+                .customerPhone(resolvedPhone)
+                .customerNote(resolvedNote)
                 .status(BookingStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .version(0L)
@@ -219,7 +244,14 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-        booking.setCancelReason(request.getCancelReason());
+        String trimmedReason = request.getCancelReason() != null ? request.getCancelReason().trim() : "";
+        if (trimmedReason.isEmpty()) {
+            throw new CustomException("Lý do hủy không được để trống", HttpStatus.BAD_REQUEST);
+        }
+        if (trimmedReason.length() > 500) {
+            throw new CustomException("Lý do hủy không được vượt quá 500 ký tự", HttpStatus.BAD_REQUEST);
+        }
+        booking.setCancelReason(trimmedReason);
         booking.setCancelledAt(LocalDateTime.now());
         booking.setUpdatedAt(LocalDateTime.now());
 
@@ -231,7 +263,7 @@ public class BookingService {
                 .user(notifyUser)
                 .type(NotificationType.BOOKING_CANCELLED)
                 .title("Lịch hẹn đã bị hủy")
-                .message("Lịch hẹn cho dịch vụ " + booking.getServiceNameSnapshot() + " đã bị hủy. Lý do: " + request.getCancelReason())
+                .message("Lịch hẹn cho dịch vụ " + booking.getServiceNameSnapshot() + " đã bị hủy. Lý do: " + trimmedReason)
                 .referenceType(NotificationReferenceType.BOOKING)
                 .referenceId(saved.getId())
                 .isRead(false)
@@ -252,17 +284,27 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public Page<BookingResponse> listStoreBookings(Integer currentUserId, Integer storeId, int page, int size) {
-        Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new CustomException("Cửa hàng không tồn tại", HttpStatus.NOT_FOUND));
-
-        if (!store.getOwner().getId().equals(currentUserId)) {
-            throw new CustomException("Bạn không có quyền truy cập lịch hẹn của cửa hàng này", HttpStatus.FORBIDDEN);
-        }
-
         int cappedSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, cappedSize, Sort.by(Sort.Direction.ASC, "scheduledAt"));
-        return bookingRepository.findByStoreId(storeId, pageable)
-                .map(this::mapToResponse);
+
+        if (storeId != null) {
+            Store store = storeRepository.findById(storeId)
+                    .orElseThrow(() -> new CustomException("Cửa hàng không tồn tại", HttpStatus.NOT_FOUND));
+
+            if (!store.getOwner().getId().equals(currentUserId)) {
+                throw new CustomException("Bạn không có quyền truy cập lịch hẹn của cửa hàng này", HttpStatus.FORBIDDEN);
+            }
+            return bookingRepository.findByStoreId(storeId, pageable)
+                    .map(this::mapToResponse);
+        } else {
+            java.util.List<Store> stores = storeRepository.findByOwnerId(currentUserId);
+            if (stores.isEmpty()) {
+                return new PageImpl<>(java.util.Collections.emptyList(), pageable, 0);
+            }
+            java.util.List<Integer> storeIds = stores.stream().map(Store::getId).collect(java.util.stream.Collectors.toList());
+            return bookingRepository.findByStoreIdIn(storeIds, pageable)
+                    .map(this::mapToResponse);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -289,6 +331,9 @@ public class BookingService {
                 .id(booking.getId())
                 .customerId(booking.getCustomer().getId())
                 .customerName(booking.getCustomer().getFullName())
+                .customerPhone(booking.getCustomerPhone())
+                .customerAddress(booking.getServiceAddress())
+                .issueDescription(booking.getCustomerNote())
                 .storeId(booking.getStore().getId())
                 .storeNameSnapshot(booking.getStoreNameSnapshot())
                 .serviceId(booking.getService().getId())

@@ -16,10 +16,18 @@ public class BookingRequest {
     @NotNull(message = "Thời gian hẹn không được để trống")
     private LocalDateTime scheduledAt;
 
-    @NotBlank(message = "Địa chỉ thực hiện dịch vụ không được để trống")
     @Size(max = 255, message = "Địa chỉ không được vượt quá 255 ký tự")
     private String serviceAddress;
 
+    @Size(max = 255, message = "Địa chỉ không được vượt quá 255 ký tự")
+    private String customerAddress;
+
+    @Size(max = 20, message = "Số điện thoại không được vượt quá 20 ký tự")
+    private String customerPhone;
+
     @Size(max = 500, message = "Ghi chú không được vượt quá 500 ký tự")
     private String customerNote;
+
+    @Size(max = 500, message = "Mô tả không được vượt quá 500 ký tự")
+    private String issueDescription;
 }

@@ -2,6 +2,7 @@ package com.greenlife.booking.controller;
 
 import com.greenlife.booking.dto.PlantCareServiceRequest;
 import com.greenlife.booking.dto.PlantCareServiceResponse;
+import com.greenlife.booking.dto.ServiceStatusUpdateRequest;
 import com.greenlife.user.entity.User;
 import com.greenlife.security.CurrentUserResolver;
 import com.greenlife.booking.service.PlantCareServiceManager;
@@ -16,34 +17,26 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/services")
+@RequestMapping("/api/store-owner/services")
 @RequiredArgsConstructor
-public class PlantCareServiceController {
+@PreAuthorize("hasRole('STORE_OWNER')")
+public class StoreOwnerPlantCareServiceController {
 
     private final PlantCareServiceManager serviceManager;
     private final CurrentUserResolver currentUserResolver;
 
     @GetMapping
-    public ResponseEntity<Page<PlantCareServiceResponse>> getServices(
+    public ResponseEntity<Page<PlantCareServiceResponse>> getMyStoreServices(
             @RequestParam(required = false) Integer storeId,
-            @RequestParam(required = false) String city,
-            @RequestParam(required = false) String district,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) java.math.BigDecimal minPrice,
-            @RequestParam(required = false) java.math.BigDecimal maxPrice,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal UserDetails userDetails
     ) {
-        return ResponseEntity.ok(serviceManager.listActiveServices(storeId, city, district, keyword, minPrice, maxPrice, page, size));
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<PlantCareServiceResponse> getServiceDetail(@PathVariable Integer id) {
-        return ResponseEntity.ok(serviceManager.getServiceDetail(id));
+        User user = currentUserResolver.resolveUser(userDetails);
+        return ResponseEntity.ok(serviceManager.listStoreServices(user.getId(), storeId, page, size));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('STORE_OWNER')")
     public ResponseEntity<PlantCareServiceResponse> createService(
             @Valid @RequestBody PlantCareServiceRequest request,
             @AuthenticationPrincipal UserDetails userDetails
@@ -54,7 +47,6 @@ public class PlantCareServiceController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('STORE_OWNER')")
     public ResponseEntity<PlantCareServiceResponse> updateService(
             @PathVariable Integer id,
             @Valid @RequestBody PlantCareServiceRequest request,
@@ -64,21 +56,13 @@ public class PlantCareServiceController {
         return ResponseEntity.ok(serviceManager.updateService(user.getId(), id, request));
     }
 
-    @PutMapping("/{id}/deactivate")
-    @PreAuthorize("hasRole('STORE_OWNER')")
-    public ResponseEntity<PlantCareServiceResponse> deactivateService(
+    @PutMapping("/{id}/status")
+    public ResponseEntity<PlantCareServiceResponse> updateServiceStatus(
             @PathVariable Integer id,
+            @Valid @RequestBody ServiceStatusUpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         User user = currentUserResolver.resolveUser(userDetails);
-        return ResponseEntity.ok(serviceManager.deactivateService(user.getId(), id));
+        return ResponseEntity.ok(serviceManager.updateServiceStatus(user.getId(), id, request.getStatus()));
     }
-
-
-
-
-
-
-
-
 }

@@ -13,6 +13,9 @@ public class BookingResponse {
     private Integer id;
     private Integer customerId;
     private String customerName;
+    private String customerPhone;
+    private String customerAddress;
+    private String issueDescription;
     private Integer storeId;
     private String storeNameSnapshot;
     private Integer serviceId;
