@@ -5,6 +5,7 @@ import { Appointment, DiagnosisLog } from "../../types";
 import { useAppContext } from "../../context/AppContext";
 import { FeedbackService } from "../../services/feedbackService";
 import { OrderService } from "../../services/orderService";
+import { BookingService } from "../../services/bookingService";
 import { DashboardSkeleton, ListSkeleton } from "../common/Skeleton";
 import { EmptyState } from "../common/EmptyState";
 import { ConfirmModal } from "../common/ConfirmModal";
@@ -44,6 +45,67 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
   const [confirmCancelOrderIsPaid, setConfirmCancelOrderIsPaid] = useState(false);
   const [confirmReceivedOpen, setConfirmReceivedOpen] = useState(false);
   const [confirmReceivedOrderId, setConfirmReceivedOrderId] = useState<string | null>(null);
+
+  // Phase 5C - Customer Bookings
+  const [bookings, setBookings] = useState<Appointment[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(true);
+  const [bookingRefreshTrigger, setBookingRefreshTrigger] = useState(0);
+
+  const [selectedBookingForCancel, setSelectedBookingForCancel] = useState<Appointment | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancellingBooking, setCancellingBooking] = useState(false);
+  const [cancelBookingError, setCancelBookingError] = useState<string | null>(null);
+
+  const handleCancelBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBookingForCancel) return;
+    const trimmedReason = cancelReason.trim();
+    if (!trimmedReason) {
+      setCancelBookingError("Lý do hủy không được để trống.");
+      return;
+    }
+    if (trimmedReason.length > 500) {
+      setCancelBookingError("Lý do hủy không được vượt quá 500 ký tự.");
+      return;
+    }
+
+    setCancellingBooking(true);
+    setCancelBookingError(null);
+    try {
+      await BookingService.cancelBooking(selectedBookingForCancel.id, trimmedReason);
+      toast.success("Hủy lịch hẹn thành công!");
+      setSelectedBookingForCancel(null);
+      setCancelReason("");
+      setBookingRefreshTrigger(prev => prev + 1);
+    } catch (err: any) {
+      const errMsg = err.message || "Đã xảy ra lỗi khi hủy lịch hẹn.";
+      setCancelBookingError(errMsg);
+      toast.error(errMsg);
+    } finally {
+      setCancellingBooking(false);
+    }
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const fetchBookings = async () => {
+      setLoadingBookings(true);
+      try {
+        const data = await BookingService.getCustomerBookings(0, 50, controller.signal);
+        setBookings(data.content);
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          logger.error("Error fetching bookings:", err);
+        }
+      } finally {
+        setLoadingBookings(false);
+      }
+    };
+    fetchBookings();
+    return () => {
+      controller.abort();
+    };
+  }, [currentUser?.id, bookingRefreshTrigger]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -703,28 +765,95 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
               Lịch Đặt Dịch Vụ Của Tôi
             </h3>
 
-            {appointments.length === 0 ? (
+            {loadingBookings ? (
+              <div className="space-y-2">
+                <div className="h-10 bg-stone-100 dark:bg-stone-900 animate-pulse rounded-xl"></div>
+                <div className="h-10 bg-stone-100 dark:bg-stone-900 animate-pulse rounded-xl"></div>
+              </div>
+            ) : bookings.length === 0 ? (
               <EmptyState
                 icon={Calendar}
                 title="Không có lịch hẹn"
-                description="Chưa có cuộc hẹn khảo sát ban công nào được đăng ký."
+                description="Chưa có cuộc hẹn chăm sóc cây nào được đăng ký."
                 action={{
-                  label: "Tìm đặt cuộc hẹn cùng kỹ sư",
+                  label: "Tìm đặt cuộc hẹn chăm sóc cây",
                   onClick: () => setCurrentPage("booking")
                 }}
               />
             ) : (
-              <div className="space-y-3">
-                {appointments.slice(0, 3).map((apt) => (
-                  <div key={apt.id} className="p-4 bg-stone-100 dark:bg-stone-900/50 rounded-2xl border border-stone-200 dark:border-stone-850 flex justify-between items-center text-xs">
-                    <div>
-                      <h4 className="font-semibold text-stone-800 dark:text-stone-200">{apt.expertName}</h4>
-                      <p className="text-[10px] text-stone-500 mt-1 font-mono">🗓️ {apt.date} lúc {apt.time}</p>
-                      <p className="text-[9px] text-stone-400 mt-0.5">Hình thức: {apt.type === "offline" ? "Tại vườn" : "Zoom Call"}</p>
+              <div className="space-y-4">
+                {bookings.map((apt) => (
+                  <div key={apt.id} className="p-4 bg-stone-100 dark:bg-stone-900/50 rounded-2xl border border-stone-200 dark:border-stone-850 flex flex-col gap-3 text-xs">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="px-2 py-0.5 rounded text-[8px] bg-emerald-955 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/20 font-mono font-bold uppercase tracking-wide">
+                          {apt.expertName}
+                        </span>
+                        <h4 className="font-semibold text-stone-850 dark:text-stone-200 text-sm mt-1">{apt.title}</h4>
+                        <p className="text-[10px] text-stone-500 mt-1 font-mono">🗓️ {apt.date} lúc {apt.time}</p>
+                      </div>
+                      
+                      {/* Status Badges */}
+                      {(() => {
+                        switch (apt.status) {
+                          case "pending":
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900/20">
+                                Chờ xác nhận
+                              </span>
+                            );
+                          case "confirmed":
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-900/20">
+                                Đã xác nhận
+                              </span>
+                            );
+                          case "in_progress":
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
+                                Đang tiến hành
+                              </span>
+                            );
+                          case "completed":
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono bg-stone-205 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-300 dark:border-stone-700">
+                                Đã hoàn thành
+                              </span>
+                            );
+                          case "cancelled":
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-400 border border-rose-200 dark:border-rose-900/20">
+                                Đã hủy
+                              </span>
+                            );
+                          default:
+                            return null;
+                        }
+                      })()}
                     </div>
-                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
-                      Xác nhận
-                    </span>
+
+                    <div className="space-y-1 text-[11px] text-stone-500 dark:text-stone-400 border-t border-stone-200 dark:border-stone-850 pt-2 font-sans">
+                      <p><span className="font-semibold text-stone-700 dark:text-stone-300">Địa chỉ:</span> {apt.serviceAddress}</p>
+                      {apt.customerNote && <p><span className="font-semibold text-stone-700 dark:text-stone-300">Mô tả cây:</span> {apt.customerNote}</p>}
+                      {apt.userNotes && <p><span className="font-semibold text-stone-700 dark:text-stone-300">Ghi chú:</span> {apt.userNotes}</p>}
+                      {apt.status === "cancelled" && apt.cancelReason && (
+                        <p className="text-rose-600 dark:text-rose-400 font-mono mt-1 bg-rose-500/5 dark:bg-rose-950/20 p-2 rounded-lg border border-rose-500/10 dark:border-rose-900/20">
+                          <span className="font-semibold">Lý do hủy:</span> {apt.cancelReason}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Cancel action */}
+                    {(apt.status === "pending" || apt.status === "confirmed") && (
+                      <div className="flex justify-end pt-1">
+                        <button
+                          onClick={() => setSelectedBookingForCancel(apt)}
+                          className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[10px] font-semibold rounded-xl transition-all cursor-pointer"
+                        >
+                          Hủy lịch hẹn
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -963,6 +1092,85 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
           setConfirmReceivedOrderId(null);
         }}
       />
+
+      {/* Cancel Booking Modal */}
+      {selectedBookingForCancel && (
+        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-md bg-stone-900 border border-stone-850 rounded-3xl overflow-hidden shadow-2xl animate-scaleUp">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-stone-850 px-6 py-5 bg-stone-950/40">
+              <h2 className="text-sm font-bold text-stone-100 flex items-center gap-2">
+                <AlertCircle className="h-4.5 w-4.5 text-rose-500" />
+                Hủy Lịch Hẹn Chăm Sóc Cây
+              </h2>
+              <button
+                onClick={() => {
+                  setSelectedBookingForCancel(null);
+                  setCancelReason("");
+                  setCancelBookingError(null);
+                }}
+                className="rounded-lg p-2 bg-stone-950 hover:bg-stone-850 border border-stone-800 text-stone-400 hover:text-white transition-all cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleCancelBookingSubmit} className="p-6 space-y-4">
+              {cancelBookingError && (
+                <div className="p-3 bg-rose-950/40 text-rose-400 border border-rose-900/30 rounded-xl text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{cancelBookingError}</span>
+                </div>
+              )}
+
+              <p className="text-xs text-stone-300 leading-relaxed">
+                Bạn có chắc chắn muốn hủy lịch hẹn **{selectedBookingForCancel.title}** lúc **{selectedBookingForCancel.time}** ngày **{selectedBookingForCancel.date}** không?
+              </p>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-stone-400 uppercase font-mono tracking-wider block">
+                  Lý do hủy lịch hẹn *
+                </label>
+                <textarea
+                  placeholder="Vui lòng nhập lý do hủy lịch hẹn (bắt buộc, tối đa 500 ký tự)..."
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  maxLength={500}
+                  className="w-full text-xs p-3 bg-stone-950 border border-stone-850 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent text-stone-200 h-24 resize-none"
+                  required
+                />
+                <div className="flex justify-end text-[9px] text-stone-500 font-mono">
+                  {cancelReason.length} / 500 ký tự
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex gap-2 justify-end pt-4 border-t border-stone-850">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBookingForCancel(null);
+                    setCancelReason("");
+                    setCancelBookingError(null);
+                  }}
+                  className="px-4 py-2.5 bg-stone-850 hover:bg-stone-800 border border-stone-800 text-stone-300 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                >
+                  Trở lại
+                </button>
+                <button
+                  type="submit"
+                  disabled={cancellingBooking || !cancelReason.trim()}
+                  className="px-5 py-2.5 bg-rose-500 hover:bg-rose-455 text-white text-xs font-bold rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {cancellingBooking ? "Đang hủy..." : "Xác nhận hủy"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

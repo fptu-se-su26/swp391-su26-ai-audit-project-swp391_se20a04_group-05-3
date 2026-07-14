@@ -98,8 +98,8 @@ interface AppContextType {
   setAdminActiveTab: (tab: "overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews") => void;
 
   // Store Navigation settings
-  storeActiveTab: "overview" | "orders" | "products" | "settings" | "blogs" | "reviews";
-  setStoreActiveTab: (tab: "overview" | "orders" | "products" | "settings" | "blogs" | "reviews") => void;
+  storeActiveTab: "overview" | "orders" | "products" | "settings" | "blogs" | "reviews" | "services";
+  setStoreActiveTab: (tab: "overview" | "orders" | "products" | "settings" | "blogs" | "reviews" | "services") => void;
   loadProducts: (search?: string, category?: string, signal?: AbortSignal) => Promise<void>;
 
   // Review CRUD actions
@@ -134,7 +134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentPage, setCurrentPageState] = useState<string>("home");
   const [selectedProduct, setSelectedProductState] = useState<Product | null>(null);
   const [adminActiveTab, setAdminActiveTab] = useState<"overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews">("overview");
-  const [storeActiveTab, setStoreActiveTab] = useState<"overview" | "orders" | "products" | "settings" | "blogs" | "reviews">("overview");
+  const [storeActiveTab, setStoreActiveTab] = useState<"overview" | "orders" | "products" | "settings" | "blogs" | "reviews" | "services">("overview");
   const [loading, setLoading] = useState<Record<string, boolean>>({
     auth: false,
     products: false,

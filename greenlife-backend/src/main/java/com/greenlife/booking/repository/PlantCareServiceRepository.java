@@ -13,5 +13,25 @@ public interface PlantCareServiceRepository extends JpaRepository<PlantCareServi
     @Query("SELECT s FROM PlantCareService s WHERE s.status = :status AND s.store.status = com.greenlife.store.entity.enums.StoreStatus.APPROVED AND (:storeId IS NULL OR s.store.id = :storeId)")
     Page<PlantCareService> findActiveServices(@Param("storeId") Integer storeId, @Param("status") ServiceStatus status, Pageable pageable);
 
+    @Query("SELECT s FROM PlantCareService s WHERE s.status = :status " +
+           "AND s.store.status = com.greenlife.store.entity.enums.StoreStatus.APPROVED " +
+           "AND (:storeId IS NULL OR s.store.id = :storeId) " +
+           "AND (:city IS NULL OR LOWER(s.store.city) = LOWER(:city)) " +
+           "AND (:district IS NULL OR LOWER(s.store.district) = LOWER(:district)) " +
+           "AND (:keyword IS NULL OR LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (:minPrice IS NULL OR s.price >= :minPrice) " +
+           "AND (:maxPrice IS NULL OR s.price <= :maxPrice)")
+    Page<PlantCareService> findActiveServicesWithFilters(
+            @Param("storeId") Integer storeId,
+            @Param("status") ServiceStatus status,
+            @Param("city") String city,
+            @Param("district") String district,
+            @Param("keyword") String keyword,
+            @Param("minPrice") java.math.BigDecimal minPrice,
+            @Param("maxPrice") java.math.BigDecimal maxPrice,
+            Pageable pageable);
+
     Page<PlantCareService> findByStoreId(Integer storeId, Pageable pageable);
+
+    Page<PlantCareService> findByStoreIdIn(java.util.Collection<Integer> storeIds, Pageable pageable);
 }

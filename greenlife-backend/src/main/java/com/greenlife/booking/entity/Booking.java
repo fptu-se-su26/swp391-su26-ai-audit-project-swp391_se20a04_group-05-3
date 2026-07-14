@@ -48,6 +48,9 @@ public class Booking {
     @Column(name = "service_address", nullable = false, length = 255)
     private String serviceAddress;
 
+    @Column(name = "customer_phone", length = 20)
+    private String customerPhone;
+
     @Column(name = "customer_note", length = 500)
     private String customerNote;
 

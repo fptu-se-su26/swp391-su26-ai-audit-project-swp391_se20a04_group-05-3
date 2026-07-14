@@ -41,13 +41,14 @@ import { CategoryService } from "../../services/categoryService";
 import { PlantService } from "../../services/plantService";
 import { ConfirmModal } from "../common/ConfirmModal";
 import { ReviewService, ReviewResponse, RatingSummaryResponse } from "../../services/reviewService";
-import { Star, MessageSquare } from "lucide-react";
+import { Star, MessageSquare, Calendar } from "lucide-react";
 import { AuthService } from "../../services/authService";
 import { HttpClient } from "../../services/httpClient";
 import toast from "react-hot-toast";
 import { DashboardSkeleton, ListSkeleton } from "../common/Skeleton";
 import { EmptyState } from "../common/EmptyState";
 import { getMediaUrl } from "../../utils/mediaUrl";
+import { StoreServicesManagement } from "./StoreServicesManagement";
 
 const getAuthToken = (): string | null => {
   return AuthService.getAccessToken();
@@ -697,7 +698,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
         </div>
       </div>
       {/* Quick Actions Area */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-3xl bg-linear-to-br from-emerald-500/5 via-stone-950/20 to-transparent border border-stone-200/50 dark:border-stone-850/40 shadow-xs backdrop-blur-md">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 p-4 rounded-3xl bg-linear-to-br from-emerald-500/5 via-stone-950/20 to-transparent border border-stone-200/50 dark:border-stone-850/40 shadow-xs backdrop-blur-md">
         <button
           onClick={() => setActiveTab("orders")}
           className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
@@ -720,6 +721,18 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
           <div>
             <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Kho Sản Phẩm</span>
             <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Danh mục và tồn kho</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("services")}
+          className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+        >
+          <div className="p-2 rounded-xl bg-teal-500/10 text-teal-500">
+            <Calendar className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Dịch Vụ & Lịch Hẹn</span>
+            <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Quản lý đặt lịch hẹn</span>
           </div>
         </button>
         <button
@@ -1591,6 +1604,11 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
         <StoreReviewsSection myStore={myStore} />
       )}
 
+      {/* 7. SERVICES TAB */}
+      {activeTab === "services" && (
+        <StoreServicesManagement storeId={myStore?.id ? Number(myStore.id) : undefined} />
+      )}
+
       {/* 4. DETAILED ORDER OVERLAY DRAWER */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-fadeIn">
@@ -1839,6 +1857,112 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modals for Native Dialog Replacements */}
+      <ConfirmModal
+        isOpen={approveReturnOpen}
+        title="Xác nhận chấp nhận yêu cầu hoàn hàng"
+        message="Sau khi chấp nhận, hệ thống sẽ ghi nhận yêu cầu này để tiếp tục xử lý theo chính sách. Dòng tiền sẽ được xử lý ở bước đối soát sau."
+        confirmLabel="Xác nhận"
+        cancelLabel="Hủy"
+        onConfirm={handleApproveReturnConfirmed}
+        onCancel={() => {
+          setApproveReturnOpen(false);
+          setApproveReturnOrderId(null);
+        }}
+      />
+
+      {rejectReturnOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative text-left">
+            <button
+              onClick={() => {
+                setRejectReturnOpen(false);
+                setRejectReturnOrderId(null);
+                setRejectReasonText("");
+                setRejectReasonError("");
+              }}
+              className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-750 dark:hover:text-stone-250 transition-all cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-500">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-bold text-stone-900 dark:text-stone-100 font-display">
+                Từ chối yêu cầu hoàn hàng
+              </h3>
+            </div>
+
+            <div className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed font-sans space-y-3">
+              <p>Vui lòng nhập lý do từ chối để khách hàng có thể theo dõi phản hồi từ cửa hàng.</p>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-stone-500 dark:text-stone-450 block uppercase tracking-wider">Lý do từ chối *</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={rejectReasonText}
+                  onChange={(e) => {
+                    setRejectReasonText(e.target.value);
+                    if (e.target.value.trim()) {
+                      setRejectReasonError("");
+                    }
+                  }}
+                  placeholder="Nhập lý do từ chối..."
+                  className="w-full p-3 bg-stone-50 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl text-stone-950 dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-xs"
+                />
+                {rejectReasonError && (
+                  <span className="text-rose-500 text-[10px] block font-semibold">{rejectReasonError}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectReturnOpen(false);
+                  setRejectReturnOrderId(null);
+                  setRejectReasonText("");
+                  setRejectReasonError("");
+                }}
+                className="flex-1 py-2.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-750 text-stone-700 dark:text-stone-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleRejectReturnConfirmed}
+                className="flex-1 py-2.5 text-white bg-rose-600 hover:bg-rose-700 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm"
+              >
+                Xác nhận từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal
+        isOpen={deleteProductOpen}
+        title="Xác nhận xóa sản phẩm"
+        message={
+          <div className="space-y-1">
+            <p>Bạn có chắc muốn xóa sản phẩm này không?</p>
+            <p className="font-semibold text-rose-500">"{deleteProductName}"</p>
+          </div>
+        }
+        confirmLabel="Xóa sản phẩm"
+        cancelLabel="Hủy"
+        onConfirm={handleDeleteProductConfirmed}
+        onCancel={() => {
+          setDeleteProductOpen(false);
+          setDeleteProductId(null);
+          setDeleteProductName("");
+        }}
+        isDanger={true}
+      />
     </div>
   );
 };
@@ -2535,113 +2659,8 @@ const StoreReviewsSection: React.FC<StoreReviewsSectionProps> = ({ myStore }) =>
             ))}
           </div>
         )}
-      {/* Modals for Native Dialog Replacements */}
-      <ConfirmModal
-        isOpen={approveReturnOpen}
-        title="Xác nhận chấp nhận yêu cầu hoàn hàng"
-        message="Sau khi chấp nhận, hệ thống sẽ ghi nhận yêu cầu này để tiếp tục xử lý theo chính sách. Dòng tiền sẽ được xử lý ở bước đối soát sau."
-        confirmLabel="Xác nhận"
-        cancelLabel="Hủy"
-        onConfirm={handleApproveReturnConfirmed}
-        onCancel={() => {
-          setApproveReturnOpen(false);
-          setApproveReturnOrderId(null);
-        }}
-      />
-
-      {rejectReturnOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative text-left">
-            <button
-              onClick={() => {
-                setRejectReturnOpen(false);
-                setRejectReturnOrderId(null);
-                setRejectReasonText("");
-                setRejectReasonError("");
-              }}
-              className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-750 dark:hover:text-stone-250 transition-all cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-500">
-                <AlertCircle className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-bold text-stone-900 dark:text-stone-100 font-display">
-                Từ chối yêu cầu hoàn hàng
-              </h3>
-            </div>
-
-            <div className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed font-sans space-y-3">
-              <p>Vui lòng nhập lý do từ chối để khách hàng có thể theo dõi phản hồi từ cửa hàng.</p>
-              <div className="space-y-1">
-                <label className="text-[10px] font-semibold text-stone-500 dark:text-stone-450 block uppercase tracking-wider">Lý do từ chối *</label>
-                <textarea
-                  required
-                  rows={4}
-                  value={rejectReasonText}
-                  onChange={(e) => {
-                    setRejectReasonText(e.target.value);
-                    if (e.target.value.trim()) {
-                      setRejectReasonError("");
-                    }
-                  }}
-                  placeholder="Nhập lý do từ chối..."
-                  className="w-full p-3 bg-stone-50 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl text-stone-950 dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-xs"
-                />
-                {rejectReasonError && (
-                  <span className="text-rose-500 text-[10px] block font-semibold">{rejectReasonError}</span>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setRejectReturnOpen(false);
-                  setRejectReturnOrderId(null);
-                  setRejectReasonText("");
-                  setRejectReasonError("");
-                }}
-                className="flex-1 py-2.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-750 text-stone-700 dark:text-stone-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleRejectReturnConfirmed}
-                className="flex-1 py-2.5 text-white bg-rose-600 hover:bg-rose-700 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm"
-              >
-                Xác nhận từ chối
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ConfirmModal
-        isOpen={deleteProductOpen}
-        title="Xác nhận xóa sản phẩm"
-        message={
-          <div className="space-y-1">
-            <p>Bạn có chắc muốn xóa sản phẩm này không?</p>
-            <p className="font-semibold text-rose-500">"{deleteProductName}"</p>
-          </div>
-        }
-        confirmLabel="Xóa sản phẩm"
-        cancelLabel="Hủy"
-        onConfirm={handleDeleteProductConfirmed}
-        onCancel={() => {
-          setDeleteProductOpen(false);
-          setDeleteProductId(null);
-          setDeleteProductName("");
-        }}
-        isDanger={true}
-      />
+      </div>
     </div>
-  </div>
-);
+  );
 };
 

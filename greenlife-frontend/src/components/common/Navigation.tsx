@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Leaf, ShoppingBag, BrainCircuit, Newspaper, User, Settings2, Home, UserCheck, Sun, Moon, MapPin, Menu, X, LogOut, Cpu, Store, Users, Sprout, TrendingUp, Inbox, FileText, Bell, Trash2, MessageSquare, ShieldAlert } from "lucide-react";
+import { Leaf, ShoppingBag, BrainCircuit, Newspaper, User, Settings2, Home, UserCheck, Sun, Moon, MapPin, Menu, X, LogOut, Cpu, Store, Users, Sprout, TrendingUp, Inbox, FileText, Bell, Trash2, MessageSquare, ShieldAlert, Calendar } from "lucide-react";
 
 import { useAppContext } from "../../context/AppContext";
 import { NotificationSkeleton } from "./Skeleton";
@@ -110,6 +110,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           { id: "overview", label: "Tổng Quan Kinh Doanh", icon: TrendingUp },
           { id: "orders", label: "Quản Lý Đơn Hàng", icon: Inbox },
           { id: "products", label: "Niêm Yết Sản Phẩm", icon: Sprout },
+          { id: "services", label: "Dịch vụ & Lịch hẹn", icon: Calendar },
           { id: "blogs", label: "Quản Lý Bài Viết", icon: FileText },
           { id: "reviews", label: "Đánh Giá Khách Hàng", icon: MessageSquare },
           { id: "settings", label: "Cấu hình Nhà Vườn", icon: Settings2 },
@@ -119,7 +120,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           { id: "home", label: "Trang Chủ", icon: Home },
           { id: "shop", label: "Cửa Hàng", icon: ShoppingBag },
           { id: "ai-diagnosis", label: "Bác Sĩ Cây AI", icon: BrainCircuit },
-          { id: "booking", label: "Danh Bạ Chuyên Gia", icon: Users },
+          { id: "booking", label: "Dịch vụ chăm sóc", icon: Users },
           { id: "blog", label: "Cẩm Nang Xanh", icon: Newspaper },
         ];
 
@@ -162,6 +163,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         "overview",
         "orders",
         "products",
+        "services",
         "settings",
         "blogs",
         "reviews"
@@ -685,7 +687,7 @@ export const Footer: React.FC<{ setCurrentPage: (p: string) => void }> = ({ setC
             </li>
             <li>
               <button onClick={() => setCurrentPage("booking")} className="hover:text-emerald-400 transition-colors">
-                Danh bạ chuyên gia nông nghiệp
+                Dịch vụ chăm sóc cây
               </button>
             </li>
             <li>

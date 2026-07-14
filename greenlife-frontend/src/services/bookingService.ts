@@ -34,9 +34,18 @@ export class BookingService {
       expertAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
       userNotes: backend.customerNote || "",
       customerName: backend.customerName,
+      customerPhone: backend.customerPhone || "",
+      customerAddress: backend.customerAddress || "",
+      issueDescription: backend.issueDescription || "",
+      storeId: backend.storeId,
+      serviceId: backend.serviceId,
       serviceAddress: backend.serviceAddress,
       customerNote: backend.customerNote,
-      cancelReason: backend.cancelReason
+      cancelReason: backend.cancelReason,
+      confirmedAt: backend.confirmedAt || "",
+      startedAt: backend.startedAt || "",
+      completedAt: backend.completedAt || "",
+      cancelledAt: backend.cancelledAt || "",
     } as any;
   }
 
@@ -55,12 +64,13 @@ export class BookingService {
   }
 
   public static async getStoreBookings(
-    storeId: number,
+    storeId?: number,
     page: number = 0,
     size: number = 10,
     signal?: AbortSignal
   ): Promise<PaginatedBookings> {
-    const data = await HttpClient.get<any>(`/api/bookings/store?storeId=${storeId}&page=${page}&size=${size}`, { signal });
+    const storeParam = storeId !== undefined ? `storeId=${storeId}&` : "";
+    const data = await HttpClient.get<any>(`/api/bookings/store?${storeParam}page=${page}&size=${size}`, { signal });
     return {
       content: (data.content || []).map((b: any) => this.mapBookingResponseToAppointment(b)),
       totalPages: data.totalPages || 0,
@@ -84,6 +94,15 @@ export class BookingService {
     signal?: AbortSignal
   ): Promise<Appointment> {
     const data = await HttpClient.post<any>("/api/bookings", payload, { signal });
+    return this.mapBookingResponseToAppointment(data);
+  }
+
+  public static async updateBookingStatus(
+    id: string | number,
+    status: "CONFIRMED" | "IN_PROGRESS" | "COMPLETED",
+    signal?: AbortSignal
+  ): Promise<Appointment> {
+    const data = await HttpClient.put<any>(`/api/bookings/${id}/status`, { status }, { signal });
     return this.mapBookingResponseToAppointment(data);
   }
 
