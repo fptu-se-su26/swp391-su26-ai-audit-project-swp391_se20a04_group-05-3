@@ -49,6 +49,7 @@ import { DashboardSkeleton, ListSkeleton } from "../common/Skeleton";
 import { EmptyState } from "../common/EmptyState";
 import { getMediaUrl } from "../../utils/mediaUrl";
 import { StoreServicesManagement } from "./StoreServicesManagement";
+import { AuthorBlogWorkspace } from "../blog/AuthorBlogWorkspace";
 
 const getAuthToken = (): string | null => {
   return AuthService.getAccessToken();
@@ -1590,13 +1591,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
       {/* 5. BLOGS TAB */}
       {activeTab === "blogs" && (
-        <BlogManagerSection 
-          myStore={myStore}
-          myProducts={myProducts}
-          blogPosts={blogPosts}
-          currentUser={currentUser}
-          refreshArticles={refreshArticles}
-        />
+        <AuthorBlogWorkspace userRole="STORE_OWNER" />
       )}
 
       {/* 6. REVIEWS TAB */}
@@ -2095,7 +2090,7 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
     setSuccessMsg("");
 
     try {
-      const res = await ArticleService.createArticle({
+      const res = await (ArticleService as any).createArticle({
         title,
         category,
         summary: summary || (content.substring(0, 120) + "..."),

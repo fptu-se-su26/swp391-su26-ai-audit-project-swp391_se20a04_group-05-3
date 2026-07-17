@@ -43,7 +43,13 @@ export function mapBackendProductToFrontend(item: any): Product {
     stock: item.stock || 0,
     shopId: item.storeId ? String(item.storeId) : undefined,
     sku: item.sku || "",
-    isBestSeller: !!item.isBestSeller
+    isBestSeller: !!item.isBestSeller,
+    effectivePrice: item.effectivePrice,
+    discountAmount: item.discountAmount,
+    onSale: item.onSale,
+    promotionId: item.promotionId,
+    promotionName: item.promotionName,
+    status: item.status
   };
 }
 

@@ -58,6 +58,11 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
                 🔥 Bán chạy
               </span>
             )}
+            {product.onSale && (
+              <span className="px-2 py-0.5 rounded bg-emerald-500 text-black font-mono text-[9px] text-[8px] font-extrabold uppercase shrink-0">
+                🏷️ SALE
+              </span>
+            )}
           </div>
           {toggleWishlist && (
             <button
@@ -96,9 +101,27 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
           <div className="flex items-center justify-between border-t border-stone-850 pt-3">
             <div className="flex flex-col">
               <span className="text-[9px] font-mono text-stone-500">Giá thành:</span>
-              <span className="text-base font-bold text-emerald-400 font-mono leading-none mt-0.5">
-                {product.price.toLocaleString("vi-VN")}₫
-              </span>
+              {product.onSale && product.effectivePrice !== undefined ? (
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-stone-500 line-through font-mono">
+                      {product.price.toLocaleString("vi-VN")}₫
+                    </span>
+                    {product.promotionName && (
+                      <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 text-[8px] font-bold font-mono">
+                        {product.promotionName}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-base font-bold text-emerald-400 font-mono leading-none">
+                    {product.effectivePrice.toLocaleString("vi-VN")}₫
+                  </span>
+                </div>
+              ) : (
+                <span className="text-base font-bold text-emerald-400 font-mono leading-none mt-0.5">
+                  {product.price.toLocaleString("vi-VN")}₫
+                </span>
+              )}
             </div>
 
             {onAddToCart && (
@@ -158,6 +181,11 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
               🔥 Bán chạy
             </span>
           )}
+          {product.onSale && (
+            <span className="px-2 py-0.5 rounded bg-emerald-500 text-black font-mono text-[9px] text-[8px] font-extrabold uppercase shrink-0">
+              🏷️ SALE
+            </span>
+          )}
         </div>
       </div>
 
@@ -168,9 +196,20 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
           {product.name}
         </h3>
         <div className="flex items-center justify-between">
-          <span className="text-base font-semibold text-emerald-400 font-mono">
-            {product.price.toLocaleString("vi-VN")}₫
-          </span>
+          {product.onSale && product.effectivePrice !== undefined ? (
+            <div className="flex flex-col">
+              <span className="text-[10px] text-stone-500 line-through font-mono leading-none">
+                {product.price.toLocaleString("vi-VN")}₫
+              </span>
+              <span className="text-base font-semibold text-emerald-400 font-mono mt-0.5 leading-none">
+                {product.effectivePrice.toLocaleString("vi-VN")}₫
+              </span>
+            </div>
+          ) : (
+            <span className="text-base font-semibold text-emerald-400 font-mono leading-none">
+              {product.price.toLocaleString("vi-VN")}₫
+            </span>
+          )}
           <span className="text-xs text-stone-400 bg-stone-800/40 px-2 py-0.5 rounded-md">
             ⭐ {product.rating}
           </span>

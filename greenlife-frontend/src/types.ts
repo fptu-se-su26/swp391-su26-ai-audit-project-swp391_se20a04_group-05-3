@@ -13,12 +13,27 @@ export interface Product {
   shopId?: string;
   sku?: string;
   isBestSeller?: boolean;
+  effectivePrice?: number;
+  discountAmount?: number;
+  onSale?: boolean;
+  promotionId?: number;
+  promotionName?: string;
+  status?: string;
 }
 
 export interface CartItem {
   id?: number;
   product: Product;
   quantity: number;
+  baseUnitPrice?: number;
+  effectiveUnitPrice?: number;
+  unitDiscount?: number;
+  lineBaseAmount?: number;
+  lineEffectiveAmount?: number;
+  lineDiscountAmount?: number;
+  onSale?: boolean;
+  promotionId?: number;
+  promotionName?: string;
 }
 
 export interface DiagnosisLog {
@@ -33,7 +48,25 @@ export interface DiagnosisLog {
   imageUrl: string;
   accuracy?: number; // percent confidence 0-100
   notes?: string;
+
+  // Structured response fields from backend
+  diagnosable?: boolean;
+  uncertaintyReason?: string | null;
+  observedSymptoms?: string | null;
+  possibleCauses?: string | null;
+  alternativeDiagnoses?: string[];
+  treatmentSteps?: string[];
+  preventionSteps?: string[];
+  urgentWarning?: string | null;
+  disclaimer?: string;
+  expertReviewRecommended?: boolean;
+  escalationReason?: string | null;
+  recommendedProducts?: any[];
+  recommendedServices?: any[];
+  provider?: string | null;
+  model?: string | null;
 }
+
 
 export interface Appointment {
   id: string;
@@ -97,6 +130,86 @@ export interface BlogPost {
   views?: number;
   taggedProductIds?: string[];
   status?: string;
+}
+
+export interface BlogPostAuthor {
+  id: number;
+  fullName: string;
+  email: string;
+}
+
+export interface BlogRevisionDto {
+  id: number;
+  revisionNumber: number;
+  title: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface BlogModerationHistoryDto {
+  id: number;
+  actorName: string;
+  action: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface AuthorBlogResponse {
+  id: number;
+  title: string;
+  slug: string;
+  category: string;
+  summary: string;
+  content: string;
+  imageUrl: string;
+  readingTime: number;
+  status: string;
+  currentRevisionStatus: string;
+  reviewerNote: string | null;
+  hasPublishedVersion: boolean;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  version: number;
+  author: BlogPostAuthor;
+  revisions: BlogRevisionDto[];
+  history: BlogModerationHistoryDto[];
+}
+
+export interface AdminBlogReviewResponse {
+  id: number;
+  author: BlogPostAuthor;
+  authorRole: string;
+  hasStoreBadge: boolean;
+  title: string;
+  slug: string;
+  category: string;
+  summary: string;
+  content: string;
+  imageUrl: string;
+  readingTime: number;
+  status: string;
+  currentRevisionStatus: string;
+  version: number;
+  submittedAt: string | null;
+  createdAt: string;
+  previousPublished: {
+    title: string;
+    summary: string;
+    content: string;
+    imageUrl: string;
+    category: string;
+  } | null;
+  history: BlogModerationHistoryDto[];
+}
+
+export interface ImportDocumentResponse {
+  suggestedTitle: string;
+  contentHtml: string;
+  sourceType: string;
+  sourceFileName: string;
+  warnings: string[];
 }
 
 export interface Expert {

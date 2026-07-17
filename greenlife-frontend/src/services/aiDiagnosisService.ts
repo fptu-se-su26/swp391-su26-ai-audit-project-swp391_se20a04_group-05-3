@@ -16,9 +16,9 @@ export class AIDiagnosisService {
       severity = "nặng";
     }
 
-    // Split recommendation by newline and remove list indicators (- , * , 1. , 2. )
-    let treatment: string[] = [];
-    if (backend.recommendation) {
+    // Fallback treatment extraction if backend.treatmentSteps is empty
+    let treatment: string[] = backend.treatmentSteps || [];
+    if (treatment.length === 0 && backend.recommendation) {
       treatment = backend.recommendation
         .split("\n")
         .map((line: string) => {
@@ -29,18 +29,38 @@ export class AIDiagnosisService {
         .filter(Boolean);
     }
 
+    const confidence = backend.confidenceScore !== undefined ? Number(backend.confidenceScore) : undefined;
+    const accuracy = confidence !== undefined ? (confidence <= 1.0 ? Math.round(confidence * 100) : Math.round(confidence)) : undefined;
+
     return {
       id: String(backend.id),
       date: backend.createdAt ? backend.createdAt.split("T")[0] : new Date().toISOString().split("T")[0],
-      plantName: "Plant Diagnosis",
-      diseaseName: backend.diseaseName,
+      plantName: backend.plantName || "Cây cảnh",
+      diseaseName: backend.diseaseName || "",
       severity,
-      symptoms: backend.result,
+      symptoms: backend.result || "",
       treatment,
-      recommendedProductIds: [],
+      recommendedProductIds: (backend.recommendedProducts || []).map((p: any) => String(p.id)),
       imageUrl: backend.imageUrl || "",
-      accuracy: backend.confidenceScore !== undefined ? Math.round(Number(backend.confidenceScore) * 100) : undefined,
-      notes: backend.recommendation || ""
+      accuracy,
+      notes: backend.recommendation || "",
+
+      // Structured backend fields
+      diagnosable: backend.diagnosable !== undefined ? backend.diagnosable : true,
+      uncertaintyReason: backend.uncertaintyReason || null,
+      observedSymptoms: backend.observedSymptoms || null,
+      possibleCauses: backend.possibleCauses || null,
+      alternativeDiagnoses: backend.alternativeDiagnoses || [],
+      treatmentSteps: backend.treatmentSteps || [],
+      preventionSteps: backend.preventionSteps || [],
+      urgentWarning: backend.urgentWarning || null,
+      disclaimer: backend.disclaimer || "",
+      expertReviewRecommended: backend.expertReviewRecommended !== undefined ? backend.expertReviewRecommended : false,
+      escalationReason: backend.escalationReason || null,
+      recommendedProducts: backend.recommendedProducts || [],
+      recommendedServices: backend.recommendedServices || [],
+      provider: backend.provider || null,
+      model: backend.model || null
     };
   }
 
@@ -54,7 +74,7 @@ export class AIDiagnosisService {
   ): Promise<{ content: DiagnosisLog[]; totalPages: number; number: number }> {
     const data = await HttpClient.get(`/api/diagnoses?page=${page}&size=${size}`, { signal });
     return {
-      content: (data.content || []).map(this.mapBackendToDiagnosisLog),
+      content: (data.content || []).map(this.mapBackendToDiagnosisLog.bind(this)),
       totalPages: data.totalPages || 0,
       number: data.number || 0
     };
@@ -75,9 +95,17 @@ export class AIDiagnosisService {
   }
 
   /**
-   * Stub delete method since customer role deletion is not exposed
+   * Retrieves details for a specific diagnosis record
+   */
+  public static async getDiagnosisDetails(id: string, signal?: AbortSignal): Promise<DiagnosisLog> {
+    const data = await HttpClient.get(`/api/diagnoses/${id}`, { signal });
+    return this.mapBackendToDiagnosisLog(data);
+  }
+
+  /**
+   * Deletes a diagnosis record by ID via customer API
    */
   public static async deleteRecordAndFreeMemory(id: string, signal?: AbortSignal): Promise<void> {
-    return Promise.resolve();
+    await HttpClient.delete(`/api/diagnoses/${id}`, { signal });
   }
 }

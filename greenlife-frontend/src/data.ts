@@ -1,4 +1,4 @@
-import { Product, BlogPost, Appointment, StoreOrder, User, EcoStore, Plant, DiagnosisLog, Expert } from "./types";
+import { Product, BlogPost, Appointment, StoreOrder, User, EcoStore, Plant, Expert } from "./types";
 
 export const PRODUCTS: Product[] = [
   {
@@ -217,29 +217,7 @@ export const INITIAL_ORDERS: StoreOrder[] = [
   }
 ];
 
-export const MOCK_DIAGNOSIS_PRESETS = [
-  {
-    id: "preset-1",
-    name: "Cà chua bị mốc sương (Phytophthora infestans)",
-    plantType: "Cây cà chua hữu cơ ban công",
-    description: "Lá xuất hiện vết đốm sũng nước, chuyển màu nâu sẫm, viền vàng nhạt. Đục trái và hỏng cấu trúc.",
-    imageUrl: "https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=500&auto=format&fit=crop&q=80"
-  },
-  {
-    id: "preset-2",
-    name: "Sen đá úng nước (Thối nhũn gốc do rễ thừa ẩm)",
-    plantType: "Sen đá thạch ngọc quý",
-    description: "Lá tầng dưới mọng trong suốt, sờ mủn nước, nát nhão đầu nhánh, rụng liên hoàn khi chạm.",
-    imageUrl: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500&auto=format&fit=crop&q=80"
-  },
-  {
-    id: "preset-3",
-    name: "Bọ trĩ mặt dưới lá và héo ngọn hoa hồng",
-    plantType: "Hồng leo cổ Hải Phòng",
-    description: "Mặt lá mất diệp lục, lốm đốm bạc màu xám, búp hoa quăn queo, rìa cánh hoa thâm đen.",
-    imageUrl: "https://images.unsplash.com/photo-1516253593875-bd7ba052fbc5?w=500&auto=format&fit=crop&q=80"
-  }
-];
+
 
 export const MOCK_USERS: User[] = [
   {
@@ -423,24 +401,4 @@ export const MOCK_PLANTS: Plant[] = [
   }
 ];
 export const MOCK_BOOKINGS: Appointment[] = [];
-
-export const MOCK_AI_DIAGNOSES: DiagnosisLog[] = [
-  {
-    id: "log-1",
-    date: "2026-05-23",
-    plantName: "Cây cà chua hữu cơ ban công lướt",
-    diseaseName: "Mốc sương cà chua (Phytophthora infestans)",
-    severity: "trung bình",
-    symptoms: "Lá lốm đốm thâm nâu như sũng nước, xuất hiện bụi nấm phấn trắng mảnh ở viền lá dưới tầng thấp.",
-    treatment: [
-      "Ngưng tưới phun dạng sương mưa ngay.",
-      "Cắt bỏ gọn ghẽ các lá nhiễm nấm đem tiêu hủy bằng cách vùi rác hoại.",
-      "Phun dung dịch đồng sunfat loãng hoặc dấm tỏi thảo mộc 3 ngày/lần."
-    ],
-    recommendedProductIds: ["prod-5"],
-    imageUrl: "https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?w=500&auto=format&fit=crop&q=80",
-    accuracy: 94,
-    notes: "Tỷ lệ hồi phục dự kiến 85% nếu áp dụng phác đồ khô ráo trong vòng 48 giờ."
-  }
-];
 
