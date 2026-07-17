@@ -32,6 +32,9 @@ public class AuthController {
     @Value("${app.cookie.secure:false}")
     private boolean secureCookie;
 
+    @Value("${app.cookie.same-site:Lax}")
+    private String sameSiteCookie;
+
     @PostMapping("/register")
     public ResponseEntity<MessageResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(authService.register(request));
@@ -149,7 +152,7 @@ public class AuthController {
                 .secure(secureCookie)
                 .path("/")
                 .maxAge(maxAge)
-                .sameSite("Lax")
+                .sameSite(sameSiteCookie)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }

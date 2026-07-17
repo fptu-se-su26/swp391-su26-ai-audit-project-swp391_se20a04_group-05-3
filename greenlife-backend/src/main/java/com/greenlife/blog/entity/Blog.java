@@ -66,6 +66,14 @@ public class Blog {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "published_revision_id")
+    private BlogRevision publishedRevision;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_revision_id")
+    private BlogRevision currentRevision;
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean deleted = false;

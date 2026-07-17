@@ -3,6 +3,7 @@ package com.greenlife.payment.payos;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
 
 public class PayOSSignatureUtil {
@@ -38,6 +39,29 @@ public class PayOSSignatureUtil {
         return sb.toString();
     }
 
+    /**
+     * Computes a deterministic SHA-256 fingerprint of the webhook payload's signed fields.
+     * Uses the same sorted canonical representation as signature verification.
+     * No secret key or authorization header is included in this hash.
+     *
+     * @param signedFieldsMap the same map used for signature verification
+     * @return lowercase hex SHA-256 digest of the canonical sorted string
+     */
+    public static String computeCanonicalFingerprint(Map<String, Object> signedFieldsMap) {
+        try {
+            String canonical = getSortedDataString(signedFieldsMap);
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(canonical.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to compute webhook fingerprint", e);
+        }
+    }
+
     public static String hmacSHA256(String data, String key) throws Exception {
         SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
         Mac mac = Mac.getInstance("HmacSHA256");
@@ -50,3 +74,4 @@ public class PayOSSignatureUtil {
         return sb.toString();
     }
 }
+

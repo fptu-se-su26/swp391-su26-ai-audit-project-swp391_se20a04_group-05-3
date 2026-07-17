@@ -51,6 +51,56 @@ public class DiagnosisHistory {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String recommendation;
 
+    @Column(name = "plant_name", length = 150)
+    private String plantName;
+
+    @Column(length = 50)
+    private String provider;
+
+    @Column(length = 100)
+    private String model;
+
+    @Column(name = "processing_status", length = 50)
+    private String processingStatus;
+
+    @Column(name = "observed_symptoms", columnDefinition = "NVARCHAR(MAX)")
+    private String observedSymptoms;
+
+    @Column(name = "possible_causes", columnDefinition = "NVARCHAR(MAX)")
+    private String possibleCauses;
+
+    @Column(name = "alternative_diagnoses", columnDefinition = "NVARCHAR(MAX)")
+    private String alternativeDiagnoses;
+
+    @Column(name = "treatment_steps", columnDefinition = "NVARCHAR(MAX)")
+    private String treatmentSteps;
+
+    @Column(name = "prevention_steps", columnDefinition = "NVARCHAR(MAX)")
+    private String preventionSteps;
+
+    @Column(name = "urgent_warning", columnDefinition = "NVARCHAR(MAX)")
+    private String urgentWarning;
+
+    @Column(name = "disclaimer", columnDefinition = "NVARCHAR(MAX)")
+    private String disclaimer;
+
+    @Column(name = "diagnosable", nullable = false)
+    @Builder.Default
+    private Boolean diagnosable = true;
+
+    @Column(name = "uncertainty_reason", columnDefinition = "NVARCHAR(MAX)")
+    private String uncertaintyReason;
+
+    @Column(name = "expert_review_recommended", nullable = false)
+    @Builder.Default
+    private Boolean expertReviewRecommended = false;
+
+    @Column(name = "escalation_reason", length = 50)
+    private String escalationReason;
+
+    @Column(name = "recommendation_categories", columnDefinition = "NVARCHAR(MAX)")
+    private String recommendationCategories;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -59,3 +109,4 @@ public class DiagnosisHistory {
     @Builder.Default
     private Boolean deleted = false;
 }
+

@@ -28,6 +28,11 @@ public class AdminStoreController {
         return ResponseEntity.ok(storeService.getPendingStores());
     }
 
+    @GetMapping("/approved")
+    public ResponseEntity<List<StoreResponse>> getApprovedStores() {
+        return ResponseEntity.ok(storeService.getApprovedStores());
+    }
+
     /**
      * Approve a pending store (RESTful PUT for state transition).
      */

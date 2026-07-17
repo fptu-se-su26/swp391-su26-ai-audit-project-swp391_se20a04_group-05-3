@@ -40,6 +40,8 @@ import com.greenlife.order.event.OrderStatusEvent;
 import com.greenlife.payment.event.PaymentEvent;
 
 import lombok.extern.slf4j.Slf4j;
+import com.greenlife.promotion.service.PromotionReservationLifecycleService;
+
 
 @Service
 @RequiredArgsConstructor
@@ -54,6 +56,9 @@ public class OrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final CustomerAddressRepository addressRepository;
     private final FileStorageService fileStorageService;
+    private final CheckoutPricingReservationService checkoutPricingReservationService;
+    private final PromotionReservationLifecycleService promotionReservationLifecycleService;
+
 
     @Value("${vnpay.tmn-code}")
     private String vnpayTmnCode;
@@ -73,110 +78,7 @@ public class OrderService {
             throw new CustomException("VNPay hiện đã tạm ngưng. Vui lòng chọn COD hoặc PayOS.", HttpStatus.BAD_REQUEST);
         }
 
-        User customer = userRepository.findById(customerId)
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-
-        List<CartItem> cartItems = cartItemRepository.findByCustomerId(customerId);
-        if (cartItems.isEmpty()) {
-            throw new CustomException("Giỏ hàng của bạn đang trống", HttpStatus.BAD_REQUEST);
-        }
-
-        String recipientName;
-        String recipientPhone;
-        String shippingAddress;
-
-        if (request.getAddressId() != null) {
-            CustomerAddress address = addressRepository.findById(request.getAddressId())
-                    .orElseThrow(() -> new CustomException("Địa chỉ không tồn tại", HttpStatus.BAD_REQUEST));
-            if (!address.getCustomer().getId().equals(customerId)) {
-                throw new CustomException("Bạn không có quyền sử dụng địa chỉ này", HttpStatus.FORBIDDEN);
-            }
-            recipientName = address.getRecipientName();
-            recipientPhone = address.getPhone();
-            shippingAddress = address.getAddressLine() + ", " + address.getWard() + ", " + address.getDistrict() + ", " + address.getCity();
-        } else {
-            if (request.getRecipientName() == null || request.getRecipientName().isBlank() ||
-                request.getRecipientPhone() == null || request.getRecipientPhone().isBlank() ||
-                request.getShippingAddress() == null || request.getShippingAddress().isBlank()) {
-                throw new CustomException("Vui lòng cung cấp địa chỉ nhận hàng", HttpStatus.BAD_REQUEST);
-            }
-            recipientName = request.getRecipientName();
-            recipientPhone = request.getRecipientPhone();
-            shippingAddress = request.getShippingAddress();
-        }
-
-        // Group cart items by store
-        Map<Store, List<CartItem>> itemsByStore = cartItems.stream()
-                .collect(Collectors.groupingBy(item -> item.getPlant().getStore()));
-
-        List<Order> createdOrders = new ArrayList<>();
-
-        for (Map.Entry<Store, List<CartItem>> entry : itemsByStore.entrySet()) {
-            Store store = entry.getKey();
-            List<CartItem> storeCartItems = entry.getValue();
-
-            BigDecimal orderSubtotal = BigDecimal.ZERO;
-            List<OrderDetail> details = new ArrayList<>();
-
-            String method = (request.getPaymentMethod() != null) ? request.getPaymentMethod() : "COD";
-
-            Order order = Order.builder()
-                    .customer(customer)
-                    .store(store)
-                    .recipientName(recipientName)
-                    .recipientPhone(recipientPhone)
-                    .shippingAddress(shippingAddress)
-                    .note(request.getNote())
-                    .paymentMethod(method)
-                    .paymentStatus(PaymentStatus.PENDING)
-                    .status(OrderStatus.PENDING)
-                    .createdAt(LocalDateTime.now())
-                    .shippingFee(BigDecimal.ZERO) // defaults to 0
-                    .build();
-
-            for (CartItem item : storeCartItems) {
-                // Reload Plant from DB to ensure fresh price and stock (Price Revalidation Rule)
-                Plant plant = plantRepository.findById(item.getPlant().getId())
-                        .orElseThrow(() -> new CustomException("Sản phẩm không tồn tại", HttpStatus.NOT_FOUND));
-
-                if (plant.getStatus() == PlantStatus.INACTIVE) {
-                    throw new CustomException("Sản phẩm " + plant.getName() + " không hoạt động", HttpStatus.BAD_REQUEST);
-                }
-
-                // Stock validation
-                if (item.getQuantity() > plant.getStock()) {
-                    throw new CustomException("Sản phẩm " + plant.getName() + " không đủ tồn kho khả dụng", HttpStatus.BAD_REQUEST);
-                }
-
-                // Deduct stock
-                plant.setStock(plant.getStock() - item.getQuantity());
-                plantRepository.save(plant);
-
-                BigDecimal unitPrice = plant.getPrice();
-                BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
-                orderSubtotal = orderSubtotal.add(lineTotal);
-
-                OrderDetail detail = OrderDetail.builder()
-                        .order(order)
-                        .plant(plant)
-                        .productName(plant.getName())
-                        .quantity(item.getQuantity())
-                        .unitPrice(unitPrice)
-                        .lineTotal(lineTotal)
-                        .build();
-
-                details.add(detail);
-            }
-
-            order.setSubtotal(orderSubtotal);
-            order.setTotalAmount(orderSubtotal); // total = subtotal + shippingFee (which is 0)
-            order.setOrderDetails(details);
-
-            createdOrders.add(orderRepository.save(order));
-        }
-
-        // Clear user's cart
-        cartItemRepository.deleteAll(cartItems);
+        List<Order> createdOrders = checkoutPricingReservationService.executeCheckoutTransaction(customerId, request);
 
         for (Order order : createdOrders) {
             eventPublisher.publishEvent(new OrderStatusEvent(
@@ -351,11 +253,17 @@ public class OrderService {
         }
 
         validateTransition(order.getStatus(), targetStatus);
+ 
+        boolean isCodConfirmed = false;
+        if (targetStatus == OrderStatus.CONFIRMED && "COD".equalsIgnoreCase(order.getPaymentMethod()) && order.getStatus() == OrderStatus.PENDING) {
+            isCodConfirmed = true;
+        }
 
         if (targetStatus == OrderStatus.CANCELLED) {
             restoreInventory(order);
+            promotionReservationLifecycleService.releaseForOrder(order.getId(), "Store owner cancelled order");
         }
-
+ 
         order.setStatus(targetStatus);
         boolean isCodDelivered = false;
         if (targetStatus == OrderStatus.DELIVERED && "COD".equalsIgnoreCase(order.getPaymentMethod())) {
@@ -363,14 +271,18 @@ public class OrderService {
             isCodDelivered = true;
         }
         order.setUpdatedAt(LocalDateTime.now());
-
+ 
         Order saved = orderRepository.save(order);
+        if (isCodConfirmed) {
+            promotionReservationLifecycleService.consumeForOrder(saved.getId());
+        }
         eventPublisher.publishEvent(new OrderStatusEvent(this, saved.getId(), saved.getCustomer().getId(), saved.getStore().getOwner().getId(), targetStatus));
         if (isCodDelivered) {
             eventPublisher.publishEvent(new PaymentEvent(this, saved.getId(), saved.getCustomer().getId(), true));
         }
-
+ 
         return mapToOrderResponse(saved);
+
     }
 
     @Transactional
@@ -387,16 +299,18 @@ public class OrderService {
         }
 
         validateTransition(order.getStatus(), OrderStatus.CANCELLED);
-
+ 
         restoreInventory(order);
-
+ 
         order.setStatus(OrderStatus.CANCELLED);
         order.setUpdatedAt(LocalDateTime.now());
-
+ 
         Order saved = orderRepository.save(order);
+        promotionReservationLifecycleService.releaseForOrder(saved.getId(), "Store owner cancelled order");
         eventPublisher.publishEvent(new OrderStatusEvent(this, saved.getId(), saved.getCustomer().getId(), saved.getStore().getOwner().getId(), OrderStatus.CANCELLED));
-
+ 
         return mapToOrderResponse(saved);
+
     }
 
     @Transactional
@@ -417,14 +331,16 @@ public class OrderService {
         }
 
         restoreInventory(order);
-
+ 
         order.setStatus(OrderStatus.CANCELLED);
         order.setUpdatedAt(LocalDateTime.now());
-
+ 
         Order saved = orderRepository.save(order);
+        promotionReservationLifecycleService.releaseForOrder(saved.getId(), "Customer cancelled order");
         eventPublisher.publishEvent(new OrderStatusEvent(this, saved.getId(), saved.getCustomer().getId(), saved.getStore().getOwner().getId(), OrderStatus.CANCELLED));
-
+ 
         return mapToOrderResponse(saved);
+
     }
 
     @Transactional(readOnly = true)

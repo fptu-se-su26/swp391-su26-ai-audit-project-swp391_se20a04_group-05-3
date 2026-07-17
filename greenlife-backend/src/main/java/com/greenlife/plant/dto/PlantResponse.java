@@ -30,4 +30,11 @@ public class PlantResponse {
     private PlantStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Promotion fields
+    private BigDecimal effectivePrice;
+    private BigDecimal discountAmount;
+    private Boolean onSale;
+    private Integer promotionId;
+    private String promotionName;
 }

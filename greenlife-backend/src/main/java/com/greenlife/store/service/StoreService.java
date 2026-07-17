@@ -136,6 +136,13 @@ public class StoreService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<StoreResponse> getApprovedStores() {
+        return storeRepository.findByStatusOrderById(StoreStatus.APPROVED).stream()
+                .map(this::mapToStoreResponse)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public StoreResponse approveStore(Integer storeId, ApproveStoreRequest request, String adminEmail) {
         Store store = storeRepository.findById(storeId)
