@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,7 +34,7 @@ public class DiagnosisController {
     ) {
         User user = currentUserResolver.resolveUser(userDetails);
         DiagnosisHistory history = diagnosisService.createDiagnosis(user, file, plantId);
-        return ResponseEntity.ok(convertToResponse(history));
+        return ResponseEntity.ok(diagnosisService.convertToResponse(history, true));
     }
 
     @GetMapping
@@ -48,7 +47,7 @@ public class DiagnosisController {
     ) {
         User user = currentUserResolver.resolveUser(userDetails);
         Page<DiagnosisHistory> diagnoses = diagnosisService.getCustomerDiagnoses(user.getId(), plantId, severity, pageable);
-        return ResponseEntity.ok(diagnoses.map(this::convertToResponse));
+        return ResponseEntity.ok(diagnoses.map(h -> diagnosisService.convertToResponse(h, false)));
     }
 
     @GetMapping("/{id}")
@@ -59,28 +58,17 @@ public class DiagnosisController {
     ) {
         User user = currentUserResolver.resolveUser(userDetails);
         DiagnosisHistory diagnosis = diagnosisService.getDiagnosisDetails(id, user);
-        return ResponseEntity.ok(convertToResponse(diagnosis));
+        return ResponseEntity.ok(diagnosisService.convertToResponse(diagnosis, true));
     }
 
-
-
-
-
-
-
-
-
-    private DiagnosisResponse convertToResponse(DiagnosisHistory history) {
-        return DiagnosisResponse.builder()
-                .id(history.getId())
-                .plantId(history.getPlant() != null ? history.getPlant().getId() : null)
-                .imageUrl(history.getImageUrl())
-                .diseaseName(history.getDiseaseName())
-                .confidenceScore(history.getConfidenceScore())
-                .severity(history.getSeverity())
-                .result(history.getResult())
-                .recommendation(history.getRecommendation())
-                .createdAt(history.getCreatedAt())
-                .build();
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<Void> deleteDiagnosis(
+            @PathVariable("id") Integer id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = currentUserResolver.resolveUser(userDetails);
+        diagnosisService.deleteDiagnosisForCustomer(id, user);
+        return ResponseEntity.noContent().build();
     }
 }

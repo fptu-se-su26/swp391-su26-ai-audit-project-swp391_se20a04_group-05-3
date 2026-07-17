@@ -19,6 +19,7 @@ public class BlogResponse {
     private String imageUrl;
     private Integer readingTime;
     private BlogStatus status;
+    private BlogStatus currentRevisionStatus;
     private LocalDateTime publishedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

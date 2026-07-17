@@ -21,8 +21,13 @@ import java.time.LocalDateTime;
 import com.greenlife.store.entity.enums.StoreStatus;
 import com.greenlife.user.entity.User;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
+import com.greenlife.promotion.service.PriceEngineService;
+import com.greenlife.promotion.dto.PromotionPriceRequest;
+import com.greenlife.promotion.dto.PromotionPriceQuote;
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +38,7 @@ public class PlantService {
     private final CategoryRepository categoryRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final com.greenlife.order.repository.OrderDetailRepository orderDetailRepository;
+    private final PriceEngineService priceEngineService;
 
     private List<Integer> cachedBestSellerIds = null;
     private long lastCacheTime = 0;
@@ -59,7 +65,9 @@ public class PlantService {
         String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
 
         Page<Plant> plantsPage = plantRepository.findActiveAndOutOfStockPlants(searchParam, categoryParam, pageable);
-        return plantsPage.map(this::mapToPlantResponse);
+        List<Plant> plants = plantsPage.getContent();
+        Map<Integer, PromotionPriceQuote> quotesMap = getQuotesMapForPlants(plants);
+        return plantsPage.map(plant -> mapToPlantResponseWithQuote(plant, quotesMap.get(plant.getId())));
     }
 
     @Transactional(readOnly = true)
@@ -71,14 +79,16 @@ public class PlantService {
             throw new CustomException("Sản phẩm không hoạt động", HttpStatus.NOT_FOUND);
         }
 
-        return mapToPlantResponse(plant);
+        Map<Integer, PromotionPriceQuote> quotesMap = getQuotesMapForPlants(List.of(plant));
+        return mapToPlantResponseWithQuote(plant, quotesMap.get(plant.getId()));
     }
 
     @Transactional(readOnly = true)
     public PlantResponse getPlantById(Integer id) {
         Plant plant = plantRepository.findById(id)
                 .orElseThrow(() -> new CustomException("Sản phẩm không tồn tại", HttpStatus.NOT_FOUND));
-        return mapToPlantResponse(plant);
+        Map<Integer, PromotionPriceQuote> quotesMap = getQuotesMapForPlants(List.of(plant));
+        return mapToPlantResponseWithQuote(plant, quotesMap.get(plant.getId()));
     }
 
     @Transactional
@@ -127,7 +137,8 @@ public class PlantService {
                 .build();
 
         Plant saved = plantRepository.save(plant);
-        return mapToPlantResponse(saved);
+        Map<Integer, PromotionPriceQuote> quotesMap = getQuotesMapForPlants(List.of(saved));
+        return mapToPlantResponseWithQuote(saved, quotesMap.get(saved.getId()));
     }
 
     @Transactional
@@ -191,7 +202,8 @@ public class PlantService {
             eventPublisher.publishEvent(new com.greenlife.wishlist.event.WishlistRestockEvent(this, saved.getId(), saved.getName()));
         }
 
-        return mapToPlantResponse(saved);
+        Map<Integer, PromotionPriceQuote> quotesMap = getQuotesMapForPlants(List.of(saved));
+        return mapToPlantResponseWithQuote(saved, quotesMap.get(saved.getId()));
     }
 
     @Transactional
@@ -229,11 +241,41 @@ public class PlantService {
                 .build();
     }
 
+    public PlantResponse mapToPlantResponseWithQuote(Plant plant, PromotionPriceQuote quote) {
+        PlantResponse resp = mapToPlantResponse(plant);
+        if (quote != null) {
+            resp.setEffectivePrice(quote.effectiveUnitPrice());
+            resp.setDiscountAmount(quote.unitDiscount());
+            resp.setOnSale(quote.onSale());
+            resp.setPromotionId(quote.promotionId());
+            resp.setPromotionName(quote.promotionName());
+        } else {
+            resp.setEffectivePrice(plant.getPrice());
+            resp.setDiscountAmount(BigDecimal.ZERO);
+            resp.setOnSale(false);
+        }
+        return resp;
+    }
+
+    private Map<Integer, PromotionPriceQuote> getQuotesMapForPlants(List<Plant> plants) {
+        if (plants == null || plants.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        List<PromotionPriceRequest> requests = plants.stream()
+            .map(p -> new PromotionPriceRequest(p.getId(), p.getStore().getId(), 1, p.getPrice()))
+            .collect(Collectors.toList());
+        List<PromotionPriceQuote> quotes = priceEngineService.calculatePrices(requests);
+        return quotes.stream()
+            .collect(Collectors.toMap(PromotionPriceQuote::plantId, q -> q, (q1, q2) -> q1));
+    }
+
     @Transactional(readOnly = true)
     public List<PlantResponse> getStoreOwnerPlants(User user) {
         Store store = getApprovedStoreForUser(user);
-        return plantRepository.findByStoreId(store.getId()).stream()
-                .map(this::mapToPlantResponse)
+        List<Plant> plants = plantRepository.findByStoreId(store.getId());
+        Map<Integer, PromotionPriceQuote> quotesMap = getQuotesMapForPlants(plants);
+        return plants.stream()
+                .map(plant -> mapToPlantResponseWithQuote(plant, quotesMap.get(plant.getId())))
                 .collect(Collectors.toList());
     }
 

@@ -35,4 +35,7 @@ public class CartItem {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Transient
+    private java.math.BigDecimal quotedPrice;
 }

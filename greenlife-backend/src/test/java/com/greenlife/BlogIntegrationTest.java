@@ -2,6 +2,9 @@ package com.greenlife;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.greenlife.blog.dto.BlogRequest;
+import com.greenlife.blog.dto.UpdateBlogDraftRequest;
+import com.greenlife.blog.dto.SubmitBlogRequest;
+import com.greenlife.blog.dto.ModerationDecisionRequest;
 import com.greenlife.blog.entity.Blog;
 import com.greenlife.user.entity.Role;
 import com.greenlife.user.entity.User;
@@ -137,6 +140,9 @@ public class BlogIntegrationTest {
 
     private void cleanup() {
         if (jdbcTemplate != null) {
+            jdbcTemplate.execute("UPDATE blogs SET published_revision_id = NULL, current_revision_id = NULL");
+            jdbcTemplate.execute("DELETE FROM blog_moderation_history");
+            jdbcTemplate.execute("DELETE FROM blog_revisions");
             jdbcTemplate.execute("DELETE FROM blogs");
         }
         userRepository.findByEmail(OWNER1_EMAIL).ifPresent(userRepository::delete);
@@ -168,58 +174,107 @@ public class BlogIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
 
         Integer blogId = objectMapper.readTree(responseJson).get("id").asInt();
+        Integer version = objectMapper.readTree(responseJson).get("version").asInt();
 
         // 2. Title Update (Slug remains unchanged)
-        BlogRequest updateReq = BlogRequest.builder()
+        UpdateBlogDraftRequest updateReq = UpdateBlogDraftRequest.builder()
                 .title("Cây Trầu Bà Xanh Đột Biến")
                 .category(BlogCategory.BASIC_CARE)
                 .summary("Tóm tắt mới")
                 .content("<p>Nội dung mới...</p>")
                 .imageUrl("http://example.com/trau-ba.jpg")
+                .version(version)
                 .build();
 
-        mockMvc.perform(put("/api/blogs/" + blogId)
+        String updateResponse = mockMvc.perform(put("/api/blogs/" + blogId)
                         .header("Authorization", "Bearer " + tokenOwner1)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateReq)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title", is("Cây Trầu Bà Xanh Đột Biến")))
-                .andExpect(jsonPath("$.slug", is("cay-trau-ba-xanh"))); // Slug MUST remain unchanged
+                .andExpect(jsonPath("$.slug", is("cay-trau-ba-xanh")))
+                .andReturn().getResponse().getContentAsString();
+
+        Integer updatedVersion = objectMapper.readTree(updateResponse).get("version").asInt();
 
         // 3. Publish completeness validations (Lacks summary/imageUrl)
-        BlogRequest incompleteReq = BlogRequest.builder()
+        UpdateBlogDraftRequest incompleteReq = UpdateBlogDraftRequest.builder()
                 .title("Cây Trầu Bà Cực Đẹp")
                 .category(BlogCategory.BASIC_CARE)
                 .summary("") // Lacks summary
                 .content("<p>Nội dung...</p>")
                 .imageUrl("http://example.com/trau-ba.jpg")
+                .version(updatedVersion)
                 .build();
 
         // We update to make it incomplete first
-        mockMvc.perform(put("/api/blogs/" + blogId)
+        String incompleteResponse = mockMvc.perform(put("/api/blogs/" + blogId)
                         .header("Authorization", "Bearer " + tokenOwner1)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(incompleteReq)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
 
-        mockMvc.perform(patch("/api/blogs/" + blogId + "/publish")
-                        .header("Authorization", "Bearer " + tokenOwner1))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error", is("Blog chưa đủ thông tin để xuất bản")));
+        Integer incompleteVersion = objectMapper.readTree(incompleteResponse).get("version").asInt();
 
-        // Complete it again
-        mockMvc.perform(put("/api/blogs/" + blogId)
+        // Try to submit incomplete draft -> Expect 400 Bad Request
+        SubmitBlogRequest submitReqIncomplete = SubmitBlogRequest.builder()
+                .version(incompleteVersion)
+                .build();
+
+        mockMvc.perform(post("/api/blogs/" + blogId + "/submit")
                         .header("Authorization", "Bearer " + tokenOwner1)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateReq)))
-                .andExpect(status().isOk());
+                        .content(objectMapper.writeValueAsString(submitReqIncomplete)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", is("Bài viết chưa đủ thông tin để gửi duyệt")));
 
-        // Publish successfully
-        mockMvc.perform(patch("/api/blogs/" + blogId + "/publish")
-                        .header("Authorization", "Bearer " + tokenOwner1))
+        // Complete it again
+        UpdateBlogDraftRequest completeAgainReq = UpdateBlogDraftRequest.builder()
+                .title("Cây Trầu Bà Xanh Đột Biến")
+                .category(BlogCategory.BASIC_CARE)
+                .summary("Tóm tắt mới")
+                .content("<p>Nội dung mới...</p>")
+                .imageUrl("http://example.com/trau-ba.jpg")
+                .version(incompleteVersion)
+                .build();
+
+        String completedResponse = mockMvc.perform(put("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(completeAgainReq)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status", is("PUBLISHED")))
-                .andExpect(jsonPath("$.publishedAt").exists());
+                .andReturn().getResponse().getContentAsString();
+
+        Integer completedVersion = objectMapper.readTree(completedResponse).get("version").asInt();
+
+        // Submit successfully
+        SubmitBlogRequest submitReqSuccess = SubmitBlogRequest.builder()
+                .version(completedVersion)
+                .build();
+
+        String submittedResponse = mockMvc.perform(post("/api/blogs/" + blogId + "/submit")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(submitReqSuccess)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentRevisionStatus", is("PENDING_REVIEW")))
+                .andReturn().getResponse().getContentAsString();
+
+        Integer submittedVersion = objectMapper.readTree(submittedResponse).get("version").asInt();
+
+        // Admin approves and publishes
+        ModerationDecisionRequest approveReq = ModerationDecisionRequest.builder()
+                .note("Bản viết rất tốt")
+                .version(submittedVersion)
+                .build();
+
+        mockMvc.perform(patch("/api/admin/blogs/" + blogId + "/approve")
+                        .header("Authorization", "Bearer " + tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(approveReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("PUBLISHED")));
     }
 
     @Test
@@ -299,12 +354,89 @@ public class BlogIntegrationTest {
     }
 
     @Test
-    void testOptimisticLockingConflicts() throws Exception {
+    void testOptimisticLockingConflictsStaleVersion() throws Exception {
         BlogRequest req = BlogRequest.builder()
-                .title("Optimistic Locking Test")
+                .title("Stale Version Title")
                 .category(BlogCategory.INSPIRATION)
                 .summary("Test locking")
-                .content("Content...")
+                .content("<p>Initial content...</p>")
+                .imageUrl("http://example.com/img.jpg")
+                .build();
+
+        String res = mockMvc.perform(post("/api/blogs")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        System.out.println("DEBUG CREATED RES: " + res);
+        Integer blogId = objectMapper.readTree(res).get("id").asInt();
+        Integer version = objectMapper.readTree(res).get("version").asInt();
+        System.out.println("DEBUG CREATED VERSION: " + version);
+
+        // Update 1: successful update using current version
+        UpdateBlogDraftRequest update1 = UpdateBlogDraftRequest.builder()
+                .title("Updated Title A")
+                .category(BlogCategory.INSPIRATION)
+                .summary("Test locking")
+                .content("<p>Updated content...</p>")
+                .imageUrl("http://example.com/img.jpg")
+                .version(version)
+                .build();
+
+        String res1 = mockMvc.perform(put("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(update1)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Updated Title A")))
+                .andReturn().getResponse().getContentAsString();
+
+        System.out.println("DEBUG UPDATE1 RES: " + res1);
+        Integer newVersion = objectMapper.readTree(res1).get("version").asInt();
+        System.out.println("DEBUG UPDATE1 VERSION: " + newVersion);
+
+        // Update 2: update using now-stale old version -> expect 409 Conflict
+        UpdateBlogDraftRequest updateStale = UpdateBlogDraftRequest.builder()
+                .title("Stale Update Title")
+                .category(BlogCategory.INSPIRATION)
+                .summary("Test locking")
+                .content("<p>Stale content...</p>")
+                .imageUrl("http://example.com/img.jpg")
+                .version(version) // Using the old stale version
+                .build();
+
+        mockMvc.perform(put("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateStale)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error", containsString("Dữ liệu bài viết đã được thay đổi")));
+
+        String resGet = mockMvc.perform(get("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Updated Title A")))
+                .andReturn().getResponse().getContentAsString();
+        System.out.println("DEBUG GET RES: " + resGet);
+        Integer finalGetVersion = objectMapper.readTree(resGet).get("version").asInt();
+        System.out.println("DEBUG GET VERSION: " + finalGetVersion);
+
+        mockMvc.perform(get("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Updated Title A")))
+                .andExpect(jsonPath("$.version", is(newVersion)));
+    }
+
+    @Test
+    void testOptimisticLockingConflictsExceptionMapping() throws Exception {
+        BlogRequest req = BlogRequest.builder()
+                .title("Exception Mapping Title")
+                .category(BlogCategory.INSPIRATION)
+                .summary("Test locking")
+                .content("<p>Content...</p>")
                 .imageUrl("http://example.com/img.jpg")
                 .build();
 
@@ -316,70 +448,26 @@ public class BlogIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
 
         Integer blogId = objectMapper.readTree(res).get("id").asInt();
+        Integer version = objectMapper.readTree(res).get("version").asInt();
 
-        // Force a concurrent conflict using executor
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<Exception> errorRef = new AtomicReference<>();
-
-        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-
-        executor.submit(() -> {
-            try {
-                transactionTemplate.execute(status -> {
-                    Blog b1 = blogRepository.findById(blogId).orElseThrow();
-                    b1.setTitle("Title User A");
-                    blogRepository.saveAndFlush(b1);
-                    latch.countDown();
-                    return null;
-                });
-            } catch (Exception e) {
-                errorRef.set(e);
-            }
-        });
-
-        try {
-            transactionTemplate.execute(status -> {
-                Blog b2 = blogRepository.findById(blogId).orElseThrow();
-                try {
-                    latch.await(); // wait for Thread A to complete and update version
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                b2.setTitle("Title User B");
-                blogRepository.saveAndFlush(b2); // Should throw OptimisticLockingFailureException
-                return null;
-            });
-        } catch (Exception e) {
-            errorRef.set(e);
-        }
-
-        executor.shutdown();
-        assertNotNull(errorRef.get());
-        assertTrue(errorRef.get() instanceof org.springframework.transaction.UnexpectedRollbackException
-                || errorRef.get() instanceof org.springframework.orm.ObjectOptimisticLockingFailureException);
-
-        // Verify API maps conflict to 409 Conflict with standard error contract
-        BlogRequest conflictUpdate = BlogRequest.builder()
+        UpdateBlogDraftRequest conflictUpdate = UpdateBlogDraftRequest.builder()
                 .title("Concurrent Update API")
                 .category(BlogCategory.INSPIRATION)
                 .summary("Test locking")
-                .content("Content...")
+                .content("<p>Content...</p>")
                 .imageUrl("http://example.com/img.jpg")
+                .version(version)
                 .build();
 
-        // Reset spy to clear stubs and invocations from the first part of the test
+        // Reset spy to clear stubs and invocations
         org.mockito.Mockito.reset(blogRepository);
 
-        // Stub findById to simulate concurrent modification *during* the update transaction
-        org.mockito.Mockito.doAnswer(invocation -> {
-            Integer id = invocation.getArgument(0);
-            Blog b = entityManager.find(Blog.class, id);
-            if (b != null) {
-                jdbcTemplate.update("UPDATE blogs SET version = version + 5 WHERE id = ?", id);
-            }
-            return java.util.Optional.ofNullable(b);
-        }).when(blogRepository).findById(blogId);
+        // Stub blogRepository.saveAndFlush to throw ObjectOptimisticLockingFailureException,
+        // simulating a concurrent modification detected at the persistence boundary.
+        // This avoids any competing database transaction or direct jdbcTemplate UPDATE.
+        org.mockito.Mockito.doThrow(
+                new org.springframework.orm.ObjectOptimisticLockingFailureException("Blog", null)
+        ).when(blogRepository).saveAndFlush(org.mockito.ArgumentMatchers.any());
 
         mockMvc.perform(put("/api/blogs/" + blogId)
                         .header("Authorization", "Bearer " + tokenOwner1)
@@ -527,4 +615,430 @@ public class BlogIntegrationTest {
                 .andExpect(jsonPath("$.content", hasSize(1)))
                 .andExpect(jsonPath("$.content[0].title", is("My Urban Farm Blog")));
     }
+
+    @Test
+    void testModerationWorkflowLifecycle() throws Exception {
+        // 1. Create Draft
+        BlogRequest req = BlogRequest.builder()
+                .title("Hướng Dẫn Chăm Hoa Hồng")
+                .category(BlogCategory.BASIC_CARE)
+                .summary("Cách chăm hoa hồng ra nhiều hoa")
+                .content("<p>Nội dung chi tiết...</p>")
+                .imageUrl("http://example.com/hoa-hong.jpg")
+                .build();
+
+        String responseJson = mockMvc.perform(post("/api/blogs")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer blogId = objectMapper.readTree(responseJson).get("id").asInt();
+        Integer version = objectMapper.readTree(responseJson).get("version").asInt();
+
+        // 2. Submit to PENDING_REVIEW
+        SubmitBlogRequest submitReq = SubmitBlogRequest.builder().version(version).build();
+        String submitJson = mockMvc.perform(post("/api/blogs/" + blogId + "/submit")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(submitReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentRevisionStatus", is("PENDING_REVIEW")))
+                .andReturn().getResponse().getContentAsString();
+
+        Integer pendingVersion = objectMapper.readTree(submitJson).get("version").asInt();
+
+        // 3. Author cannot edit PENDING_REVIEW -> expect 400 Bad Request
+        UpdateBlogDraftRequest editReq = UpdateBlogDraftRequest.builder()
+                .title("Chăm Hoa Hồng Sâu Bệnh")
+                .category(BlogCategory.BASIC_CARE)
+                .summary("Cách chăm hoa hồng ra nhiều hoa")
+                .content("<p>Nội dung chi tiết...</p>")
+                .imageUrl("http://example.com/hoa-hong.jpg")
+                .version(pendingVersion)
+                .build();
+
+        mockMvc.perform(put("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(editReq)))
+                .andExpect(status().isBadRequest());
+
+        // 4. Author withdraws PENDING_REVIEW -> DRAFT
+        SubmitBlogRequest withdrawReq = SubmitBlogRequest.builder().version(pendingVersion).build();
+        String withdrawJson = mockMvc.perform(post("/api/blogs/" + blogId + "/withdraw")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(withdrawReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentRevisionStatus", is("DRAFT")))
+                .andReturn().getResponse().getContentAsString();
+
+        Integer draftVersion = objectMapper.readTree(withdrawJson).get("version").asInt();
+
+        // 5. Submit again
+        submitReq = SubmitBlogRequest.builder().version(draftVersion).build();
+        String resubmitJson = mockMvc.perform(post("/api/blogs/" + blogId + "/submit")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(submitReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentRevisionStatus", is("PENDING_REVIEW")))
+                .andReturn().getResponse().getContentAsString();
+
+        Integer resubmitVersion = objectMapper.readTree(resubmitJson).get("version").asInt();
+        System.out.println("DEBUG RESUBMIT JSON: " + resubmitJson);
+        System.out.println("DEBUG RESUBMIT VERSION: " + resubmitVersion);
+
+        // 6. Admin requests changes with reason
+        ModerationDecisionRequest changesReq = ModerationDecisionRequest.builder()
+                .note("Vui lòng ghi rõ lượng nước tưới hàng ngày.")
+                .version(resubmitVersion)
+                .build();
+
+        String changesJson = mockMvc.perform(patch("/api/admin/blogs/" + blogId + "/request-changes")
+                        .header("Authorization", "Bearer " + tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(changesReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentRevisionStatus", is("CHANGES_REQUESTED")))
+                .andExpect(jsonPath("$.reviewerNote", is("Vui lòng ghi rõ lượng nước tưới hàng ngày.")))
+                .andReturn().getResponse().getContentAsString();
+
+        Integer changesVersion = objectMapper.readTree(changesJson).get("version").asInt();
+
+        // 7. CHANGES_REQUESTED -> DRAFT when author resumes editing (updates content)
+        UpdateBlogDraftRequest resumeEditReq = UpdateBlogDraftRequest.builder()
+                .title("Hướng Dẫn Chăm Hoa Hồng Đỏ")
+                .category(BlogCategory.BASIC_CARE)
+                .summary("Cách chăm hoa hồng ra nhiều hoa")
+                .content("<p>Tưới nước 2 lần/ngày...</p>")
+                .imageUrl("http://example.com/hoa-hong.jpg")
+                .version(changesVersion)
+                .build();
+
+        String resumedJson = mockMvc.perform(put("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(resumeEditReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentRevisionStatus", is("DRAFT")))
+                .andReturn().getResponse().getContentAsString();
+
+        Integer resumedVersion = objectMapper.readTree(resumedJson).get("version").asInt();
+
+        // 8. Resubmit
+        submitReq = SubmitBlogRequest.builder().version(resumedVersion).build();
+        String finalPendingJson = mockMvc.perform(post("/api/blogs/" + blogId + "/submit")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(submitReq)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer finalPendingVersion = objectMapper.readTree(finalPendingJson).get("version").asInt();
+
+        // 9. Admin rejects with reason
+        ModerationDecisionRequest rejectReq = ModerationDecisionRequest.builder()
+                .note("Nội dung không đạt yêu cầu cộng đồng.")
+                .version(finalPendingVersion)
+                .build();
+
+        String rejectedJson = mockMvc.perform(patch("/api/admin/blogs/" + blogId + "/reject")
+                        .header("Authorization", "Bearer " + tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(rejectReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentRevisionStatus", is("REJECTED")))
+                .andReturn().getResponse().getContentAsString();
+
+        Integer rejectedVersion = objectMapper.readTree(rejectedJson).get("version").asInt();
+
+        // 10. Rejected revision remains immutable -> editing directly throws 400 Bad Request
+        UpdateBlogDraftRequest editRejectedReq = UpdateBlogDraftRequest.builder()
+                .title("Cố ý chỉnh sửa bài bị từ chối")
+                .category(BlogCategory.BASIC_CARE)
+                .summary("Summary")
+                .content("Content...")
+                .imageUrl("http://example.com/img.jpg")
+                .version(rejectedVersion)
+                .build();
+
+        mockMvc.perform(put("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(editRejectedReq)))
+                .andExpect(status().isBadRequest());
+
+        // 11. Create a new draft revision from rejected content
+        String newDraftFromRejectedJson = mockMvc.perform(post("/api/blogs/" + blogId + "/revisions")
+                        .header("Authorization", "Bearer " + tokenOwner1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentRevisionStatus", is("DRAFT")))
+                .andExpect(jsonPath("$.version").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer draftFromRejectedVersion = objectMapper.readTree(newDraftFromRejectedJson).get("version").asInt();
+
+        // Check that it cloned the previous rejected revision properties
+        mockMvc.perform(get("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", containsString("Hoa Hồng Đỏ")))
+                .andExpect(jsonPath("$.currentRevisionStatus", is("DRAFT")))
+                .andExpect(jsonPath("$.version", is(draftFromRejectedVersion)));
+    }
+
+    @Test
+    void testPublishingRevisionAndAdminArchive() throws Exception {
+        // 1. Create and submit
+        BlogRequest req = BlogRequest.builder()
+                .title("Cách Trồng Hành Tây")
+                .category(BlogCategory.URBAN_FARMING)
+                .summary("Hướng dẫn gieo hạt hành tây")
+                .content("<p>Chuẩn bị đất xốp...</p>")
+                .imageUrl("http://example.com/hanh-tay.jpg")
+                .build();
+
+        String responseJson = mockMvc.perform(post("/api/blogs")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer blogId = objectMapper.readTree(responseJson).get("id").asInt();
+        Integer version = objectMapper.readTree(responseJson).get("version").asInt();
+
+        SubmitBlogRequest submitReq = SubmitBlogRequest.builder().version(version).build();
+        String submitJson = mockMvc.perform(post("/api/blogs/" + blogId + "/submit")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(submitReq)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer pendingVersion = objectMapper.readTree(submitJson).get("version").asInt();
+
+        // Verify public lookup (by ID or Slug) returns 404 since it's not approved yet
+        mockMvc.perform(get("/api/blogs/" + blogId))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/blogs/slug/cach-trong-hanh-tay"))
+                .andExpect(status().isNotFound());
+
+        // Verify public list does not contain it
+        mockMvc.perform(get("/api/blogs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(0)));
+
+        // 2. Admin approves and publishes -> status is PUBLISHED
+        ModerationDecisionRequest approveReq = ModerationDecisionRequest.builder()
+                .note("Được chấp nhận")
+                .version(pendingVersion)
+                .build();
+
+        mockMvc.perform(patch("/api/admin/blogs/" + blogId + "/approve")
+                        .header("Authorization", "Bearer " + tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(approveReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("PUBLISHED")))
+                .andExpect(jsonPath("$.currentRevisionStatus", is("PUBLISHED")));
+
+        // 3. Public list/detail now shows approved content
+        mockMvc.perform(get("/api/blogs/" + blogId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Cách Trồng Hành Tây")))
+                .andExpect(jsonPath("$.status", is("PUBLISHED")));
+
+        mockMvc.perform(get("/api/blogs/slug/cach-trong-hanh-tay"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Cách Trồng Hành Tây")));
+
+        mockMvc.perform(get("/api/blogs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].title", is("Cách Trồng Hành Tây")));
+
+        // 4. Edit a published blog: first spawn a new revision draft (PUBLISHED stays public)
+        String newRevJson = mockMvc.perform(post("/api/blogs/" + blogId + "/revisions")
+                        .header("Authorization", "Bearer " + tokenOwner1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("PUBLISHED"))) // Overall blog is still published
+                .andExpect(jsonPath("$.currentRevisionStatus", is("DRAFT"))) // Current draft revision status
+                .andReturn().getResponse().getContentAsString();
+
+        Integer draftVersion = objectMapper.readTree(newRevJson).get("version").asInt();
+
+        // 5. Update the new draft revision (PUBLISHED content remains unchanged publicly)
+        UpdateBlogDraftRequest editReq = UpdateBlogDraftRequest.builder()
+                .title("Cách Trồng Hành Tây Khổng Lồ")
+                .category(BlogCategory.URBAN_FARMING)
+                .summary("Hướng dẫn gieo hạt hành tây")
+                .content("<p>Chuẩn bị đất xốp + phân bón nhiều...</p>")
+                .imageUrl("http://example.com/hanh-tay.jpg")
+                .version(draftVersion)
+                .build();
+
+        String updatedDraftJson = mockMvc.perform(put("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(editReq)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer updatedDraftVersion = objectMapper.readTree(updatedDraftJson).get("version").asInt();
+
+        // Verify public content is still the old title
+        mockMvc.perform(get("/api/blogs/" + blogId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Cách Trồng Hành Tây")));
+
+        // 6. Submit the new draft revision
+        SubmitBlogRequest submitReq2 = SubmitBlogRequest.builder().version(updatedDraftVersion).build();
+        String submitJson2 = mockMvc.perform(post("/api/blogs/" + blogId + "/submit")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(submitReq2)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer pendingVersion2 = objectMapper.readTree(submitJson2).get("version").asInt();
+
+        // Verify public content is still the old title while new revision is pending
+        mockMvc.perform(get("/api/blogs/" + blogId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Cách Trồng Hành Tây")));
+
+        // 7. Admin approves new revision -> public content switches to new version
+        ModerationDecisionRequest approveReq2 = ModerationDecisionRequest.builder()
+                .note("Đồng ý bản sửa đổi")
+                .version(pendingVersion2)
+                .build();
+
+        mockMvc.perform(patch("/api/admin/blogs/" + blogId + "/approve")
+                        .header("Authorization", "Bearer " + tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(approveReq2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Cách Trồng Hành Tây Khổng Lồ")))
+                .andExpect(jsonPath("$.status", is("PUBLISHED")));
+
+        // Verify public endpoints show updated content
+        mockMvc.perform(get("/api/blogs/" + blogId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Cách Trồng Hành Tây Khổng Lồ")));
+
+        // 8. Admin archives the published blog
+        mockMvc.perform(patch("/api/admin/blogs/" + blogId + "/archive")
+                        .header("Authorization", "Bearer " + tokenAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("ARCHIVED")));
+
+        // Archived article disappears from public endpoints (404)
+        mockMvc.perform(get("/api/blogs/" + blogId))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/blogs/slug/cach-trong-hanh-tay"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/blogs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(0)));
+    }
+
+    @Test
+    void testOwnershipAndAuthorizationSecurity() throws Exception {
+        // 1. Owner 1 creates a draft
+        BlogRequest req = BlogRequest.builder()
+                .title("Bí Mật Của Rừng")
+                .category(BlogCategory.GREEN_LIVING)
+                .summary("Một bài viết bí mật")
+                .content("<p>Nội dung bí mật...</p>")
+                .imageUrl("http://example.com/secret.jpg")
+                .build();
+
+        String res = mockMvc.perform(post("/api/blogs")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer blogId = objectMapper.readTree(res).get("id").asInt();
+        Integer version = objectMapper.readTree(res).get("version").asInt();
+
+        // 2. Owner 2 tries to update Owner 1's draft -> 403 Forbidden
+        UpdateBlogDraftRequest editReq = UpdateBlogDraftRequest.builder()
+                .title("Hack Tiêu Đề")
+                .category(BlogCategory.GREEN_LIVING)
+                .summary("Một bài viết bí mật")
+                .content("<p>Nội dung bí mật...</p>")
+                .imageUrl("http://example.com/secret.jpg")
+                .version(version)
+                .build();
+
+        mockMvc.perform(put("/api/blogs/" + blogId)
+                        .header("Authorization", "Bearer " + tokenOwner2)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(editReq)))
+                .andExpect(status().isForbidden());
+
+        // 3. Owner 2 tries to submit Owner 1's draft -> 403 Forbidden
+        SubmitBlogRequest submitReq = SubmitBlogRequest.builder().version(version).build();
+        mockMvc.perform(post("/api/blogs/" + blogId + "/submit")
+                        .header("Authorization", "Bearer " + tokenOwner2)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(submitReq)))
+                .andExpect(status().isForbidden());
+
+        // 4. Anonymous user cannot view unpublished blog -> 404
+        mockMvc.perform(get("/api/blogs/" + blogId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testStaleModerationDecisionConflict() throws Exception {
+        // 1. Owner 1 creates and submits a draft
+        BlogRequest req = BlogRequest.builder()
+                .title("Trồng Dâu Tây")
+                .category(BlogCategory.URBAN_FARMING)
+                .summary("Hướng dẫn gieo hạt dâu tây")
+                .content("<p>Chuẩn bị đất xốp...</p>")
+                .imageUrl("http://example.com/dau-tay.jpg")
+                .build();
+
+        String responseJson = mockMvc.perform(post("/api/blogs")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer blogId = objectMapper.readTree(responseJson).get("id").asInt();
+        Integer version = objectMapper.readTree(responseJson).get("version").asInt();
+
+        SubmitBlogRequest submitReq = SubmitBlogRequest.builder().version(version).build();
+        String submitJson = mockMvc.perform(post("/api/blogs/" + blogId + "/submit")
+                        .header("Authorization", "Bearer " + tokenOwner1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(submitReq)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer pendingVersion = objectMapper.readTree(submitJson).get("version").asInt();
+
+        // 2. Admin tries to approve with a stale (incorrect/old) version -> 409 Conflict
+        ModerationDecisionRequest approveReqStale = ModerationDecisionRequest.builder()
+                .note("Đồng ý duyệt")
+                .version(pendingVersion - 1) // Stale version
+                .build();
+
+        mockMvc.perform(patch("/api/admin/blogs/" + blogId + "/approve")
+                        .header("Authorization", "Bearer " + tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(approveReqStale)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error", containsString("Dữ liệu bài viết đã được thay đổi")));
+    }
 }
+

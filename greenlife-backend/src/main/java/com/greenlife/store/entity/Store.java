@@ -58,4 +58,8 @@ public class Store {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "commission_rate", precision = 5, scale = 4)
+    private java.math.BigDecimal commissionRate;
 }
+

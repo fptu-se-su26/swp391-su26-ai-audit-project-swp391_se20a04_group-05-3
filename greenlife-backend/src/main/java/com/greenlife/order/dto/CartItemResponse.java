@@ -19,4 +19,15 @@ public class CartItemResponse {
     private Integer plantStock;
     private LocalDateTime addedAt;
     private LocalDateTime updatedAt;
+
+    // Promotion fields
+    private BigDecimal baseUnitPrice;
+    private BigDecimal effectiveUnitPrice;
+    private BigDecimal unitDiscount;
+    private BigDecimal lineBaseAmount;
+    private BigDecimal lineEffectiveAmount;
+    private BigDecimal lineDiscountAmount;
+    private Boolean onSale;
+    private Integer promotionId;
+    private String promotionName;
 }

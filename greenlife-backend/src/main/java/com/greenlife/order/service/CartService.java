@@ -20,6 +20,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.greenlife.promotion.service.PriceEngineService;
+import com.greenlife.promotion.dto.PromotionPriceRequest;
+import com.greenlife.promotion.dto.PromotionPriceQuote;
 
 @Service
 @RequiredArgsConstructor
@@ -28,18 +31,38 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final PlantRepository plantRepository;
     private final UserRepository userRepository;
+    private final PriceEngineService priceEngineService;
 
     @Transactional(readOnly = true)
     @SuppressWarnings("null")
     public CartResponse getCart(Integer customerId) {
         List<CartItem> items = cartItemRepository.findByCustomerId(customerId);
-        
-        List<CartItemResponse> itemResponses = items.stream()
-                .map(this::mapToCartItemResponse)
+        if (items.isEmpty()) {
+            return CartResponse.builder()
+                    .items(java.util.Collections.emptyList())
+                    .subtotal(BigDecimal.ZERO)
+                    .build();
+        }
+
+        List<PromotionPriceRequest> priceRequests = items.stream()
+                .map(item -> new PromotionPriceRequest(
+                        item.getPlant().getId(),
+                        item.getPlant().getStore().getId(),
+                        item.getQuantity(),
+                        item.getPlant().getPrice()
+                ))
                 .collect(Collectors.toList());
 
-        BigDecimal subtotal = items.stream()
-                .map(item -> item.getPlant().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+        List<PromotionPriceQuote> quotes = priceEngineService.calculatePrices(priceRequests);
+        java.util.Map<Integer, PromotionPriceQuote> quotesByPlantId = quotes.stream()
+                .collect(Collectors.toMap(PromotionPriceQuote::plantId, q -> q, (q1, q2) -> q1));
+
+        List<CartItemResponse> itemResponses = items.stream()
+                .map(item -> mapToCartItemResponseWithQuote(item, quotesByPlantId.get(item.getPlant().getId())))
+                .collect(Collectors.toList());
+
+        BigDecimal subtotal = quotes.stream()
+                .map(PromotionPriceQuote::lineEffectiveAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return CartResponse.builder()
@@ -91,7 +114,15 @@ public class CartService {
         }
 
         CartItem saved = cartItemRepository.save(cartItem);
-        return mapToCartItemResponse(saved);
+        List<PromotionPriceRequest> requests = List.of(new PromotionPriceRequest(
+            saved.getPlant().getId(),
+            saved.getPlant().getStore().getId(),
+            saved.getQuantity(),
+            saved.getPlant().getPrice()
+        ));
+        List<PromotionPriceQuote> quotes = priceEngineService.calculatePrices(requests);
+        PromotionPriceQuote quote = quotes.isEmpty() ? null : quotes.get(0);
+        return mapToCartItemResponseWithQuote(saved, quote);
     }
 
     @Transactional
@@ -122,7 +153,15 @@ public class CartService {
         cartItem.setUpdatedAt(LocalDateTime.now());
 
         CartItem saved = cartItemRepository.save(cartItem);
-        return mapToCartItemResponse(saved);
+        List<PromotionPriceRequest> requests = List.of(new PromotionPriceRequest(
+            saved.getPlant().getId(),
+            saved.getPlant().getStore().getId(),
+            saved.getQuantity(),
+            saved.getPlant().getPrice()
+        ));
+        List<PromotionPriceQuote> quotes = priceEngineService.calculatePrices(requests);
+        PromotionPriceQuote quote = quotes.isEmpty() ? null : quotes.get(0);
+        return mapToCartItemResponseWithQuote(saved, quote);
     }
 
     @Transactional
@@ -150,5 +189,38 @@ public class CartService {
                 .addedAt(cartItem.getAddedAt())
                 .updatedAt(cartItem.getUpdatedAt())
                 .build();
+    }
+
+    private CartItemResponse mapToCartItemResponseWithQuote(CartItem cartItem, PromotionPriceQuote quote) {
+        CartItemResponse resp = mapToCartItemResponse(cartItem);
+        if (quote != null) {
+            resp.setBaseUnitPrice(quote.baseUnitPrice());
+            resp.setEffectiveUnitPrice(quote.effectiveUnitPrice());
+            resp.setUnitDiscount(quote.unitDiscount());
+            resp.setLineBaseAmount(quote.lineBaseAmount());
+            resp.setLineEffectiveAmount(quote.lineEffectiveAmount());
+            resp.setLineDiscountAmount(quote.lineDiscountAmount());
+            resp.setOnSale(quote.onSale());
+            resp.setPromotionId(quote.promotionId());
+            resp.setPromotionName(quote.promotionName());
+            
+            // For backward compatibility
+            resp.setPlantPrice(quote.effectiveUnitPrice());
+        } else {
+            BigDecimal price = cartItem.getPlant().getPrice();
+            BigDecimal lineAmount = price.multiply(BigDecimal.valueOf(cartItem.getQuantity())).setScale(0, java.math.RoundingMode.HALF_UP);
+            BigDecimal roundedPrice = price.setScale(0, java.math.RoundingMode.HALF_UP);
+            resp.setBaseUnitPrice(roundedPrice);
+            resp.setEffectiveUnitPrice(roundedPrice);
+            resp.setUnitDiscount(BigDecimal.ZERO);
+            resp.setLineBaseAmount(lineAmount);
+            resp.setLineEffectiveAmount(lineAmount);
+            resp.setLineDiscountAmount(BigDecimal.ZERO);
+            resp.setOnSale(false);
+            
+            // For backward compatibility
+            resp.setPlantPrice(roundedPrice);
+        }
+        return resp;
     }
 }

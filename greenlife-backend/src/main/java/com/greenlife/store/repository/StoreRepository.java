@@ -9,4 +9,5 @@ public interface StoreRepository extends JpaRepository<Store, Integer> {
     List<Store> findByOwnerEmail(String email);
     List<Store> findByOwnerId(Integer ownerId);
     List<Store> findByStatus(StoreStatus status);
+    List<Store> findByStatusOrderById(StoreStatus status);
 }

@@ -1,6 +1,7 @@
 package com.greenlife.diagnosis.service;
 
 import com.greenlife.common.service.FileStorageService;
+import com.greenlife.diagnosis.dto.DiagnosisResponse;
 import com.greenlife.diagnosis.dto.DiagnosisResult;
 import com.greenlife.diagnosis.entity.DiagnosisHistory;
 import com.greenlife.diagnosis.entity.enums.Severity;
@@ -26,6 +27,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +38,11 @@ public class DiagnosisService {
     private final FileStorageService fileStorageService;
     private final PlantDiseaseClassifier plantDiseaseClassifier;
     private final SecurityAuditService securityAuditService;
+    private final DiagnosisRecommendationService diagnosisRecommendationService;
+
+    @Value("${greenlife.ai.gemini-model:}")
+    private String model;
+
 
     @Transactional
     public DiagnosisHistory createDiagnosis(User customer, MultipartFile file, Integer plantId) {
@@ -71,6 +78,19 @@ public class DiagnosisService {
             // 5. Classify image using original filename and bytes
             DiagnosisResult result = plantDiseaseClassifier.classify(file.getOriginalFilename(), file.getBytes());
 
+            // Override with mandatory server disclaimer
+            String serverDisclaimer = "Kết quả được AI phân tích từ hình ảnh và chỉ mang tính tham khảo. Tình trạng thực tế có thể cần thêm thông tin hoặc kiểm tra trực tiếp. Để có kết luận và phương án xử lý chính xác hơn, người dùng nên đặt dịch vụ tư vấn với cửa hàng hoặc chuyên gia GreenLife.";
+            result.setDisclaimer(serverDisclaimer);
+
+            // Resolve recommendations, expert review status, and escalation reason
+            var recommendationResult = diagnosisRecommendationService.resolveRecommendations(
+                    result.getRecommendationCategories(),
+                    result.getConfidenceScore(),
+                    result.getSeverity(),
+                    result.getUrgentWarning(),
+                    result.getDiagnosable()
+            );
+
             // 6. Build entity
             DiagnosisHistory history = DiagnosisHistory.builder()
                     .customer(customer)
@@ -81,6 +101,22 @@ public class DiagnosisService {
                     .severity(result.getSeverity())
                     .result(result.getResult())
                     .recommendation(result.getRecommendation())
+                    .plantName(result.getPlantName())
+                    .provider("GEMINI")
+                    .model(model != null && !model.isBlank() ? model : "GEMINI")
+                    .processingStatus("COMPLETED")
+                    .observedSymptoms(result.getObservedSymptoms())
+                    .possibleCauses(result.getPossibleCauses())
+                    .alternativeDiagnoses(serializeList(result.getAlternativeDiagnoses()))
+                    .treatmentSteps(serializeList(result.getTreatmentSteps()))
+                    .preventionSteps(serializeList(result.getPreventionSteps()))
+                    .urgentWarning(result.getUrgentWarning())
+                    .disclaimer(result.getDisclaimer())
+                    .diagnosable(result.getDiagnosable() != null ? result.getDiagnosable() : true)
+                    .uncertaintyReason(result.getUncertaintyReason())
+                    .expertReviewRecommended(recommendationResult.isExpertReviewRecommended())
+                    .escalationReason(recommendationResult.getEscalationReason())
+                    .recommendationCategories(serializeList(result.getRecommendationCategories()))
                     .deleted(false)
                     .build();
 
@@ -160,5 +196,152 @@ public class DiagnosisService {
                 SecurityAuditAction.ADMIN_ACTION,
                 "Admin " + admin.getEmail() + " purged diagnosis " + id + " belonging to customer " + diagnosis.getCustomer().getEmail()
         );
+    }
+
+    @Transactional
+    public void deleteDiagnosisForCustomer(Integer id, User customer) {
+        if (customer == null) {
+            throw new CustomException("Unauthorized", HttpStatus.UNAUTHORIZED);
+        }
+
+        DiagnosisHistory diagnosis = diagnosisHistoryRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy lịch sử chẩn đoán", HttpStatus.NOT_FOUND));
+
+        // Enforce ownership: only the owner customer can delete their own diagnosis
+        if (!diagnosis.getCustomer().getId().equals(customer.getId())) {
+            throw new CustomException("Bạn không có quyền xóa chẩn đoán này", HttpStatus.FORBIDDEN);
+        }
+
+        // Soft-delete the diagnosis
+        diagnosis.setDeleted(true);
+        diagnosisHistoryRepository.saveAndFlush(diagnosis);
+
+        // Delete physical file after transaction commits successfully
+        String imageUrl = diagnosis.getImageUrl();
+        if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+            String cleanUrl = imageUrl.trim();
+            // Validate that the image URL is a valid relative path under uploads, not an external URL or absolute path, and does not contain path traversal elements.
+            if ((cleanUrl.startsWith("/uploads/") || cleanUrl.startsWith("uploads/"))
+                    && !cleanUrl.contains("..")
+                    && !cleanUrl.startsWith("http://")
+                    && !cleanUrl.startsWith("https://")) {
+
+                if (TransactionSynchronizationManager.isSynchronizationActive() &&
+                        TransactionSynchronizationManager.isActualTransactionActive()) {
+
+                    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            try {
+                                fileStorageService.deleteFile(cleanUrl);
+                            } catch (Exception ex) {
+                                // Log a safe warning and do not expose filesystem details
+                                org.slf4j.LoggerFactory.getLogger(DiagnosisService.class)
+                                        .warn("Safe physical file cleanup failed: {}", ex.getMessage());
+                            }
+                        }
+                    });
+                } else {
+                    org.slf4j.LoggerFactory.getLogger(DiagnosisService.class)
+                            .warn("Transaction synchronization not active. Physical file cleanup deferred.");
+                }
+            } else {
+                org.slf4j.LoggerFactory.getLogger(DiagnosisService.class)
+                        .warn("Image URL is not a safe, managed relative path. Skipping physical deletion.");
+            }
+        }
+    }
+
+    private String serializeList(java.util.List<String> list) {
+        if (list == null || list.isEmpty()) {
+            return "[]";
+        }
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(list);
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    private java.util.List<String> deserializeList(String str) {
+        if (str == null || str.isBlank()) {
+            return java.util.Collections.emptyList();
+        }
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readValue(
+                str,
+                new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>() {}
+            );
+        } catch (Exception e) {
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    public String translateEscalationReason(String code) {
+        if (code == null) return null;
+        switch (code) {
+            case "NON_DIAGNOSABLE_IMAGE":
+                return "Hình ảnh không chứa cây cảnh hoặc chất lượng ảnh quá kém. Khuyến nghị đặt lịch chuyên gia kiểm tra trực tiếp.";
+            case "CRITICAL_SEVERITY":
+                return "Tình trạng bệnh cực kỳ nghiêm trọng. Đề xuất đặt lịch chuyên gia GreenLife hỗ trợ gấp.";
+            case "URGENT_WARNING":
+                return "Bệnh có nguy cơ lây lan nhanh hoặc làm chết cây. Đề xuất chuyên gia kiểm tra trực tiếp.";
+            case "HIGH_SEVERITY":
+                return "Mức độ bệnh hại cao. Đề xuất đặt dịch vụ chăm sóc và xử lý chuyên sâu.";
+            case "LOW_CONFIDENCE":
+                return "Độ tin cậy chẩn đoán tự động thấp. Đề xuất đặt dịch vụ để có kết luận chính xác hơn.";
+            default:
+                return null;
+        }
+    }
+
+    public DiagnosisResponse convertToResponse(DiagnosisHistory history, boolean includeRecommendations) {
+        String friendlyEscalation = translateEscalationReason(history.getEscalationReason());
+
+        java.util.List<com.greenlife.plant.dto.PlantResponse> products = java.util.Collections.emptyList();
+        java.util.List<com.greenlife.booking.dto.PlantCareServiceResponse> services = java.util.Collections.emptyList();
+
+        if (includeRecommendations) {
+            java.util.List<String> categories = deserializeList(history.getRecommendationCategories());
+            var recommendationResult = diagnosisRecommendationService.resolveRecommendations(
+                    categories,
+                    history.getConfidenceScore(),
+                    history.getSeverity(),
+                    history.getUrgentWarning(),
+                    history.getDiagnosable()
+            );
+            products = recommendationResult.getRecommendedProducts();
+            services = recommendationResult.getRecommendedServices();
+        }
+
+        return DiagnosisResponse.builder()
+                .id(history.getId())
+                .diagnosisId(history.getId())
+                .plantId(history.getPlant() != null ? history.getPlant().getId() : null)
+                .plantName(history.getPlantName() != null ? history.getPlantName() : (history.getPlant() != null ? history.getPlant().getName() : null))
+                .imageUrl(history.getImageUrl())
+                .diseaseName(history.getDiseaseName())
+                .confidenceScore(history.getConfidenceScore())
+                .severity(history.getSeverity())
+                .result(history.getResult())
+                .recommendation(history.getRecommendation())
+                .observedSymptoms(history.getObservedSymptoms())
+                .possibleCauses(history.getPossibleCauses())
+                .alternativeDiagnoses(deserializeList(history.getAlternativeDiagnoses()))
+                .treatmentSteps(deserializeList(history.getTreatmentSteps()))
+                .preventionSteps(deserializeList(history.getPreventionSteps()))
+                .urgentWarning(history.getUrgentWarning())
+                .disclaimer(history.getDisclaimer())
+                .recommendedProducts(products)
+                .recommendedServices(services)
+                .provider(history.getProvider())
+                .model(history.getModel())
+                .processingStatus(history.getProcessingStatus())
+                .expertReviewRecommended(history.getExpertReviewRecommended())
+                .escalationReason(friendlyEscalation)
+                .diagnosable(history.getDiagnosable())
+                .uncertaintyReason(history.getUncertaintyReason())
+                .createdAt(history.getCreatedAt())
+                .build();
     }
 }
