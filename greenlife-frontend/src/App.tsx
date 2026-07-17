@@ -144,10 +144,7 @@ export default function App() {
                     products={products}
                     onSelectProduct={handleInspectSelectedProduct}
                     diagnosisLogs={diagnosisLogs}
-                    onAddDiagnosisLog={(log: DiagnosisLog) => {
-                      // Backwards compatible with original inline adders
-                      diagnosePlant(log.plantName, log.imageUrl);
-                    }}
+                    onAddDiagnosisLog={() => {}}
                   />
                 );
               case "booking":

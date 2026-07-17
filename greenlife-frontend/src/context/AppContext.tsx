@@ -22,6 +22,7 @@ interface AppContextType {
   stores: EcoStore[];
   blogPosts: BlogPost[];
   cart: CartItem[];
+  cartSubtotal: number;
   appointments: Appointment[];
   diagnosisLogs: DiagnosisLog[];
   currentPage: string;
@@ -86,7 +87,7 @@ interface AppContextType {
 
   // Event dispatchers
   bookExpert: (appointment: Omit<Appointment, "id" | "status">) => Promise<void>;
-  diagnosePlant: (plantName: string, imageUrl: string) => Promise<DiagnosisLog>;
+  diagnosePlant: (file: File | Blob) => Promise<DiagnosisLog>;
   addNewProduct: (product: Product) => void;
   deleteDiagnosisRecord: (id: string) => Promise<void>;
   cancelBooking: (id: string) => Promise<void>;
@@ -94,8 +95,8 @@ interface AppContextType {
   loadArticles: (keyword?: string, category?: string) => Promise<void>;
 
   // Admin Navigation settings
-  adminActiveTab: "overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews";
-  setAdminActiveTab: (tab: "overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews") => void;
+  adminActiveTab: "overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews" | "promotions";
+  setAdminActiveTab: (tab: "overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews" | "promotions") => void;
 
   // Store Navigation settings
   storeActiveTab: "overview" | "orders" | "products" | "settings" | "blogs" | "reviews" | "services";
@@ -127,13 +128,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [stores, setStores] = useState<EcoStore[]>(MOCK_STORES);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartSubtotal, setCartSubtotal] = useState<number>(0);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [diagnosisLogs, setDiagnosisLogs] = useState<DiagnosisLog[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [currentPage, setCurrentPageState] = useState<string>("home");
   const [selectedProduct, setSelectedProductState] = useState<Product | null>(null);
-  const [adminActiveTab, setAdminActiveTab] = useState<"overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews">("overview");
+  const [adminActiveTab, setAdminActiveTab] = useState<"overview" | "stores" | "users" | "products" | "orders" | "blogs" | "reviews" | "promotions">("overview");
   const [storeActiveTab, setStoreActiveTab] = useState<"overview" | "orders" | "products" | "settings" | "blogs" | "reviews" | "services">("overview");
   const [loading, setLoading] = useState<Record<string, boolean>>({
     auth: false,
@@ -735,11 +737,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loadCart = useCallback(async () => {
     if (!AuthService.getAccessToken()) {
       setCart([]);
+      setCartSubtotal(0);
       return;
     }
     try {
       const res = await CartService.getCart();
       setCart(res.items);
+      setCartSubtotal(res.subtotal);
     } catch (err) {
       logger.error("Lỗi khi tải giỏ hàng:", err);
     }
@@ -896,6 +900,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const clearCart = useCallback(() => {
     setCart([]);
+    setCartSubtotal(0);
   }, []);
 
   const checkoutCart = useCallback(async (payload: any) => {
@@ -939,12 +944,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Handled locally within component-level services
   }, []);
 
-  const diagnosePlant = useCallback(async (plantName: string, imageUrl: string) => {
+  const diagnosePlant = useCallback(async (file: File | Blob) => {
     setLoading((prev) => ({ ...prev, diagnosis: true }));
     try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const newDiag = await AIDiagnosisService.diagnosePlantLeaf(blob);
+      const newDiag = await AIDiagnosisService.diagnosePlantLeaf(file);
       setDiagnosisLogs((prev) => [newDiag, ...prev]);
       return newDiag;
     } catch (err) {
@@ -960,8 +963,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const deleteDiagnosisRecord = useCallback(async (id: string) => {
-    return Promise.resolve();
+    setLoading((prev) => ({ ...prev, diagnosis: true }));
+    try {
+      await AIDiagnosisService.deleteRecordAndFreeMemory(id);
+      setDiagnosisLogs((prev) => prev.filter((log) => log.id !== id));
+      toast.success("Xóa hồ sơ chẩn đoán thành công!");
+    } catch (err: any) {
+      logger.error(err);
+      toast.error(err.message || "Không thể xóa hồ sơ chẩn đoán.");
+      throw err;
+    } finally {
+      setLoading((prev) => ({ ...prev, diagnosis: false }));
+    }
   }, []);
+
+  const loadDiagnosisLogs = useCallback(async () => {
+    if (!currentUser || currentUser.role !== "customer") {
+      setDiagnosisLogs([]);
+      return;
+    }
+    setLoading((prev) => ({ ...prev, diagnosis: true }));
+    try {
+      const res = await AIDiagnosisService.getDiagnosisLogs(0, 50);
+      setDiagnosisLogs(res.content);
+    } catch (err) {
+      logger.error("Failed to load diagnosis logs:", err);
+    } finally {
+      setLoading((prev) => ({ ...prev, diagnosis: false }));
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser && currentUser.role === "customer") {
+      loadDiagnosisLogs();
+    } else {
+      setDiagnosisLogs([]);
+    }
+  }, [currentUser, loadDiagnosisLogs]);
+
 
   const cancelBooking = useCallback(async (id: string) => {
     // Handled locally within component-level services
@@ -1000,6 +1039,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stores,
       blogPosts,
       cart,
+      cartSubtotal,
       appointments,
       diagnosisLogs,
       currentPage,
@@ -1065,6 +1105,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stores,
       blogPosts,
       cart,
+      cartSubtotal,
       appointments,
       diagnosisLogs,
       currentPage,

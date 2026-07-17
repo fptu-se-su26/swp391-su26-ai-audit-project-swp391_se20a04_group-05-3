@@ -12,6 +12,7 @@ import { ConfirmModal } from "../common/ConfirmModal";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "react-hot-toast";
 import { getMediaUrl } from "../../utils/mediaUrl";
+import { AuthorBlogWorkspace } from "../blog/AuthorBlogWorkspace";
 
 interface CustomerDashboardViewProps {
   appointments: Appointment[];
@@ -27,6 +28,7 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
   const { currentUser, userLocation, stores } = useAppContext();
 
   const [orders, setOrders] = useState<any[]>([]);
+  const [currentWorkspace, setCurrentWorkspace] = useState<"overview" | "blog">("overview");
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "shipped" | "completed" | "cancelled">("all");
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<any | null>(null);
@@ -314,7 +316,15 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
             </span>
           </div>
 
-          <div>
+          <div className="flex gap-2.5">
+            <button
+              onClick={() => {
+                setCurrentWorkspace(currentWorkspace === "blog" ? "overview" : "blog");
+              }}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase rounded-xl transition-all shadow-sm tracking-wider cursor-pointer font-mono"
+            >
+              {currentWorkspace === "blog" ? "Xem Tổng Quan 📊" : "Góc Viết Bài ✍️"}
+            </button>
             {currentUser?.is_seller ? (
               <button
                 onClick={() => {
@@ -338,8 +348,12 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
         </div>
       </div>
 
-      {/* KPI Overview Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      {currentWorkspace === "blog" ? (
+        <AuthorBlogWorkspace userRole="CUSTOMER" />
+      ) : (
+        <>
+          {/* KPI Overview Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
           { label: "Tổng đơn mua", value: orders.length, icon: ShoppingBag, color: "text-emerald-600 dark:text-emerald-450", bg: "bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-100/60 dark:border-emerald-900/20" },
           { label: "Đang vận chuyển", value: orders.filter(o => o.status === "shipped").length, icon: Activity, color: "text-amber-600 dark:text-amber-450", bg: "bg-amber-50/50 dark:bg-amber-950/10 border-amber-100/60 dark:border-amber-900/20" },
@@ -898,6 +912,8 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
         </div>
 
       </div>
+      </>
+      )}
 
       {selectedOrderForReview && (
         <FeedbackModal

@@ -396,7 +396,38 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                           />
                           <div className="space-y-0.5">
                             <span className="font-semibold text-stone-850 dark:text-stone-100 block line-clamp-1">{item.product.name}</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-mono block mt-0.5 font-semibold">{(item.product.price * item.quantity).toLocaleString("vi-VN")}₫</span>
+                            {item.onSale && item.effectiveUnitPrice !== undefined ? (
+                              <div className="space-y-0.5 mt-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] text-stone-500 line-through font-mono">
+                                    {item.baseUnitPrice !== undefined
+                                      ? item.baseUnitPrice.toLocaleString("vi-VN")
+                                      : item.product.price.toLocaleString("vi-VN")}₫
+                                  </span>
+                                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                                    {item.effectiveUnitPrice.toLocaleString("vi-VN")}₫
+                                  </span>
+                                  {item.promotionName && (
+                                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-bold font-mono">
+                                      {item.promotionName}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-emerald-600 dark:text-emerald-400 font-mono block font-bold">
+                                  {item.lineEffectiveAmount !== undefined
+                                    ? item.lineEffectiveAmount.toLocaleString("vi-VN") + "₫"
+                                    : "Đang cập nhật giá"}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-stone-600 dark:text-stone-400 font-mono block mt-0.5 font-semibold">
+                                {item.lineBaseAmount !== undefined
+                                  ? item.lineBaseAmount.toLocaleString("vi-VN") + "₫"
+                                  : item.lineEffectiveAmount !== undefined
+                                    ? item.lineEffectiveAmount.toLocaleString("vi-VN") + "₫"
+                                    : "Đang cập nhật giá"}
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -696,6 +727,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
 
                   <div className="p-3 bg-emerald-500/10 dark:bg-emerald-950/20 border border-emerald-500/20 dark:border-emerald-900/10 rounded-xl text-[10px] text-stone-600 dark:text-stone-400 leading-normal font-sans">
                     🌿 Mua hàng đóng góp trực tiếp <strong className="text-emerald-600 dark:text-emerald-400 font-bold">-{co2OffsetKg} kg CO₂</strong> khí phát thải bù đắp bảo vệ mầm xanh quốc thổ.
+                  </div>
+
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] text-amber-600 dark:text-amber-400 leading-normal font-sans flex items-start gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
+                    <span>Giá sản phẩm khuyến mãi chỉ được bảo lưu tạm thời và có thể thay đổi khi thanh toán.</span>
                   </div>
 
                   {/* STEP 1 ACTIONS */}

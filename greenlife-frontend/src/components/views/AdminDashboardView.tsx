@@ -47,6 +47,7 @@ import { ReviewService, ReviewResponse } from "../../services/reviewService";
 import { MessageSquare, ShieldAlert } from "lucide-react";
 import { AdminSecurityService, AdminLoginAuditResponse } from "../../services/adminSecurityService";
 import { getMediaUrl } from "../../utils/mediaUrl";
+import { AdminPromotionsTab } from "../promotion/AdminPromotionsTab";
 
 export const AdminDashboardView: React.FC = () => {
   const { 
@@ -1430,12 +1431,7 @@ export const AdminDashboardView: React.FC = () => {
 
       {/* 7. BLOG MANAGEMENT TAB */}
       {activeTab === "blogs" && (
-        <BlogManagerSection 
-          products={products}
-          blogPosts={blogPosts}
-          currentUser={currentUser}
-          refreshArticles={refreshArticles}
-        />
+        <AdminBlogModerationSection products={products} />
       )}
 
       {/* 8. REVIEW MODERATION TAB */}
@@ -1737,6 +1733,11 @@ export const AdminDashboardView: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* 10. PROMOTIONS MANAGEMENT TAB */}
+      {activeTab === "promotions" && (
+        <AdminPromotionsTab />
       )}
 
       {/* ==================== MODALS & POPUPS SYSTEM ==================== */}
@@ -2157,717 +2158,386 @@ export const AdminDashboardView: React.FC = () => {
   );
 };
 
-interface BlogManagerSectionProps {
+interface AdminBlogModerationSectionProps {
   products: Product[];
-  blogPosts: BlogPost[];
-  currentUser: any;
-  refreshArticles: () => Promise<void>;
 }
 
-const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
-  products,
-  blogPosts,
-  currentUser,
-  refreshArticles
-}) => {
-  const [isCreating, setIsCreating] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  
-  // Form States
-  const [title, setTitle] = useState("");
-  const [summary, setSummary] = useState("");
-  const [content, setContent] = useState("");
-  const [category, setCategory] = useState<"urban-farming" | "eco-living" | "plant-care">("plant-care");
-  const [image, setImage] = useState("");
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
-  const [tagSearch, setTagSearch] = useState("");
-  
-  // Status states
-  const [submitting, setSubmitting] = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [dragActive, setDragActive] = useState(false);
-
-  // Admin articles local states
-  const [adminArticles, setAdminArticles] = useState<BlogPost[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({ products }) => {
+  const [revisions, setRevisions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedRevision, setSelectedRevision] = useState<any | null>(null);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const loadAdminArticles = useCallback(async (signal?: AbortSignal) => {
+  const fetchRevisions = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await ArticleService.getAdminArticles(
-        searchTerm || undefined,
-        undefined, // category
-        statusFilter === "all" ? undefined : statusFilter,
-        0,
-        100, // retrieve more items for admin dashboard
-        signal
-      );
-      setAdminArticles(res.content);
-    } catch (err) {
-      console.error("Failed to load admin articles:", err);
-      toast.error("Không thể tải danh sách bài viết từ hệ thống.");
+      const res = await ArticleService.getAdminBlogs(undefined, undefined, "PENDING_REVIEW");
+      setRevisions(res.content);
+    } catch (err: any) {
+      toast.error("Lỗi khi tải danh sách bài viết duyệt: " + err.message);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter]);
+  }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    loadAdminArticles(controller.signal);
-    return () => controller.abort();
-  }, [loadAdminArticles]);
+    fetchRevisions();
+  }, [fetchRevisions]);
 
-  // Handle drag and drop image upload
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
+  const handleAction = async (action: "approve" | "request-changes" | "reject" | "archive") => {
+    if (!selectedRevision) return;
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      convertToBase64(file);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      convertToBase64(file);
-    }
-  };
-
-  const convertToBase64 = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setErrorMsg("Vui lòng tải lên một file ảnh hợp lệ.");
+    if ((action === "request-changes" || action === "reject") && !comment.trim()) {
+      toast.error("Vui lòng nhập lý do/phản hồi để gửi cho tác giả.");
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setErrorMsg("Dung lượng ảnh phải nhỏ hơn 2MB.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onloadend = () => {
-      setImage(reader.result as string);
-      setErrorMsg("");
-    };
-  };
 
-  // Helper formatting for Rich Text Simulator
-  const insertText = (before: string, after: string = "") => {
-    const textarea = document.getElementById("admin-blog-content-textarea") as HTMLTextAreaElement;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const selected = text.substring(start, end);
-    const replacement = before + selected + after;
-    setContent(text.substring(0, start) + replacement + text.substring(end));
-    // Refocus
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
-    }, 0);
-  };
-
-  const handleToggleProductTag = (productId: string) => {
-    setSelectedProductIds(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    );
-  };
-
-  // Admin has access to all products on the platform
-  const filteredTaggableProducts = useMemo(() => {
-    return products.filter(p => p.name.toLowerCase().includes(tagSearch.toLowerCase()));
-  }, [products, tagSearch]);
-
-  const handlePublish = async (id: string | number) => {
-    try {
-      const res = await ArticleService.publishArticle(id);
-      if (res.success) {
-        toast.success(res.message);
-        await loadAdminArticles();
-        await refreshArticles();
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Không thể xuất bản bài viết.");
-    }
-  };
-
-  const handleArchive = async (id: string | number) => {
-    try {
-      const res = await ArticleService.archiveArticle(id);
-      if (res.success) {
-        toast.success(res.message);
-        await loadAdminArticles();
-        await refreshArticles();
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Không thể lưu trữ bài viết.");
-    }
-  };
-
-  const handleRevertToDraft = async (id: string | number) => {
-    try {
-      const res = await ArticleService.revertArticleToDraft(id);
-      if (res.success) {
-        toast.success(res.message);
-        await loadAdminArticles();
-        await refreshArticles();
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Không thể chuyển bài viết thành bản nháp.");
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser || !currentUser.id) {
-      setErrorMsg("Bạn cần đăng nhập với tư cách Quản trị viên để đăng bài viết.");
-      return;
-    }
-    if (!title.trim() || !content.trim()) {
-      setErrorMsg("Tiêu đề và Nội dung bài viết không được để trống.");
-      return;
-    }
     setSubmitting(true);
-    setErrorMsg("");
-    setSuccessMsg("");
-
     try {
-      const res = await ArticleService.createArticle({
-        title,
-        category,
-        summary: summary || (content.substring(0, 120) + "..."),
-        content,
-        image,
-        authorId: currentUser.id,
-        taggedProductIds: selectedProductIds
-      });
+      let res;
+      if (action === "approve") {
+        res = await ArticleService.approveBlog(selectedRevision.id, selectedRevision.version, comment);
+      } else if (action === "request-changes") {
+        res = await ArticleService.requestChanges(selectedRevision.id, selectedRevision.version, comment);
+      } else if (action === "reject") {
+        res = await ArticleService.rejectBlog(selectedRevision.id, selectedRevision.version, comment);
+      } else if (action === "archive") {
+        res = await ArticleService.archiveBlog(selectedRevision.id);
+      }
 
-      if (res.success) {
-        setSuccessMsg(res.message);
-        try {
-          await loadAdminArticles();
-          await refreshArticles();
-        } catch (fetchErr) {
-          toast.error("Đăng bài thành công nhưng không thể cập nhật danh sách hiển thị.");
-        }
-        // Reset states
-        setTitle("");
-        setSummary("");
-        setContent("");
-        setImage("");
-        setSelectedProductIds([]);
-        setCategory("plant-care");
-        setTimeout(() => {
-          setSuccessMsg("");
-          setIsCreating(false);
-        }, 2000);
+      if (res) {
+        toast.success("Đã thực hiện thao tác kiểm duyệt thành công.");
+        setSelectedRevision(null);
+        setComment("");
+        await fetchRevisions();
       } else {
-        setErrorMsg("Đăng bài viết thất bại. Vui lòng kiểm tra lại.");
+        toast.error("Thao tác thất bại.");
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Lỗi kết nối khi gửi bài viết.");
+      toast.error("Lỗi: " + err.message);
     } finally {
       setSubmitting(false);
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "PENDING_REVIEW":
+        return <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-bold rounded font-mono uppercase">Chờ Duyệt</span>;
+      case "CHANGES_REQUESTED":
+        return <span className="px-2 py-0.5 bg-blue-500/10 text-blue-450 border border-blue-500/20 text-[10px] font-bold rounded font-mono uppercase">Yêu Cầu Sửa</span>;
+      case "REJECTED":
+        return <span className="px-2 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[10px] font-bold rounded font-mono uppercase">Từ Chối</span>;
+      default:
+        return <span className="px-2 py-0.5 bg-stone-500/10 text-stone-400 border border-stone-500/20 text-[10px] font-bold rounded font-mono uppercase">{status}</span>;
+    }
+  };
+
   return (
     <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 sm:p-8 rounded-3xl space-y-6 shadow-xs animate-slide-down">
-      
-      {/* Tab Header with Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 dark:border-stone-850 pb-5">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-stone-200 dark:border-stone-850 pb-5">
         <div>
           <h2 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-lg uppercase tracking-wide flex items-center gap-2">
-            <FileText className="h-5 w-5 text-emerald-500" />
-            {isCreating ? "Viết Cẩm Nang Xanh Mới (Admin)" : "Quản Lý Cẩm Nang Xanh Hệ Thống"}
+            <ShieldCheck className="h-5 w-5 text-emerald-500" />
+            Kiểm Duyệt Cẩm Nang Xanh
           </h2>
           <p className="text-xs text-stone-400 mt-1">
-            {isCreating ? "Tạo hướng dẫn, phác đồ điều trị cây bệnh hoặc truyền thông lối sống bảo vệ hành tinh xanh" : "Quản lý và biên tập toàn bộ các bài viết chuyên mục của hệ thống"}
+            Xét duyệt các bài viết hướng dẫn, cẩm nang sinh thái từ Khách hàng và Chủ vườn trước khi xuất bản chính thức.
           </p>
         </div>
-
         <button
-          onClick={() => {
-            setIsCreating(!isCreating);
-            setErrorMsg("");
-            setSuccessMsg("");
-          }}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase transition-all tracking-wider flex items-center gap-1.5 cursor-pointer btn-animated ${
-            isCreating
-              ? "bg-stone-800 text-stone-300 border border-stone-700/60 hover:bg-stone-750"
-              : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20"
-          }`}
+          onClick={fetchRevisions}
+          className="px-4 py-2 bg-stone-100 dark:bg-stone-900 hover:bg-stone-200 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 rounded-xl text-xs font-bold uppercase transition-all tracking-wider border border-stone-200 dark:border-stone-800 flex items-center gap-1.5 cursor-pointer"
         >
-          {isCreating ? (
-            <>
-              <ChevronLeft className="h-4 w-4" /> Quay Lại
-            </>
-          ) : (
-            <>
-              <Plus className="h-4 w-4" /> Viết Bài Mới
-            </>
-          )}
+          <Clock className="w-4 h-4" /> Làm Mới
         </button>
       </div>
 
-      {successMsg && (
-        <div className="p-4 bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 rounded-2xl text-xs flex items-center gap-2 animate-badge-pop">
-          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="p-4 bg-rose-950/40 border border-rose-500/30 text-rose-455 rounded-2xl text-xs flex items-center gap-2 animate-badge-pop">
-          <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      {/* VIEW A: LIST ARTICLES */}
-      {!isCreating && (
+      {selectedRevision ? (
         <div className="space-y-6">
-          
-          {/* Search bar & Filter */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3 bg-stone-100 dark:bg-stone-900/50 p-2 rounded-2xl border border-stone-200 dark:border-stone-850 max-w-md w-full sm:w-80">
-              <Search className="h-4 w-4 text-stone-400 shrink-0 ml-2" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm tiêu đề, tác giả..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-transparent border-none text-xs w-full text-stone-800 dark:text-stone-100 focus:outline-none placeholder-stone-500"
-              />
-            </div>
+          <button
+            onClick={() => {
+              setSelectedRevision(null);
+              setComment("");
+            }}
+            className="flex items-center gap-1 text-xs text-stone-500 hover:text-emerald-500 font-semibold cursor-pointer transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" /> Quay lại danh sách
+          </button>
 
-            {/* Status Filter Tabs */}
-            <div className="flex flex-wrap gap-1.5 p-1 bg-stone-100 dark:bg-stone-900/50 border border-stone-200 dark:border-stone-850 rounded-2xl">
-              {[
-                { id: "all", label: "Tất cả" },
-                { id: "draft", label: "Bản nháp" },
-                { id: "published", label: "Đã xuất bản" },
-                { id: "archived", label: "Lưu trữ" }
-              ].map((tab) => {
-                const isActive = statusFilter === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setStatusFilter(tab.id)}
-                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all tracking-wider cursor-pointer ${
-                      isActive
-                        ? "bg-emerald-500 text-black font-extrabold shadow-sm"
-                        : "text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-8 space-y-6">
+              <div className="bg-stone-100 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-850 p-5 rounded-2xl space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-stone-400 font-mono block">
+                      Tác giả: <strong className="text-stone-300">{selectedRevision.authorName}</strong> ({selectedRevision.authorRole === "STORE_OWNER" ? "Chủ Vườn" : "Khách Hàng"})
+                    </span>
+                    <span className="text-[10px] text-stone-500 font-mono block">
+                      Thời gian gửi: {selectedRevision.submittedAt ? new Date(selectedRevision.submittedAt).toLocaleString("vi-VN") : "N/A"}
+                    </span>
+                  </div>
+                  <div>
+                    {getStatusBadge(selectedRevision.status)}
+                  </div>
+                </div>
+              </div>
 
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <Clock className="animate-spin h-6 w-6 text-emerald-500" />
-            </div>
-          ) : adminArticles.length === 0 ? (
-            <EmptyState
-              icon={BookOpen}
-              title="Chưa có bài viết cẩm nang nào"
-              description="Biên soạn cẩm nang đầu tiên dưới quyền Ban Biên Tập GreenLife để cung cấp kiến thức thực nghiệm xanh!"
-              action={{
-                label: "Bắt đầu viết bài",
-                onClick: () => setIsCreating(true)
-              }}
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {adminArticles.map((post) => {
-                const categoryNames = {
-                  "plant-care": "Y Học Bệnh Cây",
-                  "urban-farming": "Nông Nghiệp Đô Thị",
-                  "eco-living": "Lối Sống Xanh"
-                };
-                const categoryColors = {
-                  "plant-care": "bg-rose-500/10 text-rose-455 border-rose-500/10",
-                  "urban-farming": "bg-emerald-500/10 text-emerald-400 border-emerald-500/10",
-                  "eco-living": "bg-teal-500/10 text-teal-400 border-teal-500/10"
-                };
-
-                return (
-                  <div key={post.id} className="group flex flex-col justify-between bg-stone-100 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-850 rounded-2xl overflow-hidden shadow-xs hover:border-emerald-500/30 transition-all duration-300">
-                    <div className="relative h-44 overflow-hidden bg-stone-900">
-                      <img 
-                        src={getMediaUrl(post.image)} 
-                        alt={post.title} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
-                      />
-                      <span className={`absolute top-3 left-3 px-2 py-0.5 rounded text-[8px] font-bold tracking-wider border font-mono uppercase ${categoryColors[post.category] || "bg-stone-700 text-stone-300"}`}>
-                        {categoryNames[post.category] || post.category}
-                      </span>
-                      {post.status && (
-                        <span className={`absolute top-3 right-3 px-2 py-0.5 rounded text-[8px] font-bold tracking-wider border font-mono uppercase ${
-                          post.status === "PUBLISHED" 
-                            ? "bg-emerald-500/10 text-emerald-450 border-emerald-500/20" 
-                            : post.status === "DRAFT"
-                            ? "bg-amber-500/10 text-amber-455 border-amber-500/20"
-                            : "bg-stone-500/10 text-stone-400 border-stone-500/20"
-                        }`}>
-                          {post.status === "PUBLISHED" ? "Đã xuất bản" : post.status === "DRAFT" ? "Bản nháp" : "Lưu trữ"}
-                        </span>
+              {selectedRevision.previousPublished ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-stone-100 dark:bg-stone-900/30 border border-stone-200 dark:border-stone-850/60 p-5 rounded-2xl space-y-4 opacity-75">
+                    <span className="px-2 py-0.5 bg-stone-200 dark:bg-stone-800 text-stone-400 text-[9px] font-bold rounded font-mono uppercase tracking-wider">Phiên Bản Hiện Tại</span>
+                    <div className="space-y-2">
+                      <h4 className="font-bold text-stone-900 dark:text-stone-205 text-sm">{selectedRevision.previousPublished.title}</h4>
+                      <p className="text-xs text-stone-450 dark:text-stone-400 italic">Summary: {selectedRevision.previousPublished.summary}</p>
+                      {selectedRevision.previousPublished.image && (
+                        <img 
+                          src={selectedRevision.previousPublished.image} 
+                          alt="Published thumbnail" 
+                          className="w-full h-32 object-cover rounded-xl border border-stone-200 dark:border-stone-800"
+                        />
                       )}
+                      <div 
+                        className="text-xs text-stone-500 leading-relaxed font-sans prose prose-sm dark:prose-invert break-words max-h-96 overflow-y-auto pr-1"
+                        dangerouslySetInnerHTML={{ __html: selectedRevision.previousPublished.content }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-stone-100 dark:bg-stone-900/50 border border-stone-200 dark:border-emerald-500/20 p-5 rounded-2xl space-y-4 shadow-sm ring-1 ring-emerald-500/10">
+                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-455 text-[9px] font-bold rounded font-mono uppercase tracking-wider">Bản Đang Đề Xuất Duyệt</span>
+                    <div className="space-y-2">
+                      <h4 className="font-bold text-stone-900 dark:text-stone-100 text-sm">{selectedRevision.title}</h4>
+                      <p className="text-xs text-stone-700 dark:text-stone-300 italic">Summary: {selectedRevision.summary}</p>
+                      {selectedRevision.image && (
+                        <img 
+                          src={selectedRevision.image} 
+                          alt="Submission thumbnail" 
+                          className="w-full h-32 object-cover rounded-xl border border-stone-200 dark:border-stone-850"
+                        />
+                      )}
+                      <div 
+                        className="text-xs text-stone-800 dark:text-stone-200 leading-relaxed font-sans prose prose-sm dark:prose-invert break-words max-h-96 overflow-y-auto pr-1"
+                        dangerouslySetInnerHTML={{ __html: selectedRevision.content }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-stone-100 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-850 p-6 rounded-2xl space-y-5">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-950/30 text-emerald-400 border border-emerald-500/15 rounded-xl text-[10px] font-mono font-semibold uppercase">
+                    <Leaf className="w-3.5 h-3.5" /> Bài viết gieo mầm mới (Không có phiên bản xuất bản trước đó)
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-stone-500 font-mono block uppercase">Tiêu đề bài viết</span>
+                      <h3 className="font-display font-bold text-stone-900 dark:text-stone-100 text-base">{selectedRevision.title}</h3>
                     </div>
 
-                    <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                      <div className="space-y-2">
-                        <h3 className="font-display font-bold text-stone-900 dark:text-stone-100 text-sm line-clamp-2 leading-snug group-hover:text-emerald-555 transition-colors">
-                          {post.title}
-                        </h3>
-                        <p className="text-stone-550 dark:text-stone-400 text-xs line-clamp-2 leading-relaxed">
-                          {post.summary}
-                        </p>
-                      </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-stone-500 font-mono block uppercase">Tóm tắt (Summary)</span>
+                      <p className="text-xs text-stone-700 dark:text-stone-300 italic leading-relaxed">{selectedRevision.summary}</p>
+                    </div>
 
-                      {post.taggedProductIds && post.taggedProductIds.length > 0 && (
-                        <div className="space-y-1.5 pt-2 border-t border-stone-200 dark:border-stone-850/60">
-                          <span className="text-[9px] text-stone-450 dark:text-stone-500 font-mono font-semibold uppercase flex items-center gap-1">
-                            <Tag className="w-3 h-3 text-emerald-500" /> Sản phẩm liên kết:
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {post.taggedProductIds.map((pId) => {
-                              const prod = products.find(p => p.id === pId);
-                              if (!prod) return null;
-                              return (
-                                <span key={pId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-stone-250 dark:bg-stone-800 text-[9px] text-stone-600 dark:text-stone-300 border border-stone-300 dark:border-stone-700 max-w-[150px] truncate">
-                                  {prod.name}
-                                </span>
-                              );
-                            })}
+                    {selectedRevision.image && (
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-stone-500 font-mono block uppercase">Ảnh Thumbnail</span>
+                        <img 
+                          src={selectedRevision.image} 
+                          alt="Article thumbnail" 
+                          className="max-h-64 object-cover rounded-xl border border-stone-250 dark:border-stone-800"
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-2 pt-4 border-t border-stone-200 dark:border-stone-800">
+                      <span className="text-[10px] text-stone-500 font-mono block uppercase">Nội dung chi tiết</span>
+                      <div 
+                        className="text-xs text-stone-800 dark:text-stone-200 leading-relaxed font-sans prose prose-sm dark:prose-invert break-words max-h-96 overflow-y-auto pr-2"
+                        dangerouslySetInnerHTML={{ __html: selectedRevision.content }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="lg:col-span-4 space-y-6">
+              <div className="bg-stone-100 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-850 p-4 rounded-2xl space-y-3">
+                <span className="text-[10px] text-stone-500 font-mono block uppercase font-semibold flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5 text-emerald-500" /> Sản phẩm gắn tag ({selectedRevision.taggedProductIds?.length || 0})
+                </span>
+                {selectedRevision.taggedProductIds && selectedRevision.taggedProductIds.length > 0 ? (
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {selectedRevision.taggedProductIds.map((pId: string) => {
+                      const prod = products.find(p => p.id === pId);
+                      if (!prod) return null;
+                      return (
+                        <div key={pId} className="flex items-center gap-2 p-2 bg-stone-200/50 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl">
+                          <img src={getMediaUrl(prod.image)} alt={prod.name} className="w-8 h-8 object-cover rounded" />
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-[10px] block truncate text-stone-800 dark:text-stone-200">{prod.name}</span>
+                            <span className="text-[9px] text-stone-500 font-mono">{prod.price.toLocaleString("vi-VN")}₫</span>
                           </div>
                         </div>
-                      )}
-
-                      <div className="flex items-center justify-between pt-3 border-t border-stone-200 dark:border-stone-850/60 text-[10px] text-stone-400 dark:text-stone-500 font-mono">
-                        <div className="space-y-0.5">
-                          <span className="block text-stone-800 dark:text-stone-300 font-semibold">Tác giả: {post.author}</span>
-                          <span className="block text-stone-400">{post.date}</span>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="flex items-center gap-1">
-                            <Eye className="w-3.5 h-3.5 text-stone-450" /> {post.views || 0}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-2 border-t border-stone-200 dark:border-stone-850/40">
-                        {(!post.status || post.status === "DRAFT") && (
-                          <>
-                            <button
-                              onClick={() => handlePublish(post.id)}
-                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-emerald-500/20 bg-emerald-500/10 text-emerald-450 hover:bg-emerald-500/20 transition-all cursor-pointer"
-                            >
-                              Xuất bản
-                            </button>
-                            <button
-                              onClick={() => handleArchive(post.id)}
-                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-stone-500/20 bg-stone-500/10 text-stone-400 hover:bg-stone-500/20 transition-all cursor-pointer"
-                            >
-                              Lưu trữ
-                            </button>
-                          </>
-                        )}
-                        {post.status === "PUBLISHED" && (
-                          <>
-                            <button
-                              onClick={() => handleRevertToDraft(post.id)}
-                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-amber-500/20 bg-amber-500/10 text-amber-455 hover:bg-amber-500/20 transition-all cursor-pointer"
-                            >
-                              Hạ nháp
-                            </button>
-                            <button
-                              onClick={() => handleArchive(post.id)}
-                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-stone-500/20 bg-stone-500/10 text-stone-400 hover:bg-stone-500/20 transition-all cursor-pointer"
-                            >
-                              Lưu trữ
-                            </button>
-                          </>
-                        )}
-                        {post.status === "ARCHIVED" && (
-                          <>
-                            <button
-                              onClick={() => handleRevertToDraft(post.id)}
-                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-amber-500/20 bg-amber-500/10 text-amber-455 hover:bg-amber-500/20 transition-all cursor-pointer"
-                            >
-                              Khôi phục về nháp
-                            </button>
-                            <button
-                              onClick={() => handlePublish(post.id)}
-                              className="flex-1 py-1.5 px-3 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-emerald-500/20 bg-emerald-500/10 text-emerald-450 hover:bg-emerald-500/20 transition-all cursor-pointer"
-                            >
-                              Xuất bản lại
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* VIEW B: FORM TO CREATE ARTICLE */}
-      {isCreating && (
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* Main Content (Col 1-8) */}
-          <div className="lg:col-span-8 space-y-5">
-            
-            <div className="space-y-1.5">
-              <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold text-xs">Tiêu đề bài viết:</label>
-              <input
-                type="text"
-                placeholder="Ví dụ: Phác đồ phục hồi bệnh vàng lá thối rễ sinh học từ chiết xuất tỏi"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-2xl py-3 px-4 text-xs font-semibold focus:outline-none"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold text-xs">Phân nhóm chuyên mục:</label>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { id: "plant-care", label: "Y Học Bệnh Cây", desc: "Cẩm nang trị bệnh" },
-                  { id: "urban-farming", label: "Nông Nghiệp Đô Thị", desc: "Trồng rau căn hộ" },
-                  { id: "eco-living", label: "Lối Sống Xanh", desc: "Phong cách sinh thái" }
-                ].map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setCategory(cat.id as any)}
-                    className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
-                      category === cat.id
-                        ? "bg-emerald-950/30 text-emerald-400 border-emerald-500/40 shadow-xs"
-                        : "bg-stone-100 dark:bg-stone-900/40 text-stone-500 border-stone-250 dark:border-stone-800 hover:border-stone-700"
-                    }`}
-                  >
-                    <span className="font-bold text-xs block">{cat.label}</span>
-                    <span className="text-[9px] text-stone-450 dark:text-stone-555 mt-0.5 block">{cat.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold text-xs">Tóm tắt bài viết (Summary):</label>
-              <textarea
-                placeholder="Một đoạn mô tả ngắn 1-2 câu tóm tắt bài viết của bạn xuất hiện ngoài danh sách cẩm nang xanh..."
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                rows={2}
-                maxLength={500}
-                className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-2xl py-3 px-4 text-xs focus:outline-none resize-none leading-relaxed"
-              />
-            </div>
-
-            <div className="space-y-1.5 relative">
-              <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold text-xs">Nội dung chi tiết (Rich HTML/Text):</label>
-              
-              {/* Text Formatting Toolbar */}
-              <div className="flex flex-wrap gap-1.5 bg-stone-150 dark:bg-stone-900 border border-b-0 border-stone-250 dark:border-stone-800 p-2 rounded-t-2xl text-[10px] text-stone-450 font-mono font-bold select-none">
-                <button type="button" onClick={() => insertText("<b>", "</b>")} className="px-2 py-1 bg-stone-200 dark:bg-stone-800 hover:bg-emerald-500/10 hover:text-emerald-450 rounded cursor-pointer font-bold">B</button>
-                <button type="button" onClick={() => insertText("<i>", "</i>")} className="px-2 py-1 bg-stone-200 dark:bg-stone-800 hover:bg-emerald-500/10 hover:text-emerald-450 rounded cursor-pointer italic">I</button>
-                <button type="button" onClick={() => insertText("<h1>", "</h1>")} className="px-2 py-1 bg-stone-200 dark:bg-stone-800 hover:bg-emerald-500/10 hover:text-emerald-450 rounded cursor-pointer">H1</button>
-                <button type="button" onClick={() => insertText("<h2>", "</h2>")} className="px-2 py-1 bg-stone-200 dark:bg-stone-800 hover:bg-emerald-500/10 hover:text-emerald-450 rounded cursor-pointer">H2</button>
-                <button type="button" onClick={() => insertText("<p>", "</p>")} className="px-2 py-1 bg-stone-200 dark:bg-stone-800 hover:bg-emerald-500/10 hover:text-emerald-450 rounded cursor-pointer">Paragraph</button>
-                <button type="button" onClick={() => insertText("<ul>\n  <li>", "</li>\n</ul>")} className="px-2 py-1 bg-stone-200 dark:bg-stone-800 hover:bg-emerald-500/10 hover:text-emerald-450 rounded cursor-pointer">List</button>
-                <button type="button" onClick={() => insertText("<br />")} className="px-2 py-1 bg-stone-200 dark:bg-stone-800 hover:bg-emerald-500/10 hover:text-emerald-455 rounded cursor-pointer">Break</button>
-              </div>
-
-              <textarea
-                id="admin-blog-content-textarea"
-                placeholder="Viết nội dung bài viết hướng dẫn chi tiết tại đây. Bạn có thể sử dụng các thẻ HTML cơ bản từ thanh công cụ phía trên..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={12}
-                className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-t-0 border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-b-2xl py-3.5 px-4 text-xs focus:outline-none leading-relaxed font-mono"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Sidebar Settings (Col 9-12) */}
-          <div className="lg:col-span-4 space-y-6">
-            
-            {/* Thumbnail Drag & Drop */}
-            <div className="space-y-2">
-              <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold text-xs">Ảnh đại diện bài viết (Thumbnail):</label>
-              
-              <div 
-                className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
-                  dragActive
-                    ? "border-emerald-500 bg-emerald-950/5"
-                    : image 
-                      ? "border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-900/30"
-                      : "border-stone-250 dark:border-stone-800 bg-stone-100 dark:bg-stone-900/10 hover:border-emerald-500/50"
-                }`}
-                onDragEnter={handleDrag}
-                onDragOver={handleDrag}
-                onDragLeave={handleDrag}
-                onDrop={handleDrop}
-                onClick={() => document.getElementById("admin-blog-thumbnail-input")?.click()}
-              >
-                <input 
-                  id="admin-blog-thumbnail-input"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-
-                {image ? (
-                  <div className="space-y-3">
-                    <img 
-                      src={image} 
-                      alt="Thumbnail Preview" 
-                      className="w-full h-32 object-cover rounded-xl border border-stone-200 dark:border-stone-800"
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setImage("");
-                      }}
-                      className="px-2.5 py-1 text-[9px] bg-rose-500/15 hover:bg-rose-500/25 text-rose-455 border border-rose-500/20 rounded-md font-mono font-bold uppercase transition-colors"
-                    >
-                      Xóa & Thay Ảnh
-                    </button>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="space-y-2 flex flex-col items-center py-2">
-                    <UploadCloud className="h-9 w-9 text-stone-450 animate-bounce" style={{ animationDuration: '3s' }} />
-                    <div className="text-xs text-stone-600 dark:text-stone-300">
-                      <span className="font-bold text-emerald-500 hover:text-emerald-400">Tải ảnh lên</span> hoặc kéo thả ảnh tại đây
-                    </div>
-                    <p className="text-[9px] text-stone-500 font-mono">Chấp nhận JPG, PNG dưới 2MB.</p>
-                  </div>
+                  <p className="text-[10px] text-stone-500 italic">Không gắn kèm sản phẩm nào.</p>
                 )}
               </div>
-            </div>
 
-            {/* Tag Products Selector */}
-            <div className="space-y-2">
-              <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold text-xs">Gắn tag sản phẩm hệ thống:</label>
-              
-              <div className="bg-stone-100 dark:bg-stone-900/40 border border-stone-250 dark:border-stone-800 rounded-2xl p-4 space-y-3 max-h-72 flex flex-col justify-between">
-                
-                {/* Micro search inside tags */}
-                <div className="relative shrink-0">
-                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-stone-450" />
-                  <input
-                    type="text"
-                    placeholder="Lọc sản phẩm hệ thống..."
-                    value={tagSearch}
-                    onChange={(e) => setTagSearch(e.target.value)}
-                    className="w-full bg-stone-200 dark:bg-stone-950 text-stone-850 dark:text-stone-200 border border-stone-300 dark:border-stone-850 rounded-lg py-1.5 pl-8 pr-3 text-[10px] focus:outline-none"
+              <div className="bg-stone-100 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-850 p-4 rounded-2xl space-y-3">
+                <span className="text-[10px] text-stone-500 font-mono block uppercase font-semibold flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-emerald-500" /> Lịch sử kiểm duyệt
+                </span>
+                {selectedRevision.moderationHistory && selectedRevision.moderationHistory.length > 0 ? (
+                  <div className="space-y-3 pl-2 border-l border-stone-300 dark:border-stone-800 max-h-48 overflow-y-auto pr-1">
+                    {selectedRevision.moderationHistory.map((hist: any, index: number) => (
+                      <div key={hist.id || index} className="space-y-1 relative pl-3.5">
+                        <div className="absolute top-1 left-[-4.5px] w-2 h-2 rounded-full bg-emerald-500" />
+                        <div className="flex justify-between items-center text-[9px] text-stone-400 font-mono">
+                          <span>{hist.moderatorName || "Admin"}</span>
+                          <span>{hist.moderatedAt ? new Date(hist.moderatedAt).toLocaleDateString("vi-VN") : "N/A"}</span>
+                        </div>
+                        <p className="text-[10px] text-stone-300 font-bold uppercase tracking-tight">
+                          {hist.action === "APPROVE" ? "Đã duyệt" : hist.action === "REQUEST_CHANGES" ? "Yêu cầu sửa" : hist.action === "REJECT" ? "Từ chối" : hist.action}
+                        </p>
+                        {hist.comment && (
+                          <p className="text-[10px] text-stone-450 italic bg-stone-200/50 dark:bg-stone-950 p-1.5 rounded-lg border border-stone-250 dark:border-stone-850/60 leading-normal">
+                            "{hist.comment}"
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-stone-500 italic">Chưa có lịch sử kiểm duyệt nào.</p>
+                )}
+              </div>
+
+              <div className="bg-stone-100 dark:bg-stone-900/50 p-4 border border-stone-200 dark:border-stone-850 rounded-2xl space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-stone-450 dark:text-stone-555 font-mono block uppercase font-bold">
+                    Ý kiến phản hồi / Ghi chú từ chối *
+                  </label>
+                  <textarea
+                    placeholder="Nhập lý do từ chối, ý kiến góp ý chỉnh sửa bài viết... (Bắt buộc đối với yêu cầu sửa đổi hoặc từ chối)"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={4}
+                    className="w-full text-xs p-3 bg-stone-200/50 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent text-stone-850 dark:text-stone-200 h-28 resize-none leading-relaxed"
                   />
                 </div>
 
-                <div className="overflow-y-auto space-y-2 pr-1 flex-1 py-1">
-                  {filteredTaggableProducts.length === 0 ? (
-                    <EmptyState
-                      icon={ShoppingBag}
-                      title="Không tìm thấy sản phẩm"
-                      description="Không có sản phẩm nào phù hợp."
-                    />
-                  ) : (
-                    filteredTaggableProducts.map((prod) => {
-                      const isChecked = selectedProductIds.includes(prod.id);
-                      return (
-                        <div 
-                          key={prod.id} 
-                          onClick={() => handleToggleProductTag(prod.id)}
-                          className={`flex items-center justify-between p-2 rounded-xl border cursor-pointer select-none transition-all ${
-                            isChecked
-                              ? "bg-emerald-950/20 text-emerald-400 border-emerald-500/35"
-                              : "bg-stone-200/50 dark:bg-stone-950 text-stone-600 dark:text-stone-300 border-stone-250 dark:border-stone-850 hover:bg-stone-200 dark:hover:bg-stone-900"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <img src={getMediaUrl(prod.image)} alt={prod.name} className="w-8 h-8 object-cover rounded" />
-                            <div>
-                              <span className="font-bold text-[10px] block line-clamp-1">{prod.name}</span>
-                              <span className="text-[9px] text-stone-455 dark:text-stone-550 font-mono font-semibold">{prod.price.toLocaleString("vi-VN")}₫</span>
-                            </div>
-                          </div>
-                          
-                          <input 
-                            type="checkbox" 
-                            checked={isChecked}
-                            onChange={() => {}} // Managed by div onClick
-                            className="h-3.5 w-3.5 rounded text-emerald-500 bg-stone-900 border-stone-800 cursor-pointer"
-                          />
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+                <div className="space-y-2 pt-2 border-t border-stone-200 dark:border-stone-850">
+                  <button
+                    onClick={() => handleAction("approve")}
+                    disabled={submitting}
+                    className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black text-xs font-bold uppercase rounded-xl cursor-pointer transition-all shadow-md shadow-emerald-500/10 flex items-center justify-center gap-1.5 tracking-wider"
+                  >
+                    {submitting ? <Clock className="animate-spin w-4.5 h-4.5" /> : <CheckCircle2 className="w-4.5 h-4.5" />} Duyệt & Xuất Bản
+                  </button>
 
-                <div className="pt-2.5 border-t border-stone-250 dark:border-stone-800 text-[9px] text-stone-450 dark:text-stone-550 font-mono text-right font-semibold shrink-0 uppercase">
-                  Đã chọn: <strong className="text-emerald-550 font-bold">{selectedProductIds.length}</strong> sản phẩm
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleAction("request-changes")}
+                      disabled={submitting}
+                      className="py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1"
+                    >
+                      Yêu Cầu Sửa
+                    </button>
+                    <button
+                      onClick={() => handleAction("reject")}
+                      disabled={submitting}
+                      className="py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1"
+                    >
+                      Từ Chối
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => handleAction("archive")}
+                    disabled={submitting}
+                    className="w-full py-2 bg-stone-800 hover:bg-stone-750 disabled:opacity-50 text-stone-400 hover:text-stone-200 text-[10px] font-bold uppercase rounded-xl cursor-pointer transition-all border border-stone-700/60"
+                  >
+                    Lưu Trữ Bài Viết
+                  </button>
                 </div>
               </div>
             </div>
-
-            {/* Publishing Box */}
-            <div className="bg-stone-100 dark:bg-stone-900/50 p-4 border border-stone-250 dark:border-stone-850 rounded-2xl space-y-3.5 shrink-0">
-              <span className="text-[9px] text-stone-455 dark:text-stone-550 font-mono block uppercase font-bold">Quy chế đăng chuyên đề xanh:</span>
-              <p className="text-[10px] text-stone-500 leading-normal">
-                Bài viết sau khi phát hành dưới danh nghĩa Ban Biên Tập sẽ hiển thị trực tiếp trong mục cẩm nang của khách hàng và có hiệu lực tham khảo chính thức.
-              </p>
-              
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-3 bg-emerald-50 hover:bg-emerald-400 text-black font-bold uppercase rounded-xl text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 tracking-wider font-mono shadow-md shadow-emerald-500/10 disabled:opacity-50"
-              >
-                {submitting ? (
-                  <>
-                    <Clock className="animate-spin w-4 h-4" /> Đang Gửi...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" /> Phát Hành Cẩm Nang
-                  </>
-                )}
-              </button>
-            </div>
-
           </div>
+        </div>
+      ) : (
+        <div className="space-y-6 animate-fade-in">
+          {loading ? (
+            <TableSkeleton rows={5} cols={5} />
+          ) : revisions.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="Không có bài viết chờ duyệt"
+              description="Hệ thống hiện tại sạch sẽ, không có bài viết nào đang nằm trong hàng đợi kiểm duyệt."
+            />
+          ) : (
+            <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
+              <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
+                <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+                  <tr>
+                    <th className="p-4.5">Tiêu Đề Đề Xuất</th>
+                    <th className="p-4.5">Chuyên Mục</th>
+                    <th className="p-4.5">Tác Giả</th>
+                    <th className="p-4.5 text-center">Ngày Đệ Trình</th>
+                    <th className="p-4.5 text-center">Trạng Thái</th>
+                    <th className="p-4.5 text-right">Hành Động</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+                  {revisions.map((rev) => {
+                    const categoryNames = {
+                      "plant-care": "Y Học Bệnh Cây",
+                      "urban-farming": "Nông Nghiệp Đô Thị",
+                      "eco-living": "Lối Sống Xanh"
+                    };
 
-        </form>
+                    return (
+                      <tr key={rev.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
+                        <td className="p-4.5 font-bold text-stone-900 dark:text-stone-100 max-w-sm truncate" title={rev.title}>
+                          {rev.title}
+                        </td>
+                        <td className="p-4.5 font-semibold text-[10px] text-stone-500">
+                          {categoryNames[rev.category] || rev.category}
+                        </td>
+                        <td className="p-4.5">
+                          <div className="space-y-0.5">
+                            <span className="block font-semibold text-stone-800 dark:text-stone-200">{rev.authorName}</span>
+                            <span className="block text-[8px] font-mono uppercase tracking-wider text-stone-450">{rev.authorRole === "STORE_OWNER" ? "Chủ Vườn" : "Khách Hàng"}</span>
+                          </div>
+                        </td>
+                        <td className="p-4.5 text-center font-mono text-[10px]">
+                          {rev.submittedAt ? new Date(rev.submittedAt).toLocaleDateString("vi-VN") : "N/A"}
+                        </td>
+                        <td className="p-4.5 text-center font-mono">
+                          {getStatusBadge(rev.status)}
+                        </td>
+                        <td className="p-4.5 text-right">
+                          <button
+                            onClick={() => setSelectedRevision(rev)}
+                            className="py-1 px-3 bg-emerald-500 hover:bg-emerald-450 text-black font-bold rounded-lg text-[10px] uppercase cursor-pointer transition-all inline-flex items-center gap-1.5 shadow-sm shadow-emerald-500/10"
+                          >
+                            Thẩm Định <ArrowUpRight className="w-3 h-3" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

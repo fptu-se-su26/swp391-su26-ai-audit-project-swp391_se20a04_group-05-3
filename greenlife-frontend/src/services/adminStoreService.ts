@@ -22,6 +22,10 @@ export const AdminStoreService = {
     return HttpClient.get("/api/admin/stores/pending", { signal });
   },
 
+  async getApprovedStores(signal?: AbortSignal): Promise<StoreResponse[]> {
+    return HttpClient.get("/api/admin/stores/approved", { signal });
+  },
+
   async approveStore(id: number, reason?: string, signal?: AbortSignal): Promise<StoreResponse> {
     const payload = reason ? { reason } : {};
     return HttpClient.put(`/api/admin/stores/${id}/approve`, payload, { signal });

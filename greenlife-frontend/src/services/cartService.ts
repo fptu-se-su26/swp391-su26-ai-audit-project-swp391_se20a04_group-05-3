@@ -9,7 +9,7 @@ export class CartService {
       product: {
         id: String(item.plantId),
         name: item.plantName,
-        price: item.plantPrice,
+        price: item.baseUnitPrice !== undefined ? item.baseUnitPrice : item.plantPrice,
         image: item.plantImageUrl,
         rating: 5,
         category: "plants",
@@ -17,9 +17,23 @@ export class CartService {
         ecoScore: 100,
         details: [],
         specs: {},
-        stock: item.plantStock !== undefined ? item.plantStock : 999
+        stock: item.plantStock !== undefined ? item.plantStock : 999,
+        effectivePrice: item.effectiveUnitPrice !== undefined ? item.effectiveUnitPrice : item.plantPrice,
+        discountAmount: item.unitDiscount,
+        onSale: item.onSale,
+        promotionId: item.promotionId,
+        promotionName: item.promotionName
       },
-      quantity: item.quantity
+      quantity: item.quantity,
+      baseUnitPrice: item.baseUnitPrice,
+      effectiveUnitPrice: item.effectiveUnitPrice,
+      unitDiscount: item.unitDiscount,
+      lineBaseAmount: item.lineBaseAmount,
+      lineEffectiveAmount: item.lineEffectiveAmount,
+      lineDiscountAmount: item.lineDiscountAmount,
+      onSale: item.onSale,
+      promotionId: item.promotionId,
+      promotionName: item.promotionName
     }));
 
     return {
@@ -35,7 +49,7 @@ export class CartService {
       product: {
         id: String(item.plantId),
         name: item.plantName,
-        price: item.plantPrice,
+        price: item.baseUnitPrice !== undefined ? item.baseUnitPrice : item.plantPrice,
         image: item.plantImageUrl,
         rating: 5,
         category: "plants",
@@ -43,9 +57,23 @@ export class CartService {
         ecoScore: 100,
         details: [],
         specs: {},
-        stock: item.plantStock !== undefined ? item.plantStock : 999
+        stock: item.plantStock !== undefined ? item.plantStock : 999,
+        effectivePrice: item.effectiveUnitPrice !== undefined ? item.effectiveUnitPrice : item.plantPrice,
+        discountAmount: item.unitDiscount,
+        onSale: item.onSale,
+        promotionId: item.promotionId,
+        promotionName: item.promotionName
       },
-      quantity: item.quantity
+      quantity: item.quantity,
+      baseUnitPrice: item.baseUnitPrice,
+      effectiveUnitPrice: item.effectiveUnitPrice,
+      unitDiscount: item.unitDiscount,
+      lineBaseAmount: item.lineBaseAmount,
+      lineEffectiveAmount: item.lineEffectiveAmount,
+      lineDiscountAmount: item.lineDiscountAmount,
+      onSale: item.onSale,
+      promotionId: item.promotionId,
+      promotionName: item.promotionName
     };
   }
 
@@ -56,7 +84,7 @@ export class CartService {
       product: {
         id: String(item.plantId),
         name: item.plantName,
-        price: item.plantPrice,
+        price: item.baseUnitPrice !== undefined ? item.baseUnitPrice : item.plantPrice,
         image: item.plantImageUrl,
         rating: 5,
         category: "plants",
@@ -64,9 +92,23 @@ export class CartService {
         ecoScore: 100,
         details: [],
         specs: {},
-        stock: item.plantStock !== undefined ? item.plantStock : 999
+        stock: item.plantStock !== undefined ? item.plantStock : 999,
+        effectivePrice: item.effectiveUnitPrice !== undefined ? item.effectiveUnitPrice : item.plantPrice,
+        discountAmount: item.unitDiscount,
+        onSale: item.onSale,
+        promotionId: item.promotionId,
+        promotionName: item.promotionName
       },
-      quantity: item.quantity
+      quantity: item.quantity,
+      baseUnitPrice: item.baseUnitPrice,
+      effectiveUnitPrice: item.effectiveUnitPrice,
+      unitDiscount: item.unitDiscount,
+      lineBaseAmount: item.lineBaseAmount,
+      lineEffectiveAmount: item.lineEffectiveAmount,
+      lineDiscountAmount: item.lineDiscountAmount,
+      onSale: item.onSale,
+      promotionId: item.promotionId,
+      promotionName: item.promotionName
     };
   }
 

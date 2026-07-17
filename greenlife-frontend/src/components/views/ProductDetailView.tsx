@@ -333,10 +333,28 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           </div>
 
           <div className="border-t border-b border-stone-200 dark:border-stone-800/60 py-4">
-            <span className="text-[10px] font-mono text-stone-500 dark:text-stone-450 block font-bold uppercase tracking-wider">Đơn giá niêm yết:</span>
-            <span className="text-3xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 block mt-1">
-              {product.price.toLocaleString("vi-VN")}₫
-            </span>
+            <span className="text-[10px] font-mono text-stone-500 dark:text-stone-450 block font-bold uppercase tracking-wider">Giá sản phẩm:</span>
+            {product.onSale && product.effectivePrice !== undefined ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-stone-500 line-through font-mono">
+                    {product.price.toLocaleString("vi-VN")}₫
+                  </span>
+                  {product.promotionName && (
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold font-mono">
+                      Khuyến mãi: {product.promotionName}
+                    </span>
+                  )}
+                </div>
+                <span className="text-3xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 block">
+                  {product.effectivePrice.toLocaleString("vi-VN")}₫
+                </span>
+              </div>
+            ) : (
+              <span className="text-3xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 block mt-1">
+                {product.price.toLocaleString("vi-VN")}₫
+              </span>
+            )}
           </div>
 
           <p className="text-stone-600 dark:text-stone-300 text-sm leading-relaxed">
@@ -428,6 +446,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 let finalProduct = { ...product };
                 if (soilAddon) {
                   finalProduct.price += 35000;
+                  if (finalProduct.effectivePrice !== undefined) {
+                    finalProduct.effectivePrice += 35000;
+                  }
                   finalProduct.name += " (Kèm Phân trùn quế)";
                 }
                 onAddToCart(finalProduct, quantity, e);

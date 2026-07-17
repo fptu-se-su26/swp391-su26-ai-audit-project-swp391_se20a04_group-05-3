@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Leaf, ShoppingBag, BrainCircuit, Newspaper, User, Settings2, Home, UserCheck, Sun, Moon, MapPin, Menu, X, LogOut, Cpu, Store, Users, Sprout, TrendingUp, Inbox, FileText, Bell, Trash2, MessageSquare, ShieldAlert, Calendar } from "lucide-react";
+import { Leaf, ShoppingBag, BrainCircuit, Newspaper, User, Settings2, Home, UserCheck, Sun, Moon, MapPin, Menu, X, LogOut, Cpu, Store, Users, Sprout, TrendingUp, Inbox, FileText, Bell, Trash2, MessageSquare, ShieldAlert, Calendar, Tag } from "lucide-react";
 
 import { useAppContext } from "../../context/AppContext";
 import { NotificationSkeleton } from "./Skeleton";
@@ -103,6 +103,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         { id: "orders", label: "Giao Dịch Đơn Hàng", icon: ShoppingBag },
         { id: "blogs", label: "Cẩm Nang Xanh", icon: FileText },
         { id: "reviews", label: "Kiểm Duyệt Đánh Giá", icon: MessageSquare },
+        { id: "promotions", label: "Khuyến Mãi", icon: Tag },
         { id: "security-logs", label: "Nhật Ký Bảo Mật", icon: ShieldAlert },
       ]
     : isStoreOwner
@@ -143,7 +144,8 @@ export const Navigation: React.FC<NavigationProps> = ({
         "orders",
         "blogs",
         "reviews",
-        "security-logs"
+        "security-logs",
+        "promotions"
       ].includes(id);
 
       if (isAdminItem) {
