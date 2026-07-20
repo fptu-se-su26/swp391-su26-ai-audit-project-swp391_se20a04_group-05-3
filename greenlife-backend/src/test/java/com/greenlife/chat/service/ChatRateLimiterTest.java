@@ -3,6 +3,7 @@ package com.greenlife.chat.service;
 import com.greenlife.exception.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.http.HttpStatus;
 
 import java.time.Clock;
@@ -79,5 +80,19 @@ class ChatRateLimiterTest {
 
         assertDoesNotThrow(() -> rateLimiter.checkRateLimit("k3"));
         assertDoesNotThrow(() -> rateLimiter.checkRateLimit("k4"));
+    }
+
+    @Test
+    void testSpringConstructorResolution() {
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.register(ChatRateLimiter.class);
+            context.refresh();
+
+            ChatRateLimiter bean = context.getBean(ChatRateLimiter.class);
+            assertNotNull(bean);
+            assertEquals(10, bean.getMaxRequests());
+            assertEquals(60, bean.getWindowSeconds());
+            assertEquals(1000, bean.getMaxKeys());
+        }
     }
 }

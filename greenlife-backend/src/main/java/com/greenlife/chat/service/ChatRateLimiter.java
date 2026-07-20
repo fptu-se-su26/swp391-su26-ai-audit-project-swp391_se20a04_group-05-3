@@ -1,6 +1,7 @@
 package com.greenlife.chat.service;
 
 import com.greenlife.exception.CustomException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -31,6 +32,7 @@ public class ChatRateLimiter {
         this.clock = clock != null ? clock : Clock.systemUTC();
     }
 
+    @Autowired
     public ChatRateLimiter(
             @Value("${greenlife.ai.chat-rate-limit-max:10}") int maxRequests,
             @Value("${greenlife.ai.chat-rate-limit-window-seconds:60}") int windowSeconds,
