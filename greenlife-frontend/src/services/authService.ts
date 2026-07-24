@@ -1,5 +1,6 @@
 import { User } from "../types";
 import { HttpClient } from "./httpClient";
+import type { StoreResponse } from "./adminStoreService";
 import { storage } from "../utils/storage";
 import { logger } from "../utils/logger";
 
@@ -45,7 +46,7 @@ export class AuthService {
 
       const data = await HttpClient.get("/api/auth/me", { skipAuthRedirect: true });
       const mappedUser = this.mapUserResponseToUser(data);
-      
+
       // Save the updated info back to storage
       storage.setItem(this.STORAGE_KEY, {
         token: token,
@@ -110,7 +111,7 @@ export class AuthService {
       if (data.accessToken) {
         const parsed = storage.getItem<any>(this.STORAGE_KEY) || {};
         const mappedUser = data.user ? this.mapUserResponseToUser(data.user) : parsed.user;
-        
+
         storage.setItem(this.STORAGE_KEY, {
           token: data.accessToken,
           user: mappedUser
@@ -180,7 +181,6 @@ export class AuthService {
 
   /**
    * General OTP verification — alias for verifyRegistrationOTP.
-   * Used by StoreProfileSetupView to verify shop-email OTP.
    * Maps to POST /api/auth/verify-email.
    */
   public static async verifyOTP(email: string, code: string): Promise<{ success: boolean; message: string }> {
@@ -191,7 +191,6 @@ export class AuthService {
     };
   }
 
-
   /**
    * Sends OTP to the specified email (for forgot-password or verify)
    */
@@ -201,6 +200,38 @@ export class AuthService {
       success: true,
       message: data.message || "Gửi OTP thành công!"
     };
+  }
+
+  /**
+   * Sends OTP for seller registration
+   */
+  public static async sendSellerOtp(email: string): Promise<{ success: boolean; message: string }> {
+    const data = await HttpClient.post("/api/stores/otp/send", { email });
+    return {
+      success: true,
+      message: data.message || "Gửi OTP thành công!"
+    };
+  }
+
+  /**
+   * Verifies OTP for seller registration
+   */
+  public static async verifySellerOtp(email: string, code: string): Promise<{ success: boolean; message: string }> {
+    const data = await HttpClient.post("/api/stores/otp/verify", { email, otp: code });
+    return {
+      success: true,
+      message: data.message || "Xác thực OTP thành công!"
+    };
+  }
+
+  /**
+   * Authenticated multipart upload for seller KYC document
+   */
+  public static async uploadKycDocument(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const data = await HttpClient.post<{ url: string }>("/api/store/profile/kyc/upload", formData);
+    return data.url;
   }
 
   /**
@@ -275,8 +306,13 @@ export class AuthService {
     description?: string;
     logoUrl?: string;
     verificationDocument?: string;
-  }): Promise<User> {
-    const data = await HttpClient.post("/api/stores/register", {
+    shopEmail?: string;
+    businessType?: string;
+    cccdFrontUrl?: string;
+    cccdBackUrl?: string;
+    businessEvidenceUrls?: string[];
+  }): Promise<{ user: User; store: StoreResponse }> {
+    const data = await HttpClient.post<StoreResponse>("/api/stores/register", {
       name: details.name,
       phone: details.phone,
       city: details.city,
@@ -284,12 +320,17 @@ export class AuthService {
       address: details.address,
       description: details.description || "",
       logoUrl: details.logoUrl || "",
-      verificationDocument: details.verificationDocument || ""
+      verificationDocument: details.verificationDocument || "",
+      shopEmail: details.shopEmail || "",
+      businessType: details.businessType || "PHYSICAL_STORE",
+      cccdFrontUrl: details.cccdFrontUrl || "",
+      cccdBackUrl: details.cccdBackUrl || "",
+      businessEvidenceUrls: details.businessEvidenceUrls || []
     });
 
     const updatedUser = await this.getCurrentUser();
     if (updatedUser) {
-      return updatedUser;
+      return { user: updatedUser, store: data };
     }
     throw new Error("Không thể tải lại thông tin người dùng.");
   }

@@ -93,26 +93,7 @@ export class ArticleService {
     const formData = new FormData();
     formData.append("file", file);
 
-    // Using fetch directly because HttpClient might have generic JSON headers
-    const token = localStorage.getItem("token"); // GreenLife standard token key
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    const response = await fetch("/api/blogs/import-document", {
-      method: "POST",
-      headers,
-      body: formData,
-      signal
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.message || "Không thể tải lên tài liệu");
-    }
-
-    return response.json();
+    return HttpClient.post<ImportDocumentResponse>("/api/blogs/import-document", formData, { signal });
   }
 
   /**

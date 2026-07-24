@@ -20,15 +20,16 @@ export const CategoryCard: React.FC<CategoryCardProps> = React.memo(({
 }) => {
   return (
     <button
+      type="button"
       onClick={() => onClick(category.id)}
-      className={`px-3.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+      className={`px-3.5 py-2 rounded-xl text-xs font-medium cursor-pointer transition-all min-h-[40px] inline-flex items-center justify-center border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
         isActive
-          ? "bg-emerald-500 text-black shadow-md font-semibold"
-          : "bg-stone-900 text-stone-400 border border-stone-850 hover:text-stone-200"
+          ? "bg-[var(--gl-accent)] text-white dark:text-emerald-950 border-[var(--gl-accent)] font-bold shadow-sm"
+          : "bg-[var(--gl-bg-surface)] text-[var(--gl-text-secondary)] border-[var(--gl-border)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)]"
       }`}
     >
       {category.icon && <span className="mr-1.5">{category.icon}</span>}
-      {category.label || category.name || ""}
+      <span>{category.label || category.name || ""}</span>
     </button>
   );
 });

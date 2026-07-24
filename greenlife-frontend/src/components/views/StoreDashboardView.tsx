@@ -651,113 +651,138 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
   if (!myStore) {
     return (
-      <div className="max-w-md mx-auto text-center py-16 bg-stone-900 border border-stone-800 rounded-3xl space-y-4 my-12 text-xs">
-        <p className="text-stone-300 font-semibold text-sm">Bạn chưa đăng ký hồ sơ cửa hàng.</p>
-        <p className="text-stone-500 text-xs px-6">Vui lòng đăng ký thông tin đối tác nhà vườn để bắt đầu kinh doanh.</p>
+      <div className="max-w-md mx-auto text-center py-16 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-3xl space-y-4 my-12 text-xs text-[var(--gl-text-primary)]">
+        <p className="text-[var(--gl-text-primary)] font-semibold text-sm">Bạn chưa đăng ký hồ sơ cửa hàng.</p>
+        <p className="text-[var(--gl-text-muted)] text-xs px-6">Vui lòng đăng ký thông tin đối tác nhà vườn để bắt đầu kinh doanh.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 pb-24 text-stone-850 dark:text-stone-100">
+    <div className="space-y-8 pb-24 text-[var(--gl-text-primary)]">
       
       {/* Intro Portal header with green luxury accent */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 p-6 rounded-3xl bg-linear-to-br from-emerald-500/5 via-stone-950/20 to-transparent border border-stone-200/50 dark:border-stone-850/40 shadow-xs backdrop-blur-md">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 p-6 rounded-3xl bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] shadow-xs">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--gl-accent)] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--gl-accent)]"></span>
             </span>
-            <span className="text-xs text-emerald-600 dark:text-emerald-500 font-mono tracking-widest uppercase font-semibold">GREENPARTNER ROOT PORTAL</span>
+            <span className="text-xs text-[var(--gl-accent)] font-mono tracking-widest uppercase font-semibold">GREENPARTNER ROOT PORTAL</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-display font-bold text-stone-900 dark:text-stone-100 tracking-tight flex items-center gap-2.5">
-            <Landmark className="h-9 w-9 text-emerald-650 dark:text-emerald-450 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+          <h1 className="text-3xl sm:text-4xl font-display font-bold text-[var(--gl-text-primary)] tracking-tight flex items-center gap-2.5">
+            <Landmark className="h-9 w-9 text-[var(--gl-accent)]" />
             Kênh Quản Lý Nhà Vườn GreenPartner
           </h1>
-          <p className="text-stone-500 dark:text-stone-400 text-sm max-w-xl leading-relaxed">
+          <p className="text-[var(--gl-text-muted)] text-sm max-w-xl leading-relaxed">
             Hệ thống điều hành đối tác nhà vườn. Giám sát doanh số tuần, quản lý đóng gói đơn hàng organic bền vững và niêm yết thêm các mầm xanh đạt chuẩn Eco-Score lên sàn.
           </p>
         </div>
 
         {/* Real-time server connection stats */}
-        <div className="flex flex-wrap md:flex-col lg:flex-row items-start lg:items-center gap-3.5 bg-stone-900/5 dark:bg-stone-950/60 p-4 rounded-2xl border border-stone-200 dark:border-stone-850 font-mono text-[10px] text-stone-500 dark:text-stone-400">
+        <div className="flex flex-wrap md:flex-col lg:flex-row items-start lg:items-center gap-3.5 bg-[var(--gl-bg-muted)] p-4 rounded-2xl border border-[var(--gl-border)] font-mono text-[10px] text-[var(--gl-text-muted)]">
           <div className="flex items-center gap-1.5">
-            <Activity className="h-3.5 w-3.5 text-emerald-500" />
-            <span>Đối Tác: <strong className="text-emerald-500 dark:text-emerald-400">LCA Verified</strong></span>
+            <Activity className="h-3.5 w-3.5 text-[var(--gl-accent)]" />
+            <span>Đối Tác: <strong className="text-[var(--gl-accent)]">LCA Verified</strong></span>
           </div>
-          <span className="hidden lg:inline text-stone-300 dark:text-stone-800">|</span>
+          <span className="hidden lg:inline text-[var(--gl-border)]">|</span>
           <div className="flex items-center gap-1.5">
-            <Award className="h-3.5 w-3.5 text-emerald-500" />
-            <span>Hạng Vườn: <strong className="text-emerald-500 dark:text-emerald-400">Lá Phổi Xanh</strong></span>
+            <Award className="h-3.5 w-3.5 text-[var(--gl-accent)]" />
+            <span>Hạng Vườn: <strong className="text-[var(--gl-accent)]">Lá Phổi Xanh</strong></span>
           </div>
-          <span className="hidden lg:inline text-stone-300 dark:text-stone-800">|</span>
+          <span className="hidden lg:inline text-[var(--gl-border)]">|</span>
           <div className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
-            <span>Đóng gói: <strong className="text-emerald-500 dark:text-emerald-400">Bio-Bag 100%</strong></span>
+            <Sparkles className="h-3.5 w-3.5 text-[var(--gl-accent)] animate-pulse" />
+            <span>Đóng gói: <strong className="text-[var(--gl-accent)]">Bio-Bag 100%</strong></span>
           </div>
         </div>
       </div>
       {/* Quick Actions Area */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 p-4 rounded-3xl bg-linear-to-br from-emerald-500/5 via-stone-950/20 to-transparent border border-stone-200/50 dark:border-stone-850/40 shadow-xs backdrop-blur-md">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 p-4 rounded-3xl bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] shadow-xs">
         <button
+          type="button"
           onClick={() => setActiveTab("orders")}
-          className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+          className={`flex items-center gap-3 p-3.5 border rounded-2xl text-left cursor-pointer transition-all duration-200 min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
+            activeTab === "orders"
+              ? "bg-[var(--gl-accent-soft)] border-[var(--gl-accent)]/30 text-[var(--gl-accent)] font-bold"
+              : "bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border-[var(--gl-border)] text-[var(--gl-text-primary)]"
+          }`}
         >
-          <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
+          <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
             <Inbox className="w-5 h-5" />
           </div>
-          <div>
-            <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Đơn Hàng Mới</span>
-            <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Xử lý yêu cầu mua</span>
+          <div className="min-w-0">
+            <span className="font-bold text-xs block text-[var(--gl-text-primary)] truncate">Đơn Hàng Mới</span>
+            <span className="text-[10px] text-[var(--gl-text-muted)] block truncate">Xử lý yêu cầu mua</span>
           </div>
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab("products")}
-          className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+          className={`flex items-center gap-3 p-3.5 border rounded-2xl text-left cursor-pointer transition-all duration-200 min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
+            activeTab === "products"
+              ? "bg-[var(--gl-accent-soft)] border-[var(--gl-accent)]/30 text-[var(--gl-accent)] font-bold"
+              : "bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border-[var(--gl-border)] text-[var(--gl-text-primary)]"
+          }`}
         >
-          <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
+          <div className="p-2 rounded-xl bg-emerald-500/10 text-[var(--gl-accent)] shrink-0">
             <Sprout className="w-5 h-5" />
           </div>
-          <div>
-            <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Kho Sản Phẩm</span>
-            <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Danh mục và tồn kho</span>
+          <div className="min-w-0">
+            <span className="font-bold text-xs block text-[var(--gl-text-primary)] truncate">Kho Sản Phẩm</span>
+            <span className="text-[10px] text-[var(--gl-text-muted)] block truncate">Danh mục và tồn kho</span>
           </div>
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab("services")}
-          className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+          className={`flex items-center gap-3 p-3.5 border rounded-2xl text-left cursor-pointer transition-all duration-200 min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
+            activeTab === "services"
+              ? "bg-[var(--gl-accent-soft)] border-[var(--gl-accent)]/30 text-[var(--gl-accent)] font-bold"
+              : "bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border-[var(--gl-border)] text-[var(--gl-text-primary)]"
+          }`}
         >
-          <div className="p-2 rounded-xl bg-teal-500/10 text-teal-500">
+          <div className="p-2 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 shrink-0">
             <Calendar className="w-5 h-5" />
           </div>
-          <div>
-            <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Dịch Vụ & Lịch Hẹn</span>
-            <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Quản lý đặt lịch hẹn</span>
+          <div className="min-w-0">
+            <span className="font-bold text-xs block text-[var(--gl-text-primary)] truncate">Dịch Vụ & Lịch Hẹn</span>
+            <span className="text-[10px] text-[var(--gl-text-muted)] block truncate">Quản lý đặt lịch hẹn</span>
           </div>
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab("reviews")}
-          className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+          className={`flex items-center gap-3 p-3.5 border rounded-2xl text-left cursor-pointer transition-all duration-200 min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
+            activeTab === "reviews"
+              ? "bg-[var(--gl-accent-soft)] border-[var(--gl-accent)]/30 text-[var(--gl-accent)] font-bold"
+              : "bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border-[var(--gl-border)] text-[var(--gl-text-primary)]"
+          }`}
         >
-          <div className="p-2 rounded-xl bg-purple-500/10 text-purple-500">
+          <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
             <MessageSquare className="w-5 h-5" />
           </div>
-          <div>
-            <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Đánh Giá</span>
-            <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Khách hàng phản hồi</span>
+          <div className="min-w-0">
+            <span className="font-bold text-xs block text-[var(--gl-text-primary)] truncate">Đánh Giá</span>
+            <span className="text-[10px] text-[var(--gl-text-muted)] block truncate">Khách hàng phản hồi</span>
           </div>
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab("settings")}
-          className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-950 hover:bg-emerald-500/10 hover:border-emerald-500/30 border border-stone-200 dark:border-stone-850 rounded-2xl text-left cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+          className={`flex items-center gap-3 p-3.5 border rounded-2xl text-left cursor-pointer transition-all duration-200 min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
+            activeTab === "settings"
+              ? "bg-[var(--gl-accent-soft)] border-[var(--gl-accent)]/30 text-[var(--gl-accent)] font-bold"
+              : "bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border-[var(--gl-border)] text-[var(--gl-text-primary)]"
+          }`}
         >
-          <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
+          <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">
             <Settings className="w-5 h-5" />
           </div>
-          <div>
-            <span className="font-bold text-xs block text-stone-900 dark:text-stone-100">Cấu Hình Vườn</span>
-            <span className="text-[10px] text-stone-450 dark:text-stone-500 block">Địa chỉ & vị trí GIS</span>
+          <div className="min-w-0">
+            <span className="font-bold text-xs block text-[var(--gl-text-primary)] truncate">Cấu Hình Vườn</span>
+            <span className="text-[10px] text-[var(--gl-text-muted)] block truncate">Địa chỉ & vị trí GIS</span>
           </div>
         </button>
       </div>
@@ -772,20 +797,20 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
             {statsMetrics.map((stat, idx) => {
               const Icon = stat.icon;
               return (
-                <div key={idx} className={`group bg-stone-50 dark:bg-stone-950 border ${stat.bg} p-4.5 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300`}>
+                <div key={idx} className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-4.5 rounded-2xl flex flex-col justify-between shadow-xs transition-all duration-300">
                   <div className="flex justify-between items-start">
-                    <span className="px-2 py-0.5 rounded text-[8px] bg-stone-200 dark:bg-stone-900 text-stone-500 dark:text-stone-400 font-mono tracking-wider font-bold">
+                    <span className="px-2 py-0.5 rounded text-[8px] bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] border border-[var(--gl-border)] font-mono tracking-wider font-bold">
                       {stat.badge}
                     </span>
-                    <div className={`p-2 rounded-lg bg-stone-205 dark:bg-stone-900/60 ${stat.color} transition-colors`}>
+                    <div className={`p-2 rounded-lg bg-[var(--gl-bg-muted)] ${stat.color} transition-colors`}>
                       <Icon className="h-4.5 w-4.5" />
                     </div>
                   </div>
-                  <div className="mt-4">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-bold font-display text-stone-900 dark:text-stone-100 tracking-tight">{stat.title}</span>
+                  <div className="mt-4 min-w-0">
+                    <div className="flex items-baseline gap-2 min-w-0">
+                      <span className="text-xl font-bold font-display text-[var(--gl-text-primary)] tracking-tight truncate">{stat.title}</span>
                     </div>
-                    <span className="text-[10px] text-stone-400 dark:text-stone-500 mt-0.5 block">{stat.desc}</span>
+                    <span className="text-[10px] text-[var(--gl-text-muted)] mt-0.5 block truncate">{stat.desc}</span>
                   </div>
                 </div>
               );
@@ -793,14 +818,14 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
           </section>
 
           {/* Recharts Chart Block */}
-          <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-4 shadow-xs">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-4 shadow-xs">
             <div className="flex justify-between items-center">
               <div className="space-y-1">
-                <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase flex items-center gap-1.5">
-                  <TrendingUp className="h-4.5 w-4.5 text-emerald-500" />
+                <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase flex items-center gap-1.5">
+                  <TrendingUp className="h-4.5 w-4.5 text-[var(--gl-accent)]" />
                   Hiệu Suất Vận Hành & Khử Carbon Tích Lũy Theo Tuần
                 </h3>
-                <p className="text-[10px] text-stone-400 font-mono">Dữ liệu phân tích dòng tiền và lượng CO2 đã trung hòa qua bao bì Bio-Bag</p>
+                <p className="text-[10px] text-[var(--gl-text-muted)] font-mono">Dữ liệu phân tích dòng tiền và lượng CO2 đã trung hòa qua bao bì Bio-Bag</p>
               </div>
             </div>
 
@@ -809,25 +834,25 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="var(--gl-accent)" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="var(--gl-accent)" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="#88888812" strokeDasharray="3 3" />
-                  <XAxis dataKey="name" stroke="#666" fontSize={11} axisLine={false} tickLine={false} />
-                  <YAxis stroke="#666" fontSize={11} axisLine={false} tickLine={false} />
+                  <CartesianGrid stroke="var(--gl-border)" strokeDasharray="3 3" />
+                  <XAxis dataKey="name" stroke="var(--gl-text-muted)" fontSize={11} axisLine={false} tickLine={false} />
+                  <YAxis stroke="var(--gl-text-muted)" fontSize={11} axisLine={false} tickLine={false} />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: "var(--stone-950)", 
-                      borderColor: "var(--stone-850)", 
+                      backgroundColor: "var(--gl-bg-elevated)",
+                      borderColor: "var(--gl-border)",
                       borderRadius: "16px",
                       boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
-                      backdropFilter: "blur(8px)" 
+                      backdropFilter: "blur(8px)"
                     }}
-                    labelStyle={{ color: "var(--stone-200)", fontSize: "11px", fontWeight: "bold", fontFamily: "var(--font-mono)" }}
-                    itemStyle={{ fontSize: "12px", padding: "2px 0" }}
+                    labelStyle={{ color: "var(--gl-text-primary)", fontSize: "11px", fontWeight: "bold", fontFamily: "var(--font-mono)" }}
+                    itemStyle={{ fontSize: "12px", padding: "2px 0", color: "var(--gl-accent)" }}
                   />
-                  <Area type="monotone" dataKey="DoanhThuVnd" stroke="#10b981" fillOpacity={1} fill="url(#colorSales)" strokeWidth={2} name="Doanh Thu (VND)" />
+                  <Area type="monotone" dataKey="DoanhThuVnd" stroke="var(--gl-accent)" fillOpacity={1} fill="url(#colorSales)" strokeWidth={2} name="Doanh Thu (VND)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -837,42 +862,42 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
       {/* 2. ORDERS MANAGEMENT TAB */}
       {activeTab === "orders" && (
-        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down">
+        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down text-[var(--gl-text-primary)]">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase">
+              <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase">
                 Quản Lý Đơn Mua Hàng Hữu Cơ
               </h3>
-              <p className="text-[10px] text-stone-400">Tiếp nhận thông tin khách mua, thực hiện đóng gói bằng bao bì tinh bột tự phân hủy và điều phối vận chuyển.</p>
+              <p className="text-[10px] text-[var(--gl-text-muted)]">Tiếp nhận thông tin khách mua, thực hiện đóng gói bằng bao bì tinh bột tự phân hủy và điều phối vận chuyển.</p>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)]" />
                 <input
                   type="text"
                   placeholder="Tìm mã đơn, khách hàng..."
                   value={orderSearch}
                   onChange={(e) => setOrderSearch(e.target.value)}
-                  className="w-full sm:w-64 pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono"
+                  className="w-full sm:w-64 pl-9 pr-4 py-2 text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono placeholder:text-[var(--gl-text-muted)]"
                 />
               </div>
               <div className="relative">
-                <Filter className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                <Filter className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)] pointer-events-none" />
                 <select
                   value={orderStatusFilter}
                   onChange={(e) => setOrderStatusFilter(e.target.value)}
-                  className="w-full sm:w-48 pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-850 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono cursor-pointer"
+                  className="w-full sm:w-48 pl-9 pr-4 py-2 text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono cursor-pointer"
                 >
-                  <option value="">Tất cả trạng thái</option>
-                  <option value="pending">Chờ xử lý</option>
-                  <option value="processing">Đang đóng gói</option>
-                  <option value="shipped">Đang vận chuyển</option>
-                  <option value="completed">Đã hoàn thành</option>
-                  <option value="cancelled">Đã hủy đơn</option>
-                  <option value="return_requested">Yêu cầu hoàn hàng</option>
-                  <option value="return_approved">Đã chấp nhận trả hàng</option>
-                  <option value="return_rejected">Đã từ chối trả hàng</option>
+                  <option value="" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Tất cả trạng thái</option>
+                  <option value="pending" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Chờ xử lý</option>
+                  <option value="processing" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đang đóng gói</option>
+                  <option value="shipped" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đang vận chuyển</option>
+                  <option value="completed" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đã hoàn thành</option>
+                  <option value="cancelled" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đã hủy đơn</option>
+                  <option value="return_requested" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Yêu cầu hoàn hàng</option>
+                  <option value="return_approved" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đã chấp nhận trả hàng</option>
+                  <option value="return_rejected" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đã từ chối trả hàng</option>
                 </select>
               </div>
             </div>
@@ -881,7 +906,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
           {loadingOrders ? (
             <div className="p-8"><ListSkeleton count={4} /></div>
           ) : ordersError ? (
-            <div className="p-8 text-center text-rose-500 font-medium font-mono">{ordersError}</div>
+            <div className="p-8 text-center text-[var(--gl-danger)] font-medium font-mono">{ordersError}</div>
           ) : (
             <>
               {/* Mobile View: Card-based responsive list (visible on screens < md) */}
@@ -894,67 +919,70 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   />
                 ) : (
                   filteredOrders.map((ord) => (
-                    <div key={ord.id} className="bg-stone-55 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-850 p-4.5 rounded-2xl space-y-3.5 shadow-xs">
+                    <div key={ord.id} className="bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] p-4.5 rounded-2xl space-y-3.5 shadow-xs">
                       <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                          <span className="text-[9px] text-stone-400 font-mono block">MÃ ĐƠN HÀNG</span>
-                          <span className="font-mono font-bold text-stone-900 dark:text-stone-100 text-xs">{ord.id}</span>
+                        <div className="space-y-1 min-w-0 pr-2">
+                          <span className="text-[9px] text-[var(--gl-text-muted)] font-mono block">MÃ ĐƠN HÀNG</span>
+                          <span className="font-mono font-bold text-[var(--gl-text-primary)] text-xs truncate block">{ord.id}</span>
                         </div>
-                        <span className={`inline-flex px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${getOrderStatusColor(ord.status)}`}>
+                        <span className={`inline-flex px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase border shrink-0 ${getOrderStatusColor(ord.status)}`}>
                           {getOrderStatusLabel(ord.status)}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2.5 pt-2.5 border-t border-stone-200/50 dark:border-stone-850/40">
-                        <div className="w-8 h-8 rounded-full bg-linear-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-xs shrink-0 select-none">
+                      <div className="flex items-center gap-2.5 pt-2.5 border-t border-[var(--gl-border)]">
+                        <div className="w-8 h-8 rounded-full bg-[var(--gl-accent-soft)] border border-[var(--gl-accent)]/20 flex items-center justify-center text-[var(--gl-accent)] font-bold text-xs shrink-0 select-none">
                           {getCustomerInitials(ord.customerName)}
                         </div>
-                        <div>
-                          <span className="text-[9px] text-stone-450 dark:text-stone-500 block font-mono">Khách hàng</span>
-                          <span className="text-xs font-semibold text-stone-900 dark:text-stone-100">{ord.customerName}</span>
+                        <div className="min-w-0">
+                          <span className="text-[9px] text-[var(--gl-text-muted)] block font-mono">Khách hàng</span>
+                          <span className="text-xs font-semibold text-[var(--gl-text-primary)] truncate block">{ord.customerName}</span>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 py-1 text-[10px] font-mono text-stone-500">
+                      <div className="grid grid-cols-3 gap-2 py-1 text-[10px] font-mono text-[var(--gl-text-secondary)]">
                         <div>
-                          <span className="block text-[8px] uppercase text-stone-400">Ngày đặt</span>
-                          <span className="font-medium text-stone-750 dark:text-stone-300">{ord.date}</span>
+                          <span className="block text-[8px] uppercase text-[var(--gl-text-muted)]">Ngày đặt</span>
+                          <span className="font-medium text-[var(--gl-text-primary)]">{ord.date}</span>
                         </div>
                         <div className="text-center">
-                          <span className="block text-[8px] uppercase text-stone-400">Số món</span>
-                          <span className="font-semibold text-stone-750 dark:text-stone-300">{ord.itemsCount} món</span>
+                          <span className="block text-[8px] uppercase text-[var(--gl-text-muted)]">Số món</span>
+                          <span className="font-semibold text-[var(--gl-text-primary)]">{ord.itemsCount} món</span>
                         </div>
                         <div className="text-right">
-                          <span className="block text-[8px] uppercase text-stone-400">Tổng tiền</span>
-                          <span className="font-bold text-emerald-650 dark:text-emerald-400">{ord.total.toLocaleString("vi-VN")}₫</span>
+                          <span className="block text-[8px] uppercase text-[var(--gl-text-muted)]">Tổng tiền</span>
+                          <span className="font-bold text-[var(--gl-accent)]">{ord.total.toLocaleString("vi-VN")}₫</span>
                         </div>
                       </div>
 
                       {(ord.status === "return_requested" || ord.status === "return_approved" || ord.status === "return_rejected") && ord.returnRequestReason && (
-                        <div className="p-2.5 bg-stone-100 dark:bg-stone-950/40 rounded-xl text-[10px] text-stone-500 border border-stone-200/30 dark:border-stone-850/50">
-                          <span className="font-bold text-stone-700 dark:text-stone-300 block">Lý do khách hàng:</span>
-                          <span className="italic text-stone-600 dark:text-stone-400">"{ord.returnRequestReason}"</span>
+                        <div className="p-2.5 bg-[var(--gl-bg-surface)] rounded-xl text-[10px] text-[var(--gl-text-secondary)] border border-[var(--gl-border)] break-words">
+                          <span className="font-bold text-[var(--gl-text-primary)] block">Lý do khách hàng:</span>
+                          <span className="italic text-[var(--gl-text-muted)]">"{ord.returnRequestReason}"</span>
                         </div>
                       )}
 
-                      <div className="flex gap-2 pt-2.5 border-t border-stone-200/50 dark:border-stone-850/40 justify-end">
+                      <div className="flex flex-wrap gap-2 pt-2.5 border-t border-[var(--gl-border)] justify-end">
                         <button
+                          type="button"
                           onClick={() => handleOpenOrderDetail(ord)}
-                          className="px-2.5 py-1.5 bg-stone-200 dark:bg-stone-800 hover:bg-stone-300 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                          className="px-3 py-1.5 min-h-[40px] bg-[var(--gl-bg-surface)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         >
                           <Eye className="w-3.5 h-3.5" /> Chi Tiết
                         </button>
                         {ord.status === "pending" && (
                           <>
                             <button
+                              type="button"
                               onClick={() => handleUpdateOrderStatus(ord.id, "processing")}
-                              className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-450 text-black font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                              className="px-3 py-1.5 min-h-[40px] bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             >
                               <Check className="w-3.5 h-3.5" /> Nhận
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleUpdateOrderStatus(ord.id, "cancelled")}
-                              className="px-2.5 py-1.5 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 font-bold rounded-lg border border-rose-500/25 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                              className="px-3 py-1.5 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 text-[var(--gl-danger)] font-bold rounded-lg border border-rose-500/20 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             >
                               <Trash2 className="w-3.5 h-3.5" /> Hủy
                             </button>
@@ -962,16 +990,18 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                         )}
                         {ord.status === "processing" && (
                           <button
+                            type="button"
                             onClick={() => handleUpdateOrderStatus(ord.id, "shipped")}
-                            className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-black font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                            className="px-3 py-1.5 min-h-[40px] bg-indigo-500 hover:bg-indigo-400 text-white font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                           >
                             <Truck className="w-3.5 h-3.5" /> Giao
                           </button>
                         )}
                         {ord.status === "shipped" && (
                           <button
+                            type="button"
                             onClick={() => handleUpdateOrderStatus(ord.id, "completed")}
-                            className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-450 text-black font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                            className="px-3 py-1.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                           >
                             <Check className="w-3.5 h-3.5" /> Hoàn Tất
                           </button>
@@ -979,14 +1009,16 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                         {ord.status === "return_requested" && (
                           <>
                             <button
+                              type="button"
                               onClick={() => handleApproveReturn(ord.id)}
-                              className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-450 text-black font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                              className="px-3 py-1.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             >
                               <Check className="w-3.5 h-3.5" /> Chấp Nhận
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleRejectReturn(ord.id)}
-                              className="px-2.5 py-1.5 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 font-bold rounded-lg border border-rose-500/25 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                              className="px-3 py-1.5 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 text-[var(--gl-danger)] font-bold rounded-lg border border-rose-500/20 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             >
                               <X className="w-3.5 h-3.5" /> Từ Chối
                             </button>
@@ -999,9 +1031,9 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
               </div>
 
               {/* Desktop View: Polished table (visible on screens >= md) */}
-              <div className="hidden md:block overflow-x-auto text-xs rounded-2xl border border-stone-200 dark:border-stone-850">
-                <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-                  <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-850 text-stone-500 uppercase font-mono text-[9px]">
+              <div className="hidden md:block overflow-x-auto text-xs rounded-2xl border border-[var(--gl-border)]">
+                <table className="w-full text-left text-[var(--gl-text-secondary)] border-collapse">
+                  <thead className="bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] text-[var(--gl-text-muted)] uppercase font-mono text-[9px]">
                     <tr>
                       <th className="p-4.5">Mã Đơn</th>
                       <th className="p-4.5">Khách Hàng</th>
@@ -1012,7 +1044,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                       <th className="p-4.5 text-right">Điều Phối Hoạt Động</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+                  <tbody className="divide-y divide-[var(--gl-border)]">
                     {filteredOrders.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="p-8">
@@ -1025,19 +1057,19 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                       </tr>
                     ) : (
                       filteredOrders.map((ord) => (
-                        <tr key={ord.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
-                          <td className="p-4.5 font-mono font-bold text-stone-900 dark:text-stone-100">{ord.id}</td>
+                        <tr key={ord.id} className="hover:bg-[var(--gl-bg-muted)]/50 transition-colors">
+                          <td className="p-4.5 font-mono font-bold text-[var(--gl-text-primary)]">{ord.id}</td>
                           <td className="p-4.5">
                             <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-full bg-linear-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-[10px] shrink-0 select-none">
+                              <div className="w-7 h-7 rounded-full bg-[var(--gl-accent-soft)] border border-[var(--gl-accent)]/20 flex items-center justify-center text-[var(--gl-accent)] font-bold text-[10px] shrink-0 select-none">
                                 {getCustomerInitials(ord.customerName)}
                               </div>
-                              <span className="font-semibold text-stone-900 dark:text-stone-100">{ord.customerName}</span>
+                              <span className="font-semibold text-[var(--gl-text-primary)]">{ord.customerName}</span>
                             </div>
                           </td>
                           <td className="p-4.5 font-mono">{ord.date}</td>
                           <td className="p-4.5 text-center font-mono">{ord.itemsCount}</td>
-                          <td className="p-4.5 text-center font-mono font-bold text-emerald-650 dark:text-emerald-400">
+                          <td className="p-4.5 text-center font-mono font-bold text-[var(--gl-accent)]">
                             {ord.total.toLocaleString("vi-VN")}₫
                           </td>
                           <td className="p-4.5">
@@ -1046,7 +1078,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                                 {getOrderStatusLabel(ord.status)}
                               </span>
                               {(ord.status === "return_requested" || ord.status === "return_approved" || ord.status === "return_rejected") && ord.returnRequestReason && (
-                                <span className="block text-[10px] text-stone-400 max-w-[150px] truncate italic" title={ord.returnRequestReason}>
+                                <span className="block text-[10px] text-[var(--gl-text-muted)] max-w-[150px] truncate italic" title={ord.returnRequestReason}>
                                   Lý do khách: {ord.returnRequestReason}
                                 </span>
                               )}
@@ -1055,8 +1087,9 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                           <td className="p-4.5 text-right">
                             <div className="flex gap-1.5 justify-end">
                               <button
+                                type="button"
                                 onClick={() => handleOpenOrderDetail(ord)}
-                                className="px-2 py-1 bg-stone-200 dark:bg-stone-800 hover:bg-stone-300 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                className="px-2.5 py-1.5 min-h-[40px] bg-[var(--gl-bg-surface)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                                 title="Xem chi tiết đơn hàng"
                               >
                                 <Eye className="h-3 w-3" /> Chi Tiết
@@ -1064,15 +1097,17 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                               {ord.status === "pending" && (
                                 <>
                                   <button
+                                    type="button"
                                     onClick={() => handleUpdateOrderStatus(ord.id, "processing")}
-                                    className="px-2 py-1 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                    className="px-2.5 py-1.5 min-h-[40px] bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                                     title="Nhận đơn hàng & đóng gói"
                                   >
                                     <Check className="h-3 w-3" /> Nhận
                                   </button>
                                   <button
+                                    type="button"
                                     onClick={() => handleUpdateOrderStatus(ord.id, "cancelled")}
-                                    className="px-2 py-1 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 font-semibold rounded-lg border border-rose-500/20 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                    className="px-2.5 py-1.5 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 text-[var(--gl-danger)] font-semibold rounded-lg border border-rose-500/20 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                                     title="Hủy đơn hàng"
                                   >
                                     <Trash2 className="h-3 w-3" /> Hủy
@@ -1081,8 +1116,9 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                               )}
                               {ord.status === "processing" && (
                                 <button
+                                  type="button"
                                   onClick={() => handleUpdateOrderStatus(ord.id, "shipped")}
-                                  className="px-2 py-1 bg-indigo-500 hover:bg-indigo-400 text-black font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                  className="px-2.5 py-1.5 min-h-[40px] bg-indigo-500 hover:bg-indigo-400 text-white font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                                   title="Chuyển sang vận chuyển"
                                 >
                                   <Truck className="h-3 w-3" /> Giao
@@ -1090,8 +1126,9 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                               )}
                               {ord.status === "shipped" && (
                                 <button
+                                  type="button"
                                   onClick={() => handleUpdateOrderStatus(ord.id, "completed")}
-                                  className="px-2 py-1 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                  className="px-2.5 py-1.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                                   title="Hoàn tất đơn hàng"
                                 >
                                   <Check className="h-3 w-3" /> Hoàn Tất
@@ -1100,15 +1137,17 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                               {ord.status === "return_requested" && (
                                 <>
                                   <button
+                                    type="button"
                                     onClick={() => handleApproveReturn(ord.id)}
-                                    className="px-2 py-1 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                    className="px-2.5 py-1.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-semibold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                                     title="Chấp nhận yêu cầu trả hàng"
                                   >
                                     <Check className="h-3 w-3" /> Chấp Nhận
                                   </button>
                                   <button
+                                    type="button"
                                     onClick={() => handleRejectReturn(ord.id)}
-                                    className="px-2 py-1 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 font-semibold rounded-lg border border-rose-500/20 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase"
+                                    className="px-2.5 py-1.5 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 text-[var(--gl-danger)] font-semibold rounded-lg border border-rose-500/20 text-[9px] flex items-center gap-1 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                                     title="Từ chối yêu cầu trả hàng"
                                   >
                                     <X className="h-3 w-3" /> Từ Chối
@@ -1116,10 +1155,10 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                                 </>
                               )}
                               {ord.status === "completed" && (
-                                <span className="text-[10px] text-stone-400 dark:text-stone-500 font-mono italic">Đã hoàn tất</span>
+                                <span className="text-[10px] text-[var(--gl-text-muted)] font-mono italic">Đã hoàn tất</span>
                               )}
                               {ord.status === "cancelled" && (
-                                <span className="text-[10px] text-rose-455 font-mono italic">Đã hủy</span>
+                                <span className="text-[10px] text-[var(--gl-danger)] font-mono italic">Đã hủy</span>
                               )}
                             </div>
                           </td>
@@ -1136,26 +1175,26 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
       {/* 3. PRODUCTS CATALOG & LISTING TAB */}
       {activeTab === "products" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-slide-down">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-slide-down text-[var(--gl-text-primary)]">
           {/* Table of active products */}
-          <div className="lg:col-span-8 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-5 shadow-xs">
+          <div className="lg:col-span-8 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-5 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase">
+                <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase">
                   Danh Mục Sản Phẩm Của Nhà Vườn
                 </h3>
-                <p className="text-[10px] text-stone-400">Danh sách các dòng cây, chế phẩm sinh học được phân phối từ vườn của bạn.</p>
+                <p className="text-[10px] text-[var(--gl-text-muted)]">Danh sách các dòng cây, chế phẩm sinh học được phân phối từ vườn của bạn.</p>
               </div>
               
               <div className="flex gap-2">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-stone-450" />
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[var(--gl-text-muted)]" />
                   <input
                     type="text"
                     placeholder="Tìm tên cây..."
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    className="pl-8 pr-3 py-1.5 text-xs rounded-lg bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-850 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono w-40"
+                    className="pl-8 pr-3 py-1.5 text-xs rounded-lg bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono w-40 placeholder:text-[var(--gl-text-muted)]"
                   />
                 </div>
               </div>
@@ -1174,7 +1213,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   const status = raw ? raw.status : "ACTIVE";
                   
                   return (
-                    <div key={p.id} className="bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-850 rounded-2xl p-4 flex flex-col justify-between gap-3.5 hover:shadow-md transition-all duration-300">
+                    <div key={p.id} className="bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] rounded-2xl p-4 flex flex-col justify-between gap-3.5 shadow-xs transition-all duration-300">
                       <div className="flex gap-3">
                         <img 
                           src={getMediaUrl(p.image)} 
@@ -1182,26 +1221,26 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1545241047-6083a3684587?w=600";
                           }}
-                          className="w-14 h-14 object-cover rounded-xl border border-stone-200 dark:border-stone-850 shrink-0" 
+                          className="w-14 h-14 object-cover rounded-xl border border-[var(--gl-border)] shrink-0"
                           loading="lazy" 
                         />
                         <div className="flex-1 min-w-0">
-                          <span className="text-[9px] text-stone-400 font-mono block uppercase tracking-wider">
+                          <span className="text-[9px] text-[var(--gl-text-muted)] font-mono block uppercase tracking-wider">
                             {p.category === "plants" ? "🌱 Cây xanh" : p.category === "care" ? "🪴 Chăm sóc" : p.category === "nutrients" ? "🧪 Dinh dưỡng" : "⚙️ IoT"}
                           </span>
-                          <h4 className="font-bold text-stone-900 dark:text-stone-100 text-xs mt-0.5 truncate">{p.name}</h4>
-                          <span className="text-[9px] text-stone-450 dark:text-stone-500 font-mono block mt-0.5">ID: {p.id} {p.sku && `| SKU: ${p.sku}`}</span>
+                          <h4 className="font-bold text-[var(--gl-text-primary)] text-xs mt-0.5 truncate">{p.name}</h4>
+                          <span className="text-[9px] text-[var(--gl-text-muted)] font-mono block mt-0.5">ID: {p.id} {p.sku && `| SKU: ${p.sku}`}</span>
                         </div>
                       </div>
 
-                      <div className="flex justify-between items-center text-xs border-t border-b border-stone-200/50 dark:border-stone-850/40 py-2.5 font-mono">
+                      <div className="flex justify-between items-center text-xs border-t border-b border-[var(--gl-border)] py-2.5 font-mono">
                         <div>
-                          <span className="text-[8px] text-stone-455 dark:text-stone-500 block uppercase">Đơn giá</span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-450">{p.price.toLocaleString("vi-VN")}₫</span>
+                          <span className="text-[8px] text-[var(--gl-text-muted)] block uppercase">Đơn giá</span>
+                          <span className="font-bold text-[var(--gl-accent)]">{p.price.toLocaleString("vi-VN")}₫</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-[8px] text-stone-455 dark:text-stone-500 block uppercase">Tồn kho</span>
-                          <span className={`font-bold ${p.stock === 0 ? "text-rose-500" : p.stock < 10 ? "text-amber-500" : "text-stone-750 dark:text-stone-300"}`}>
+                          <span className="text-[8px] text-[var(--gl-text-muted)] block uppercase">Tồn kho</span>
+                          <span className={`font-bold ${p.stock === 0 ? "text-[var(--gl-danger)]" : p.stock < 10 ? "text-amber-600 dark:text-amber-400" : "text-[var(--gl-text-primary)]"}`}>
                             {p.stock} món
                           </span>
                         </div>
@@ -1209,29 +1248,30 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] text-stone-450 dark:text-stone-500 font-mono">Eco-Score:</span>
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-950/20 text-emerald-400 border border-emerald-900/10 font-bold font-mono text-[9px]">{p.ecoScore}%</span>
+                          <span className="text-[9px] text-[var(--gl-text-muted)] font-mono">Eco-Score:</span>
+                          <span className="px-1.5 py-0.5 rounded bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20 font-bold font-mono text-[9px]">{p.ecoScore}%</span>
                         </div>
 
                         <div>
                           {p.stock === 0 ? (
-                            <span className="inline-flex px-2 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-md font-mono text-[8px] uppercase font-bold">
+                            <span className="inline-flex px-2 py-0.5 bg-rose-500/10 text-[var(--gl-danger)] border border-rose-500/20 rounded-md font-mono text-[8px] uppercase font-bold">
                               🚨 Hết Hàng
                             </span>
                           ) : p.stock < 10 ? (
-                            <span className="inline-flex px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-md font-mono text-[8px] uppercase font-bold">
+                            <span className="inline-flex px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-md font-mono text-[8px] uppercase font-bold">
                               ⚠️ Tồn Thấp
                             </span>
                           ) : (
-                            <span className="inline-flex px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md font-mono text-[8px] uppercase font-bold">
+                            <span className="inline-flex px-2 py-0.5 bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20 rounded-md font-mono text-[8px] uppercase font-bold">
                               ✓ Đang Bán
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex gap-2 mt-2 pt-2 border-t border-stone-200/50 dark:border-stone-850/40">
+                      <div className="flex gap-2 mt-2 pt-2 border-t border-[var(--gl-border)]">
                         <button
+                          type="button"
                           onClick={() => {
                             setEditingProduct(p);
                             setProductName(p.name);
@@ -1242,18 +1282,20 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                             setProductDescription(p.description);
                             setProductImageUrl(p.image || "");
                           }}
-                          className="flex-1 py-1.5 px-3 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 transition-all"
+                          className="flex-1 py-2 px-3 min-h-[40px] bg-[var(--gl-bg-surface)] hover:bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         >
-                          <Pencil className="h-3 w-3 text-stone-500" />
+                          <Pencil className="h-3 w-3 text-[var(--gl-text-muted)]" />
                           Sửa thông tin
                         </button>
                         <button
+                          type="button"
+                          aria-label="Xóa sản phẩm"
                           onClick={() => {
                             setDeleteProductId(p.id);
                             setDeleteProductName(p.name);
                             setDeleteProductOpen(true);
                           }}
-                          className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all border border-transparent hover:border-rose-500/10"
+                          className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center text-[var(--gl-danger)] hover:bg-rose-500/10 rounded-xl transition-all border border-transparent hover:border-rose-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                           title="Xóa sản phẩm"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1266,16 +1308,16 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
             )}
 
             {/* Other marketplace catalog block */}
-            <div className="pt-4 border-t border-stone-250 dark:border-stone-850">
-              <span className="text-[10px] text-stone-400 font-mono block uppercase mb-3">Xem các sản phẩm khác trên sàn GreenMarket:</span>
+            <div className="pt-4 border-t border-[var(--gl-border)]">
+              <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block uppercase mb-3">Xem các sản phẩm khác trên sàn GreenMarket:</span>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {otherProducts.slice(0, 4).map((p) => (
-                  <div key={p.id} className="p-2.5 bg-stone-100 dark:bg-stone-900/30 border border-stone-200 dark:border-stone-850 rounded-xl space-y-1">
+                  <div key={p.id} className="p-2.5 bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] rounded-xl space-y-1">
                     <img src={getMediaUrl(p.image)} alt={p.name} className="w-full h-18 object-cover rounded-lg" loading="lazy" />
-                    <span className="font-semibold text-stone-900 dark:text-stone-100 block text-[10px] line-clamp-1 mt-1">{p.name}</span>
+                    <span className="font-semibold text-[var(--gl-text-primary)] block text-[10px] line-clamp-1 mt-1">{p.name}</span>
                     <div className="flex justify-between items-center text-[9px] font-mono mt-0.5">
-                      <span className="text-emerald-500 font-bold">{p.price.toLocaleString("vi-VN")}₫</span>
-                      <span className="text-stone-400">Tồn: {p.stock}</span>
+                      <span className="text-[var(--gl-accent)] font-bold">{p.price.toLocaleString("vi-VN")}₫</span>
+                      <span className="text-[var(--gl-text-muted)]">Tồn: {p.stock}</span>
                     </div>
                   </div>
                 ))}
@@ -1285,51 +1327,51 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
           </div>
 
           {/* Form to List New Product */}
-          <div className="lg:col-span-4 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-4 shadow-xs">
-            <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase flex items-center gap-1.5">
-              <PlusCircle className="h-4.5 w-4.5 text-emerald-500" />
+          <div className="lg:col-span-4 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-4 shadow-xs">
+            <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase flex items-center gap-1.5">
+              <PlusCircle className="h-4.5 w-4.5 text-[var(--gl-accent)]" />
               {editingProduct ? "Chỉnh Sửa Mầm Xanh" : "Niêm Yết Mầm Xanh Mới"}
             </h3>
 
             <form onSubmit={handleAddNewProductSubmit} className="space-y-4 text-xs">
               {editingProduct && (
                 <div className="space-y-1.5">
-                  <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">ID hệ thống (Mã tự động):</label>
+                  <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">ID hệ thống (Mã tự động):</label>
                   <input
                     type="text"
                     value={editingProduct.id}
                     disabled
-                    className="w-full bg-stone-200 dark:bg-stone-850 text-stone-500 dark:text-stone-400 border border-stone-250 dark:border-stone-800 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono cursor-not-allowed"
+                    className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] border border-[var(--gl-border)] rounded-xl py-2 px-3 text-xs focus:outline-none font-mono cursor-not-allowed"
                   />
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Tên mặt hàng hữu cơ:</label>
+                <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Tên mặt hàng hữu cơ:</label>
                 <input
                   type="text"
                   placeholder="Ví dụ: Cây Trầu Bà Leo Cột hữu cơ"
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
-                  className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none"
+                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2 px-3 text-xs placeholder:text-[var(--gl-text-muted)]"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Mã SKU / mã quản lý nội bộ:</label>
+                <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Mã SKU / mã quản lý nội bộ:</label>
                 <input
                   type="text"
                   placeholder="Ví dụ: SKU-PL-TRAUBA-01"
                   value={productSku}
                   onChange={(e) => setProductSku(e.target.value)}
-                  className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono"
+                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2 px-3 text-xs font-mono placeholder:text-[var(--gl-text-muted)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Đơn giá (VND):</label>
+                  <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Đơn giá (VND):</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -1345,13 +1387,13 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                       const clean = productPrice.trim().replace(/^0+/, "");
                       setProductPrice(clean === "" ? "0" : clean);
                     }}
-                    className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono"
+                    className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2 px-3 text-xs font-mono placeholder:text-[var(--gl-text-muted)]"
                     required
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Số lượng tồn kho:</label>
+                  <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Số lượng tồn kho:</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -1367,17 +1409,17 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                       const clean = productStock.trim().replace(/^0+/, "");
                       setProductStock(clean === "" ? "0" : clean);
                     }}
-                    className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono"
+                    className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2 px-3 text-xs font-mono placeholder:text-[var(--gl-text-muted)]"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Ảnh sản phẩm:</label>
+                <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Ảnh sản phẩm:</label>
                 <div className="flex items-center gap-4">
                   {productImageUrl ? (
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-stone-250 dark:border-stone-800 bg-stone-100 dark:bg-stone-900 flex items-center justify-center group shadow-sm">
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-[var(--gl-border)] bg-[var(--gl-bg-muted)] flex items-center justify-center group shadow-sm">
                       <img src={productImageUrl} alt="Product preview" className="w-full h-full object-cover" />
                       {productImageUploading && (
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-[10px] text-white font-semibold">
@@ -1386,12 +1428,12 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                       )}
                     </div>
                   ) : (
-                    <div className="w-16 h-16 rounded-xl border border-dashed border-stone-300 dark:border-stone-800 flex items-center justify-center text-stone-400">
+                    <div className="w-16 h-16 rounded-xl border border-dashed border-[var(--gl-border)] flex items-center justify-center text-[var(--gl-text-muted)]">
                       <UploadCloud className="w-6 h-6" />
                     </div>
                   )}
-                  <label className="cursor-pointer bg-stone-200 hover:bg-stone-300 dark:bg-stone-800 dark:hover:bg-stone-750 px-3 py-1.5 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1">
-                    <UploadCloud className="w-3.5 h-3.5" />
+                  <label className="cursor-pointer min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] px-3.5 py-2 rounded-xl font-bold text-[11px] transition-all flex items-center gap-1.5 focus-within:ring-2 focus-within:ring-[var(--gl-focus-ring)]">
+                    <UploadCloud className="w-3.5 h-3.5 text-[var(--gl-text-muted)]" />
                     {productImageUploading ? "Đang tải..." : productImageUrl ? "Thay đổi ảnh" : "Tải ảnh lên"}
                     <input type="file" accept="image/*" onChange={handleProductImageChange} className="hidden" disabled={productImageUploading} />
                   </label>
@@ -1401,42 +1443,42 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   placeholder="Hoặc dán URL ảnh sản phẩm..."
                   value={productImageUrl}
                   onChange={(e) => setProductImageUrl(e.target.value)}
-                  className="w-full mt-2 bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none"
+                  className="w-full mt-2 bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2 px-3 text-xs placeholder:text-[var(--gl-text-muted)]"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Nhóm ngành sinh học:</label>
+                <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Nhóm ngành sinh học:</label>
                 <select
                   value={productCategory}
                   onChange={(e) => setProductCategory(e.target.value as any)}
-                  className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none font-mono cursor-pointer"
+                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2 px-3 text-xs font-mono cursor-pointer"
                 >
-                  <option value="plants">Cây Xanh (Plants)</option>
-                  <option value="care">Chăm Sóc (Care)</option>
-                  <option value="nutrients">Dinh Dưỡng (Nutrients)</option>
-                  <option value="smarthome">Thiết Bị IoT (Smarthome)</option>
+                  <option value="plants" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Cây Xanh (Plants)</option>
+                  <option value="care" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Chăm Sóc (Care)</option>
+                  <option value="nutrients" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Dinh Dưỡng (Nutrients)</option>
+                  <option value="smarthome" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Thiết Bị IoT (Smarthome)</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Mô tả sản phẩm:</label>
+                <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Mô tả sản phẩm:</label>
                 <textarea
                   placeholder="Ghi nhận nguồn gốc gieo trồng bản địa và quy chuẩn bao bì tự hủy sinh học..."
                   value={productDescription}
                   onChange={(e) => setProductDescription(e.target.value)}
                   rows={3}
-                  className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs focus:outline-none resize-none leading-relaxed"
+                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2 px-3 text-xs resize-none leading-relaxed placeholder:text-[var(--gl-text-muted)]"
                 />
               </div>
 
-              <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-250 dark:border-amber-900/10 rounded-xl text-[10px] text-stone-500 dark:text-stone-400 leading-normal">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] text-amber-600 dark:text-amber-400 leading-normal">
                 🌱 Tất cả sản phẩm tải lên bắt buộc phải cam kết quy cách gieo trồng sạch hữu cơ và đóng gói bằng túi sinh học bột mì/sơ dừa tự hủy.
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all uppercase tracking-wider"
+                className="w-full min-h-[44px] py-2.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold rounded-xl text-xs transition-all uppercase tracking-wider cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 {editingProduct ? "Cập Nhật Sản Phẩm" : "Đăng Sản Phẩm"}
               </button>
@@ -1453,7 +1495,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                     setProductImageUrl("");
                     setEditingProduct(null);
                   }}
-                  className="w-full py-2 bg-stone-200 dark:bg-stone-850 text-stone-700 dark:text-stone-300 font-semibold rounded-xl text-xs transition-all"
+                  className="w-full min-h-[40px] py-2 bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] text-[var(--gl-text-secondary)] font-semibold rounded-xl text-xs transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Hủy Cập Nhật
                 </button>
@@ -1465,122 +1507,122 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
       {/* 4. SETTINGS TAB */}
       {activeTab === "settings" && (
-        <div className="max-w-3xl mx-auto bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 sm:p-8 rounded-3xl space-y-6 shadow-xs animate-slide-down">
+        <div className="max-w-3xl mx-auto bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 sm:p-8 rounded-3xl space-y-6 shadow-xs animate-slide-down text-[var(--gl-text-primary)]">
           <div>
-            <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase flex items-center gap-1.5">
-              <Settings className="h-4.5 w-4.5 text-emerald-500" />
+            <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase flex items-center gap-1.5">
+              <Settings className="h-4.5 w-4.5 text-[var(--gl-accent)]" />
               Cấu Hình Địa Điểm & Định Vị Nhà Vườn
             </h3>
-            <p className="text-[10px] text-stone-400 mt-1">Cấu hình tọa độ vệ tinh Lat/Lng và địa chỉ đăng ký kho hàng để phục vụ thuật toán tối ưu hóa quãng đường giao nhận hàng.</p>
+            <p className="text-[10px] text-[var(--gl-text-muted)] mt-1">Cấu hình tọa độ vệ tinh Lat/Lng và địa chỉ đăng ký kho hàng để phục vụ thuật toán tối ưu hóa quãng đường giao nhận hàng.</p>
           </div>
 
           {settingsSuccess && (
-            <div className="p-3 bg-emerald-950 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs flex items-center gap-1">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            <div className="p-3 bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20 rounded-xl text-xs flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-[var(--gl-accent)] shrink-0" />
               <span>Cập nhật cấu hình định vị tọa độ của Nhà Vườn đối tác thành công!</span>
             </div>
           )}
 
           <form onSubmit={handleStoreSettingsSubmit} className="space-y-5 text-xs">
             <div className="space-y-1.5">
-              <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Tên Nhà Vườn Đối Tác:</label>
+              <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Tên Nhà Vườn Đối Tác:</label>
               <input
                 type="text"
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}
-                className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2.5 px-4 text-xs focus:outline-none"
+                className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-4 text-xs placeholder:text-[var(--gl-text-muted)]"
                 required
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Thành phố:</label>
+                <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Thành phố:</label>
                 <select
                   value={storeCity}
                   onChange={(e) => setStoreCity(e.target.value)}
-                  className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2.5 px-4 text-xs focus:outline-none font-mono cursor-pointer"
+                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-4 text-xs font-mono cursor-pointer"
                 >
-                  <option value="Đà Nẵng">Đà Nẵng</option>
-                  <option value="Hà Nội">Hà Nội</option>
-                  <option value="Lâm Đồng">Lâm Đồng</option>
-                  <option value="Hồ Chí Minh">Hồ Chí Minh</option>
+                  <option value="Đà Nẵng" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đà Nẵng</option>
+                  <option value="Hà Nội" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Hà Nội</option>
+                  <option value="Lâm Đồng" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Lâm Đồng</option>
+                  <option value="Hồ Chí Minh" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Hồ Chí Minh</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Quận / Huyện:</label>
+                <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Quận / Huyện:</label>
                 <input
                   type="text"
                   value={storeDistrict}
                   onChange={(e) => setStoreDistrict(e.target.value)}
-                  className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2.5 px-4 text-xs focus:outline-none"
+                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-4 text-xs placeholder:text-[var(--gl-text-muted)]"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Địa chỉ kho bãi cụ thể:</label>
+              <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Địa chỉ kho bãi cụ thể:</label>
               <input
                 type="text"
                 value={storeAddress}
                 onChange={(e) => setStoreAddress(e.target.value)}
-                className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2.5 px-4 text-xs focus:outline-none"
+                className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-4 text-xs placeholder:text-[var(--gl-text-muted)]"
                 required
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Phạm vi phục vụ (Service Area):</label>
+                <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Phạm vi phục vụ (Service Area):</label>
                 <input
                   type="text"
                   value={storeServiceArea}
                   onChange={(e) => setStoreServiceArea(e.target.value)}
-                  className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2.5 px-4 text-xs focus:outline-none"
+                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-4 text-xs placeholder:text-[var(--gl-text-muted)]"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Kinh độ (Lng):</label>
+                  <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Kinh độ (Lng):</label>
                   <input
                     type="number"
                     step="any"
                     value={storeLng}
                     onChange={(e) => setStoreLng(Number(e.target.value))}
-                    className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2.5 px-2 text-xs focus:outline-none font-mono"
+                    className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-2 text-xs font-mono"
                     required
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-stone-500 dark:text-stone-400 font-mono block font-semibold">Vĩ độ (Lat):</label>
+                  <label className="text-[var(--gl-text-muted)] font-mono block font-semibold">Vĩ độ (Lat):</label>
                   <input
                     type="number"
                     step="any"
                     value={storeLat}
                     onChange={(e) => setStoreLat(Number(e.target.value))}
-                    className="w-full bg-stone-100 dark:bg-stone-900 text-stone-850 dark:text-stone-200 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 rounded-xl py-2.5 px-2 text-xs focus:outline-none font-mono"
+                    className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-2 text-xs font-mono"
                     required
                   />
                 </div>
               </div>
             </div>
 
-            <div className="bg-stone-100 dark:bg-stone-900/50 p-4.5 rounded-2xl border border-stone-250 dark:border-stone-850 space-y-2">
-              <span className="text-[10px] text-stone-400 font-mono block uppercase font-bold flex items-center gap-1 text-emerald-500">
+            <div className="bg-[var(--gl-bg-muted)] p-4.5 rounded-2xl border border-[var(--gl-border)] space-y-2">
+              <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block uppercase font-bold flex items-center gap-1 text-[var(--gl-accent)]">
                 <MapPin className="w-3.5 h-3.5" /> Định Vị Mô Phỏng Vệ Tinh (Eco-GIS Simulator)
               </span>
-              <p className="text-[11px] text-stone-500 leading-relaxed">
-                Hệ tọa độ <strong className="text-stone-700 dark:text-stone-300">({storeLat}, {storeLng})</strong> đã được đối chiếu thành công khớp với vùng đệm sinh thái Hòa Lạc / Sơn Trà. Thuật toán của GreenLife sẽ tự động điều phối các đơn hàng trong bán kính phủ xanh để tối thiểu hóa phát thải Carbon của shipper.
+              <p className="text-[11px] text-[var(--gl-text-secondary)] leading-relaxed">
+                Hệ tọa độ <strong className="text-[var(--gl-text-primary)]">({storeLat}, {storeLng})</strong> đã được đối chiếu thành công khớp với vùng đệm sinh thái Hòa Lạc / Sơn Trà. Thuật toán của GreenLife sẽ tự động điều phối các đơn hàng trong bán kính phủ xanh để tối thiểu hóa phát thải Carbon của shipper.
               </p>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold uppercase rounded-xl text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 tracking-wider"
+              className="w-full min-h-[44px] py-3 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
             >
               <Save className="h-4 w-4" />
               Cập Nhật Cấu Hình Đối Tác
@@ -1608,74 +1650,76 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-fadeIn">
           <div 
-            className="w-full max-w-md bg-stone-900 border-l border-stone-850 h-full flex flex-col shadow-2xl relative animate-slide-left"
+            className="w-full max-w-md bg-[var(--gl-bg-surface)] border-l border-[var(--gl-border)] h-full max-h-dvh flex flex-col shadow-2xl relative animate-slide-left text-[var(--gl-text-primary)]"
           >
             {/* Close Button / Header */}
-            <div className="p-5 border-b border-stone-850 flex items-center justify-between">
+            <div className="p-5 border-b border-[var(--gl-border)] flex items-center justify-between shrink-0">
               <div className="space-y-1">
-                <span className="text-[10px] text-emerald-400 font-mono font-bold uppercase tracking-wider">Thông Tin Đơn Hàng</span>
-                <h4 className="text-xs font-mono font-bold text-white">Mã đơn: {selectedOrder.id}</h4>
+                <span className="text-[10px] text-[var(--gl-accent)] font-mono font-bold uppercase tracking-wider">Thông Tin Đơn Hàng</span>
+                <h4 className="text-xs font-mono font-bold text-[var(--gl-text-primary)]">Mã đơn: {selectedOrder.id}</h4>
               </div>
               <button
+                type="button"
+                aria-label="Đóng chi tiết đơn hàng"
                 onClick={() => setSelectedOrder(null)}
-                className="p-1.5 bg-stone-950 hover:bg-stone-800 text-stone-400 hover:text-white rounded-lg border border-stone-850 cursor-pointer transition-all"
+                className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] rounded-lg border border-[var(--gl-border)] cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Content Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6 text-xs text-stone-300">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-6 text-xs text-[var(--gl-text-secondary)]">
               
               {/* Order Info & Status */}
-              <div className="bg-stone-950/40 p-4 rounded-2xl border border-stone-850 space-y-2">
+              <div className="bg-[var(--gl-bg-muted)] p-4 rounded-2xl border border-[var(--gl-border)] space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-stone-400 font-mono text-[10px]">Ngày đặt mua:</span>
-                  <span className="font-mono text-white">{selectedOrder.date}</span>
+                  <span className="text-[var(--gl-text-muted)] font-mono text-[10px]">Ngày đặt mua:</span>
+                  <span className="font-mono text-[var(--gl-text-primary)]">{selectedOrder.date}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-stone-400 font-mono text-[10px]">Trạng thái:</span>
+                  <span className="text-[var(--gl-text-muted)] font-mono text-[10px]">Trạng thái:</span>
                   <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${getOrderStatusColor(selectedOrder.status)}`}>
                     {getOrderStatusLabel(selectedOrder.status)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-stone-400 font-mono text-[10px]">Thanh toán:</span>
-                  <span className="font-semibold text-white">{selectedOrder.paymentMethod} ({selectedOrder.paymentStatus})</span>
+                  <span className="text-[var(--gl-text-muted)] font-mono text-[10px]">Thanh toán:</span>
+                  <span className="font-semibold text-[var(--gl-text-primary)]">{selectedOrder.paymentMethod} ({selectedOrder.paymentStatus})</span>
                 </div>
               </div>
 
               {/* Recipient Details */}
               <div className="space-y-3">
-                <span className="text-[9px] text-stone-500 font-mono uppercase tracking-wider block">Người Nhận & Địa Chỉ Giao</span>
-                <div className="bg-stone-950/20 p-4 rounded-2xl border border-stone-850/60 space-y-2 text-stone-300">
+                <span className="text-[9px] text-[var(--gl-text-muted)] font-mono uppercase tracking-wider block">Người Nhận & Địa Chỉ Giao</span>
+                <div className="bg-[var(--gl-bg-muted)] p-4 rounded-2xl border border-[var(--gl-border)] space-y-2 text-[var(--gl-text-secondary)]">
                   <div>
-                    <span className="text-stone-400 font-mono text-[10px] block">Khách hàng:</span>
-                    <span className="font-semibold text-stone-200">{selectedOrder.customerName}</span>
+                    <span className="text-[var(--gl-text-muted)] font-mono text-[10px] block">Khách hàng:</span>
+                    <span className="font-semibold text-[var(--gl-text-primary)]">{selectedOrder.customerName}</span>
                   </div>
                   {selectedOrder.recipientPhone && (
                     <div>
-                      <span className="text-stone-400 font-mono text-[10px] block">Số điện thoại:</span>
-                      <span className="font-mono text-stone-200">{selectedOrder.recipientPhone}</span>
+                      <span className="text-[var(--gl-text-muted)] font-mono text-[10px] block">Số điện thoại:</span>
+                      <span className="font-mono text-[var(--gl-text-primary)]">{selectedOrder.recipientPhone}</span>
                     </div>
                   )}
                   {selectedOrder.shippingAddress && (
                     <div>
-                      <span className="text-stone-400 font-mono text-[10px] block">Địa chỉ nhận hàng:</span>
-                      <span className="text-stone-200 leading-relaxed">{selectedOrder.shippingAddress}</span>
+                      <span className="text-[var(--gl-text-muted)] font-mono text-[10px] block">Địa chỉ nhận hàng:</span>
+                      <span className="text-[var(--gl-text-primary)] leading-relaxed">{selectedOrder.shippingAddress}</span>
                     </div>
                   )}
                   {selectedOrder.note && (
                     <div>
-                      <span className="text-stone-400 font-mono text-[10px] block">Ghi chú từ khách:</span>
-                      <span className="text-stone-400 italic">"{selectedOrder.note}"</span>
+                      <span className="text-[var(--gl-text-muted)] font-mono text-[10px] block">Ghi chú từ khách:</span>
+                      <span className="text-[var(--gl-text-muted)] italic">"{selectedOrder.note}"</span>
                     </div>
                   )}
                   {(selectedOrder.status === "return_requested" || selectedOrder.status === "return_approved" || selectedOrder.status === "return_rejected") && (
-                    <div className="mt-3 pt-3 border-t border-stone-850 space-y-2.5">
+                    <div className="mt-3 pt-3 border-t border-[var(--gl-border)] space-y-2.5">
                       <div>
-                        <span className="text-stone-400 font-mono text-[10px] block uppercase font-bold text-rose-455">Yêu Cầu Hoàn Hàng</span>
-                        <span className="text-stone-300 font-semibold mt-1 block">
+                        <span className="text-[var(--gl-danger)] font-mono text-[10px] block uppercase font-bold">Yêu Cầu Hoàn Hàng</span>
+                        <span className="text-[var(--gl-text-primary)] font-semibold mt-1 block">
                           Lý do: {(() => {
                             switch (selectedOrder.returnRequestReasonCode) {
                               case "PRODUCT_DAMAGED": return "Sản phẩm bị hư hỏng / dập nát";
@@ -1692,18 +1736,18 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                       </div>
                       {selectedOrder.returnRequestReason && (
                         <div>
-                          <span className="text-stone-505 font-mono text-[9px] block">MÔ TẢ CHI TIẾT từ khách hàng:</span>
-                          <p className="text-amber-400 italic bg-stone-950/50 p-2.5 rounded-xl border border-stone-850 mt-1 leading-relaxed whitespace-pre-wrap">
+                          <span className="text-[var(--gl-text-muted)] font-mono text-[9px] block">MÔ TẢ CHI TIẾT từ khách hàng:</span>
+                          <p className="text-amber-600 dark:text-amber-400 italic bg-[var(--gl-bg-surface)] p-2.5 rounded-xl border border-[var(--gl-border)] mt-1 leading-relaxed whitespace-pre-wrap">
                             "{selectedOrder.returnRequestReason}"
                           </p>
                         </div>
                       )}
                       {selectedOrder.evidenceImages && selectedOrder.evidenceImages.length > 0 && (
                         <div>
-                          <span className="text-stone-505 font-mono text-[9px] block mb-1">ẢNH MINH CHỨNG:</span>
+                          <span className="text-[var(--gl-text-muted)] font-mono text-[9px] block mb-1">ẢNH MINH CHỨNG:</span>
                           <div className="flex flex-wrap gap-2 mt-1">
                             {selectedOrder.evidenceImages.map((img: string, idx: number) => (
-                              <a key={idx} href={getMediaUrl(img)} target="_blank" rel="noopener noreferrer" className="relative block w-14 h-14 rounded-lg overflow-hidden border border-stone-800 hover:opacity-80 transition-opacity">
+                              <a key={idx} href={getMediaUrl(img)} target="_blank" rel="noopener noreferrer" className="relative block w-14 h-14 rounded-lg overflow-hidden border border-[var(--gl-border)] hover:opacity-80 transition-opacity">
                                 <img src={getMediaUrl(img)} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
                               </a>
                             ))}
@@ -1717,70 +1761,72 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
               {/* Items List */}
               <div className="space-y-3">
-                <span className="text-[9px] text-stone-500 font-mono uppercase tracking-wider block">Sản Phẩm Đóng Gói ({selectedOrder.itemsCount})</span>
+                <span className="text-[9px] text-[var(--gl-text-muted)] font-mono uppercase tracking-wider block">Sản Phẩm Đóng Gói ({selectedOrder.itemsCount})</span>
                 
                 {loadingOrderDetails ? (
                   <ListSkeleton count={2} />
                 ) : selectedOrderDetails ? (
                   <div className="space-y-2.5">
                     {selectedOrderDetails.map((item) => (
-                      <div key={item.productId} className="flex gap-3 bg-stone-950/20 p-3 rounded-2xl border border-stone-850/50 text-stone-300">
+                      <div key={item.productId} className="flex gap-3 bg-[var(--gl-bg-muted)] p-3 rounded-2xl border border-[var(--gl-border)] text-[var(--gl-text-secondary)]">
                         <img 
                           src={getMediaUrl(item.imageUrl)} 
                           alt={item.productName} 
-                          className="w-12 h-12 object-cover rounded-xl border border-stone-800"
+                          className="w-12 h-12 object-cover rounded-xl border border-[var(--gl-border)]"
                         />
                         <div className="flex-1 space-y-1">
-                          <h5 className="font-semibold text-stone-200 line-clamp-1">{item.productName}</h5>
-                          <div className="flex justify-between items-center text-[10px] font-mono text-stone-450">
+                          <h5 className="font-semibold text-[var(--gl-text-primary)] line-clamp-1">{item.productName}</h5>
+                          <div className="flex justify-between items-center text-[10px] font-mono text-[var(--gl-text-muted)]">
                             <span>Đơn giá: {item.unitPrice.toLocaleString("vi-VN")}₫</span>
-                            <span className="font-bold text-white">x{item.quantity}</span>
+                            <span className="font-bold text-[var(--gl-text-primary)]">x{item.quantity}</span>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <span className="text-[10px] text-stone-500 italic">Không thể tải danh sách sản phẩm.</span>
+                  <span className="text-[10px] text-[var(--gl-text-muted)] italic">Không thể tải danh sách sản phẩm.</span>
                 )}
               </div>
 
               {/* Carbon Compensation Summary Card */}
-              <div className="bg-emerald-950/10 border border-emerald-500/10 p-4 rounded-2xl flex items-center gap-3">
-                <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-400">
+              <div className="bg-[var(--gl-accent-soft)] border border-[var(--gl-accent)]/20 p-4 rounded-2xl flex items-center gap-3">
+                <div className="p-2 bg-[var(--gl-accent)]/10 rounded-xl text-[var(--gl-accent)] shrink-0">
                   <Sprout className="h-5 w-5" />
                 </div>
                 <div>
-                  <span className="text-[9px] text-emerald-500/80 font-mono uppercase font-bold tracking-wider">Carbon Compensation</span>
-                  <p className="text-[10px] text-emerald-300 mt-0.5">Quyên góp carbon ước tính: <strong className="text-white font-mono">-{selectedOrder.itemsCount * 12}kg CO₂eq</strong></p>
+                  <span className="text-[9px] text-[var(--gl-accent)] font-mono uppercase font-bold tracking-wider">Carbon Compensation</span>
+                  <p className="text-[10px] text-[var(--gl-text-secondary)] mt-0.5">Quyên góp carbon ước tính: <strong className="text-[var(--gl-text-primary)] font-mono">-{selectedOrder.itemsCount * 12}kg CO₂eq</strong></p>
                 </div>
               </div>
 
             </div>
 
             {/* Total and Footer Action Area */}
-            <div className="p-5 border-t border-stone-850 bg-stone-950/60 backdrop-blur-md space-y-4">
+            <div className="p-5 border-t border-[var(--gl-border)] bg-[var(--gl-bg-surface)] backdrop-blur-md space-y-4 shrink-0">
               <div className="flex justify-between items-center text-xs">
-                <span className="text-stone-400">Tổng thanh toán:</span>
-                <span className="text-sm font-mono font-bold text-emerald-500">
+                <span className="text-[var(--gl-text-muted)]">Tổng thanh toán:</span>
+                <span className="text-sm font-mono font-bold text-[var(--gl-accent)]">
                   {selectedOrder.total.toLocaleString("vi-VN")}₫
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-stone-850/40 flex flex-col gap-2">
-                <span className="text-[8px] text-stone-500 font-mono uppercase tracking-wider block">Hoạt động điều phối</span>
-                <div className="flex flex-wrap gap-2 text-stone-300">
+              <div className="pt-2 border-t border-[var(--gl-border)] flex flex-col gap-2">
+                <span className="text-[8px] text-[var(--gl-text-muted)] font-mono uppercase tracking-wider block">Hoạt động điều phối</span>
+                <div className="flex flex-wrap gap-2 text-[var(--gl-text-primary)]">
                   {selectedOrder.status === "pending" && (
                     <>
                       <button
+                        type="button"
                         onClick={() => handleUpdateOrderStatus(selectedOrder.id, "processing")}
-                        className="py-1.5 px-3 bg-amber-500 hover:bg-amber-400 text-black rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                        className="py-2 px-3.5 min-h-[40px] bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         Nhận Đơn
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleUpdateOrderStatus(selectedOrder.id, "cancelled")}
-                        className="py-1.5 px-3 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 border border-rose-500/20 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                        className="py-2 px-3.5 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 text-[var(--gl-danger)] border border-rose-500/20 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         Hủy Đơn
                       </button>
@@ -1789,14 +1835,16 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   {selectedOrder.status === "processing" && (
                     <>
                       <button
+                        type="button"
                         onClick={() => handleUpdateOrderStatus(selectedOrder.id, "shipped")}
-                        className="py-1.5 px-3 bg-indigo-500 hover:bg-indigo-400 text-black rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                        className="py-2 px-3.5 min-h-[40px] bg-indigo-500 hover:bg-indigo-400 text-white rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         Giao Hàng
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleUpdateOrderStatus(selectedOrder.id, "cancelled")}
-                        className="py-1.5 px-3 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 border border-rose-500/20 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                        className="py-2 px-3.5 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 text-[var(--gl-danger)] border border-rose-500/20 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         Hủy Đơn
                       </button>
@@ -1804,42 +1852,45 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   )}
                   {selectedOrder.status === "shipped" && (
                     <button
+                      type="button"
                       onClick={() => handleUpdateOrderStatus(selectedOrder.id, "completed")}
-                      className="py-1.5 px-3 bg-emerald-500 hover:bg-emerald-400 text-black rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                      className="py-2 px-3.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                     >
                       Hoàn Tất
                     </button>
                   )}
                   {selectedOrder.status === "completed" && (
-                    <span className="text-[10px] text-stone-400 font-mono italic">Đơn hàng đã hoàn thành xuất sắc</span>
+                    <span className="text-[10px] text-[var(--gl-text-muted)] font-mono italic">Đơn hàng đã hoàn thành xuất sắc</span>
                   )}
                   {selectedOrder.status === "cancelled" && (
-                    <span className="text-[10px] text-rose-455 font-mono italic">Đơn hàng đã bị hủy</span>
+                    <span className="text-[10px] text-[var(--gl-danger)] font-mono italic">Đơn hàng đã bị hủy</span>
                   )}
                   {selectedOrder.status === "return_requested" && (
                     <>
                       <button
+                        type="button"
                         onClick={() => handleApproveReturn(selectedOrder.id)}
-                        className="py-1.5 px-3 bg-emerald-500 hover:bg-emerald-400 text-black rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                        className="py-2 px-3.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         Chấp Nhận
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleRejectReturn(selectedOrder.id)}
-                        className="py-1.5 px-3 bg-rose-950/20 hover:bg-rose-950/40 text-rose-455 border border-rose-500/20 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all"
+                        className="py-2 px-3.5 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 text-[var(--gl-danger)] border border-rose-500/20 rounded-lg text-[9px] font-mono uppercase font-semibold cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         Từ Chối
                       </button>
                     </>
                   )}
                   {selectedOrder.status === "return_approved" && (
-                    <span className="text-[10px] text-emerald-450 font-mono italic">Yêu cầu hoàn hàng đã được chấp nhận</span>
+                    <span className="text-[10px] text-[var(--gl-accent)] font-mono italic">Yêu cầu hoàn hàng đã được chấp nhận</span>
                   )}
                   {selectedOrder.status === "return_rejected" && (
                     <div className="space-y-1 w-full">
-                      <span className="text-[10px] text-rose-455 font-mono italic block">Yêu cầu hoàn hàng đã bị từ chối</span>
+                      <span className="text-[10px] text-[var(--gl-danger)] font-mono italic block">Yêu cầu hoàn hàng đã bị từ chối</span>
                       {selectedOrder.returnRejectReason && (
-                        <p className="text-[10px] bg-stone-950/50 p-2 rounded-xl text-stone-300 italic border border-stone-850">
+                        <p className="text-[10px] bg-[var(--gl-bg-muted)] p-2 rounded-xl text-[var(--gl-text-secondary)] italic border border-[var(--gl-border)]">
                           Lý do từ chối: "{selectedOrder.returnRejectReason}"
                         </p>
                       )}
@@ -1869,32 +1920,34 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
       {rejectReturnOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative text-left">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-md max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain rounded-3xl p-6 space-y-4 shadow-2xl relative text-left text-[var(--gl-text-primary)]">
             <button
+              type="button"
+              aria-label="Đóng modal"
               onClick={() => {
                 setRejectReturnOpen(false);
                 setRejectReturnOrderId(null);
                 setRejectReasonText("");
                 setRejectReasonError("");
               }}
-              className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-750 dark:hover:text-stone-250 transition-all cursor-pointer"
+              className="absolute top-4 right-4 p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] transition-all cursor-pointer border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
             >
               <X className="h-4 w-4" />
             </button>
 
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-500">
+            <div className="flex items-center gap-3 pr-10">
+              <div className="p-2.5 rounded-2xl bg-rose-500/10 text-[var(--gl-danger)] shrink-0">
                 <AlertCircle className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-bold text-stone-900 dark:text-stone-100 font-display">
+              <h3 className="text-base font-bold text-[var(--gl-text-primary)] font-display">
                 Từ chối yêu cầu hoàn hàng
               </h3>
             </div>
 
-            <div className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed font-sans space-y-3">
+            <div className="text-xs text-[var(--gl-text-secondary)] leading-relaxed font-sans space-y-3">
               <p>Vui lòng nhập lý do từ chối để khách hàng có thể theo dõi phản hồi từ cửa hàng.</p>
               <div className="space-y-1">
-                <label className="text-[10px] font-semibold text-stone-500 dark:text-stone-450 block uppercase tracking-wider">Lý do từ chối *</label>
+                <label className="text-[10px] font-semibold text-[var(--gl-text-muted)] block uppercase tracking-wider">Lý do từ chối *</label>
                 <textarea
                   required
                   rows={4}
@@ -1906,10 +1959,10 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                     }
                   }}
                   placeholder="Nhập lý do từ chối..."
-                  className="w-full p-3 bg-stone-50 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl text-stone-950 dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-xs"
+                  className="w-full p-3 bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] rounded-xl text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] transition-all text-xs resize-none"
                 />
                 {rejectReasonError && (
-                  <span className="text-rose-500 text-[10px] block font-semibold">{rejectReasonError}</span>
+                  <span className="text-[var(--gl-danger)] text-[10px] block font-semibold">{rejectReasonError}</span>
                 )}
               </div>
             </div>
@@ -1923,14 +1976,14 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   setRejectReasonText("");
                   setRejectReasonError("");
                 }}
-                className="flex-1 py-2.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-750 text-stone-700 dark:text-stone-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+                className="flex-1 py-2.5 min-h-[44px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] text-[var(--gl-text-secondary)] rounded-xl text-xs font-semibold cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 Hủy
               </button>
               <button
                 type="button"
                 onClick={handleRejectReturnConfirmed}
-                className="flex-1 py-2.5 text-white bg-rose-600 hover:bg-rose-700 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm"
+                className="flex-1 py-2.5 min-h-[44px] text-white bg-rose-600 hover:bg-rose-700 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 Xác nhận từ chối
               </button>
@@ -2081,6 +2134,10 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser || !currentUser.id) {
+      toast.error("Vui lòng đăng nhập để thực hiện chức năng này.");
+      return;
+    }
     if (!title.trim() || !content.trim()) {
       setErrorMsg("Tiêu đề và Nội dung bài viết không được để trống.");
       return;
@@ -2096,7 +2153,7 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
         summary: summary || (content.substring(0, 120) + "..."),
         content,
         image,
-        authorId: currentUser?.id || "store-3",
+        authorId: currentUser.id,
         taggedProductIds: selectedProductIds
       });
 
@@ -2564,41 +2621,41 @@ const StoreReviewsSection: React.FC<StoreReviewsSectionProps> = ({ myStore }) =>
   const latestReviews = reviews.slice(0, 3);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-[var(--gl-text-primary)]">
       {/* Left Column: Summary & Distribution */}
       <div className="lg:col-span-5 space-y-6">
-        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl text-center space-y-2.5 flex flex-col justify-center shadow-xs">
-          <span className="text-stone-400 font-mono text-[10px] uppercase font-bold tracking-wider">Đánh Giá Trung Bình</span>
-          <div className="text-4xl font-extrabold text-emerald-500 font-mono">
-            {summary.averageRating.toFixed(1)} <span className="text-sm font-normal text-stone-500">/ 5</span>
+        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl text-center space-y-2.5 flex flex-col justify-center shadow-xs">
+          <span className="text-[var(--gl-text-muted)] font-mono text-[10px] uppercase font-bold tracking-wider">Đánh Giá Trung Bình</span>
+          <div className="text-4xl font-extrabold text-[var(--gl-accent)] font-mono">
+            {summary.averageRating.toFixed(1)} <span className="text-sm font-normal text-[var(--gl-text-muted)]">/ 5</span>
           </div>
           <div className="flex justify-center gap-1">
             {[1, 2, 3, 4, 5].map((star) => (
               <Star
                 key={star}
-                className={`w-4.5 h-4.5 ${star <= Math.round(summary.averageRating) ? "text-amber-455 fill-amber-455" : "text-stone-300 dark:text-stone-800"}`}
+                className={`w-4.5 h-4.5 ${star <= Math.round(summary.averageRating) ? "text-amber-500 fill-amber-500" : "text-[var(--gl-border)]"}`}
               />
             ))}
           </div>
-          <p className="text-[10px] text-stone-500 font-mono">Từ tổng số {summary.totalReviews} lượt đánh giá</p>
+          <p className="text-[10px] text-[var(--gl-text-muted)] font-mono">Từ tổng số {summary.totalReviews} lượt đánh giá</p>
         </div>
 
-        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-4 shadow-xs">
-          <h4 className="text-xs font-bold text-stone-900 dark:text-white uppercase tracking-wider font-mono">Phân Bố Số Sao (Mẫu 100 Đánh Giá)</h4>
+        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-4 shadow-xs">
+          <h4 className="text-xs font-bold text-[var(--gl-text-primary)] uppercase tracking-wider font-mono">Phân Bố Số Sao (Mẫu 100 Đánh Giá)</h4>
           <div className="space-y-3 text-[10px] font-mono">
             {[5, 4, 3, 2, 1].map((star) => {
               const count = distribution[star] || 0;
               const percent = ((count / maxCount) * 100).toFixed(0);
               return (
                 <div key={star} className="flex items-center gap-3">
-                  <span className="w-10 text-stone-400 text-right">{star} Sao</span>
-                  <div className="flex-1 bg-stone-150 dark:bg-stone-900 h-2 rounded-full overflow-hidden border border-stone-250 dark:border-stone-850">
+                  <span className="w-10 text-[var(--gl-text-muted)] text-right">{star} Sao</span>
+                  <div className="flex-1 bg-[var(--gl-bg-muted)] h-2 rounded-full overflow-hidden border border-[var(--gl-border)]">
                     <div
-                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      className="bg-[var(--gl-accent)] h-full rounded-full transition-all duration-500"
                       style={{ width: `${percent}%` }}
                     />
                   </div>
-                  <span className="w-12 text-stone-600 dark:text-stone-300 text-left">{count} lượt</span>
+                  <span className="w-12 text-[var(--gl-text-secondary)] text-left">{count} lượt</span>
                 </div>
               );
             })}
@@ -2607,9 +2664,9 @@ const StoreReviewsSection: React.FC<StoreReviewsSectionProps> = ({ myStore }) =>
       </div>
 
       {/* Right Column: Customer Reviews */}
-      <div className="lg:col-span-7 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 rounded-3xl p-6 space-y-4 shadow-xs">
-        <h3 className="text-sm font-semibold tracking-tight text-stone-900 dark:text-white flex items-center gap-2 border-b border-stone-200 dark:border-stone-850 pb-3">
-          <MessageSquare className="h-4.5 w-4.5 text-emerald-500" />
+      <div className="lg:col-span-7 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-3xl p-6 space-y-4 shadow-xs">
+        <h3 className="text-sm font-semibold tracking-tight text-[var(--gl-text-primary)] flex items-center gap-2 border-b border-[var(--gl-border)] pb-3">
+          <MessageSquare className="h-4.5 w-4.5 text-[var(--gl-accent)]" />
           Ý Kiến Khách Hàng Gần Nhất
         </h3>
 
@@ -2624,22 +2681,22 @@ const StoreReviewsSection: React.FC<StoreReviewsSectionProps> = ({ myStore }) =>
         ) : (
           <div className="space-y-4">
             {latestReviews.map((rev) => (
-              <div key={rev.id} className="p-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-850 rounded-2xl space-y-2 hover:shadow-sm transition-all duration-200">
+              <div key={rev.id} className="p-4 bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] rounded-2xl space-y-2 hover:shadow-xs transition-all duration-200">
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-linear-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-[10px] select-none">
+                    <div className="w-7 h-7 rounded-full bg-[var(--gl-accent-soft)] border border-[var(--gl-accent)]/20 flex items-center justify-center text-[var(--gl-accent)] font-bold text-[10px] select-none">
                       {getCustomerInitials(rev.customerDisplayName)}
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-stone-900 dark:text-white block">{rev.customerDisplayName}</span>
+                      <span className="text-xs font-bold text-[var(--gl-text-primary)] block">{rev.customerDisplayName}</span>
                       <div className="flex gap-0.5 mt-0.5">
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <Star key={star} className={`w-3 h-3 ${star <= rev.rating ? "text-amber-455 fill-amber-455" : "text-stone-300 dark:text-stone-800"}`} />
+                          <Star key={star} className={`w-3 h-3 ${star <= rev.rating ? "text-amber-500 fill-amber-500" : "text-[var(--gl-border)]"}`} />
                         ))}
                       </div>
                     </div>
                   </div>
-                  <span className="text-[9px] text-stone-400 font-mono">
+                  <span className="text-[9px] text-[var(--gl-text-muted)] font-mono">
                     {new Date(rev.createdAt).toLocaleDateString("vi-VN", {
                       year: "numeric",
                       month: "2-digit",
@@ -2647,8 +2704,8 @@ const StoreReviewsSection: React.FC<StoreReviewsSectionProps> = ({ myStore }) =>
                     })}
                   </span>
                 </div>
-                <p className="text-stone-650 dark:text-stone-300 text-xs leading-relaxed font-sans mt-2 ml-9">
-                  {rev.comment || <span className="text-stone-450 dark:text-stone-500 italic">Khách hàng không để lại bình luận.</span>}
+                <p className="text-[var(--gl-text-secondary)] text-xs leading-relaxed font-sans mt-2 ml-9">
+                  {rev.comment || <span className="text-[var(--gl-text-muted)] italic">Khách hàng không để lại bình luận.</span>}
                 </p>
               </div>
             ))}

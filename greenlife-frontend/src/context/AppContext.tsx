@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
-import { User, Product, CartItem, Appointment, DiagnosisLog, EcoStore, BlogPost, NotificationItem } from "../types";
+import { User, Product, CartItem, Appointment, DiagnosisLog, EcoStore, BlogPost, NotificationItem, UserAddress } from "../types";
 import { AuthService } from "../services/authService";
 import { PlantService } from "../services/plantService";
 import { BookingService } from "../services/bookingService";
@@ -12,7 +12,6 @@ import { AddressService } from "../services/addressService";
 import { OrderService } from "../services/orderService";
 import { WishlistService } from "../services/wishlistService";
 import { ReviewService } from "../services/reviewService";
-import { MOCK_STORES } from "../data";
 import { logger } from "../utils/logger";
 
 interface AppContextType {
@@ -59,9 +58,15 @@ interface AppContextType {
     verificationDocument?: string;
     shopEmail: string;
     pickupAddressId: number;
+    businessType?: string;
+    cccdFrontUrl?: string;
+    cccdBackUrl?: string;
+    businessEvidenceUrls?: string[];
   }) => Promise<void>;
   sendOTP: (email: string) => Promise<{ success: boolean; message: string }>;
   verifyOTP: (email: string, code: string) => Promise<{ success: boolean; message: string }>;
+  sendSellerOtp: (email: string) => Promise<{ success: boolean; message: string }>;
+  verifySellerOtp: (email: string, code: string) => Promise<{ success: boolean; message: string }>;
   addAddress: (address: {
     fullname: string;
     phone: string;
@@ -86,7 +91,6 @@ interface AppContextType {
   toggleWishlist: (productId: number) => Promise<void>;
 
   // Event dispatchers
-  bookExpert: (appointment: Omit<Appointment, "id" | "status">) => Promise<void>;
   diagnosePlant: (file: File | Blob) => Promise<DiagnosisLog>;
   addNewProduct: (product: Product) => void;
   deleteDiagnosisRecord: (id: string) => Promise<void>;
@@ -125,7 +129,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<"customer" | "store" | "admin">("customer");
   const [products, setProducts] = useState<Product[]>([]);
-  const [stores, setStores] = useState<EcoStore[]>(MOCK_STORES);
+  const [stores, setStores] = useState<EcoStore[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartSubtotal, setCartSubtotal] = useState<number>(0);
@@ -149,7 +153,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return (localStorage.getItem("theme") as "light" | "dark") || "light";
   });
 
-  // User Location State (Default to Đà Nẵng, Hải Châu, 100 Lê Lợi)
+  // User Location State
   const [userLocation, setUserLocationState] = useState<{ city: string; district: string; address: string }>(() => {
     const saved = localStorage.getItem("userLocation");
     if (saved) {
@@ -157,12 +161,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return JSON.parse(saved);
       } catch (e) {}
     }
-    return { city: "Đà Nẵng", district: "Hải Châu", address: "100 Lê Lợi, Hải Châu, Đà Nẵng" };
+    return { city: "", district: "", address: "" };
   });
 
-  // Selected Store State (default to Đà Nẵng store 3)
+  // Selected Store State
   const [selectedStoreId, setSelectedStoreIdState] = useState<string | null>(() => {
-    return localStorage.getItem("selectedStoreId") || "store-3";
+    const saved = localStorage.getItem("selectedStoreId");
+    if (!saved) return null;
+    if (/^\d+$/.test(saved)) {
+      return saved;
+    }
+    localStorage.removeItem("selectedStoreId");
+    return null;
   });
 
   // Theme synchronization effect
@@ -561,9 +571,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return await AuthService.verifyOTP(email, code);
   }, []);
 
-  const addAddress = useCallback(async (address: Omit<Parameters<typeof AuthService.addAddress>[1], "userId">) => {
+  const sendSellerOtp = useCallback(async (email: string) => {
+    return await AuthService.sendSellerOtp(email);
+  }, []);
+
+  const verifySellerOtp = useCallback(async (email: string, code: string) => {
+    return await AuthService.verifySellerOtp(email, code);
+  }, []);
+
+  const addAddress = useCallback(async (address: Omit<Parameters<typeof AuthService.addAddress>[1], "userId"> & { provinceCode?: string; communeCode?: string; communeName?: string }) => {
     if (!currentUser) throw new Error("Chưa đăng nhập.");
-    const created = await AddressService.createAddress(address as any);
+    const mappedAddress: UserAddress = {
+      user_id: currentUser.id,
+      fullname: address.fullname,
+      phone: address.phone,
+      province: address.province,
+      provinceCode: address.provinceCode,
+      district: address.district,
+      ward: address.ward,
+      communeCode: address.communeCode,
+      communeName: address.communeName || address.ward,
+      detail_address: address.detailAddress,
+      is_default: address.isDefault,
+      is_pickup: address.isPickup,
+      type: address.type
+    };
+    const created = await AddressService.createAddress(mappedAddress);
     return { success: true, addressId: created.address_id!, address: created };
   }, [currentUser]);
 
@@ -578,11 +611,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     verificationDocument?: string;
     shopEmail: string;
     pickupAddressId: number;
+    businessType?: string;
+    cccdFrontUrl?: string;
+    cccdBackUrl?: string;
+    businessEvidenceUrls?: string[];
   }) => {
     if (!currentUser) return;
     setLoading((prev) => ({ ...prev, auth: true }));
     try {
-      const updatedUser = await AuthService.registerSeller(currentUser.id, {
+      const { user: updatedUser, store: storeData } = await AuthService.registerSeller(currentUser.id, {
         name: details.name,
         phone: details.phone,
         city: details.city,
@@ -590,35 +627,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         address: details.address,
         description: details.description,
         logoUrl: details.logoUrl,
-        verificationDocument: details.verificationDocument
+        verificationDocument: details.verificationDocument,
+        shopEmail: details.shopEmail,
+        businessType: details.businessType,
+        cccdFrontUrl: details.cccdFrontUrl,
+        cccdBackUrl: details.cccdBackUrl,
+        businessEvidenceUrls: details.businessEvidenceUrls
       });
-      setCurrentUser(updatedUser);
-      
-      let mockFullAddressStr = "Chưa cập nhật địa chỉ lấy hàng cụ thể";
-      const storedAddrs = localStorage.getItem(`mock_addresses_${currentUser.id}`);
-      if (storedAddrs) {
-        const list = JSON.parse(storedAddrs);
-        const matched = list.find((a: any) => String(a.address_id) === String(details.pickupAddressId));
-        if (matched) {
-          mockFullAddressStr = `${matched.detail_address}, ${matched.ward}, ${matched.district}, ${matched.province}`;
-        }
+
+      if (!storeData || storeData.id === undefined || storeData.id === null) {
+        throw new Error("Lỗi kết nối hệ thống: Dữ liệu cửa hàng không hợp lệ từ máy chủ.");
       }
 
+      setCurrentUser(updatedUser);
+
       const newStore: EcoStore = {
-        id: `store-${currentUser.id}`,
-        name: details.name,
-        ownerName: currentUser.name,
+        id: String(storeData.id),
+        name: storeData.name || details.name,
+        ownerName: storeData.ownerName || currentUser.name,
         ownerEmail: details.shopEmail || currentUser.email,
-        rating: 5.0,
-        avatar: details.logoUrl || currentUser.avatar,
-        bannerImage: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=800&auto=format&fit=crop&q=80",
-        address: mockFullAddressStr,
-        workingHours: "08:00 - 18:00 (Hằng ngày)",
+        rating: 0,
+        avatar: storeData.logoUrl || details.logoUrl || currentUser.avatar || "",
+        bannerImage: "",
+        address: storeData.address || details.address,
+        workingHours: "",
         carbonOffsetKg: 0,
         productsCount: 0,
-        verified: false,
-        city: details.city,
-        district: details.district,
+        verified: storeData.status === "APPROVED",
+        city: storeData.city || details.city,
+        district: storeData.district || details.district,
         serviceArea: ""
       };
       addStore(newStore);
@@ -940,10 +977,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
-  const bookExpert = useCallback(async (appointment: Omit<Appointment, "id" | "status">) => {
-    // Handled locally within component-level services
-  }, []);
-
   const diagnosePlant = useCallback(async (file: File | Blob) => {
     setLoading((prev) => ({ ...prev, diagnosis: true }));
     try {
@@ -1064,6 +1097,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       registerSeller,
       sendOTP,
       verifyOTP,
+      sendSellerOtp,
+      verifySellerOtp,
       addAddress,
       logout,
       addToCart,
@@ -1074,7 +1109,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       removeCartItem,
       checkoutCart,
       toggleWishlist,
-      bookExpert,
       diagnosePlant,
       addNewProduct,
       deleteDiagnosisRecord,
@@ -1130,6 +1164,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       registerSeller,
       sendOTP,
       verifyOTP,
+      sendSellerOtp,
+      verifySellerOtp,
       addAddress,
       logout,
       addToCart,
@@ -1140,7 +1176,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       removeCartItem,
       checkoutCart,
       toggleWishlist,
-      bookExpert,
       diagnosePlant,
       addNewProduct,
       deleteDiagnosisRecord,

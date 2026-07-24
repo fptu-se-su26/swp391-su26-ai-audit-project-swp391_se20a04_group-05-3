@@ -34,7 +34,7 @@ import {
   CreatePromotionRequest,
   UpdatePromotionDraftRequest
 } from "../../services/adminPromotionService";
-import { AdminStoreService, StoreResponse as BackendStoreResponse } from "../../services/adminStoreService";
+import { AdminStoreService, PromotionStoreOption } from "../../services/adminStoreService";
 import toast from "react-hot-toast";
 import { TableSkeleton } from "../common/Skeleton";
 import { EmptyState } from "../common/EmptyState";
@@ -46,7 +46,7 @@ export const AdminPromotionsTab: React.FC = () => {
   const [productError, setProductError] = useState<string | null>(null);
 
   // Real database-driven approved store state
-  const [dbStores, setDbStores] = useState<BackendStoreResponse[]>([]);
+  const [dbStores, setDbStores] = useState<PromotionStoreOption[]>([]);
   const [loadingStores, setLoadingStores] = useState(false);
   const [storeError, setStoreError] = useState<string | null>(null);
 
@@ -404,15 +404,15 @@ export const AdminPromotionsTab: React.FC = () => {
   const getStatusBadge = (status: PromotionStatus) => {
     switch (status) {
       case "DRAFT":
-        return "bg-stone-800 text-stone-300 border-stone-700";
+        return "bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] border border-[var(--gl-border)]";
       case "ACTIVE":
-        return "bg-emerald-950/60 text-emerald-450 border-emerald-900";
+        return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20";
       case "ENDED":
-        return "bg-rose-950/40 text-rose-455 border-rose-900/30";
+        return "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20";
       case "CANCELLED":
-        return "bg-stone-900 text-stone-500 border-stone-850";
+        return "bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] border border-[var(--gl-border)]";
       default:
-        return "bg-stone-900 text-stone-400 border-stone-800";
+        return "bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] border border-[var(--gl-border)]";
     }
   };
 
@@ -433,23 +433,24 @@ export const AdminPromotionsTab: React.FC = () => {
   };
 
   return (
-    <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down text-xs">
+    <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down text-xs text-[var(--gl-text-primary)]">
       
       {/* Header Panel */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase flex items-center gap-2">
+          <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase flex items-center gap-2">
             <Tag className="h-5 w-5 text-emerald-500" />
             Chiến Dịch Khuyến Mãi & Giảm Giá Thủ Công
           </h3>
-          <p className="text-[10px] text-stone-450 dark:text-stone-400">
+          <p className="text-[10px] text-[var(--gl-text-muted)]">
             Quản trị các chương trình trợ giá trực tiếp của sàn, phân bổ hạn mức ngân sách dự phòng và thay đổi trạng thái áp dụng theo thời gian thực.
           </p>
         </div>
         
         <button
+          type="button"
           onClick={handleOpenCreate}
-          className="py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-emerald-500/10 uppercase self-start lg:self-auto"
+          className="py-2.5 px-4 min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md uppercase self-start lg:self-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
         >
           <Plus className="h-4 w-4" />
           Tạo Chiến Dịch Mới
@@ -457,17 +458,17 @@ export const AdminPromotionsTab: React.FC = () => {
       </div>
 
       {/* Filter Row */}
-      <div className="flex flex-wrap gap-3 bg-stone-100/50 dark:bg-stone-900/40 p-4 rounded-2xl border border-stone-200 dark:border-stone-850">
+      <div className="flex flex-wrap gap-3 bg-[var(--gl-bg-muted)] p-4 rounded-2xl border border-[var(--gl-border)]">
         <div className="flex items-center gap-1.5">
-          <Filter className="h-4.5 w-4.5 text-stone-400" />
-          <span className="font-semibold text-stone-500 dark:text-stone-400">Bộ lọc:</span>
+          <Filter className="h-4.5 w-4.5 text-[var(--gl-text-muted)]" />
+          <span className="font-semibold text-[var(--gl-text-secondary)]">Bộ lọc:</span>
         </div>
 
         {/* Status Filter */}
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-stone-200 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 text-stone-800 dark:text-stone-250 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-500/50 cursor-pointer"
+          className="bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] rounded-lg px-3 py-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] cursor-pointer"
         >
           <option value="ALL">Tất cả trạng thái</option>
           <option value="DRAFT">Nháp (DRAFT)</option>
@@ -480,7 +481,7 @@ export const AdminPromotionsTab: React.FC = () => {
         <select
           value={scopeFilter}
           onChange={(e) => setScopeFilter(e.target.value)}
-          className="bg-stone-200 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 text-stone-800 dark:text-stone-250 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-500/50 cursor-pointer"
+          className="bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] rounded-lg px-3 py-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] cursor-pointer"
         >
           <option value="ALL">Tất cả phạm vi</option>
           <option value="GLOBAL">Toàn hệ thống (GLOBAL)</option>
@@ -490,9 +491,9 @@ export const AdminPromotionsTab: React.FC = () => {
       </div>
 
       {/* Promotions Table */}
-      <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
-        <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-          <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+      <div className="overflow-x-auto text-xs rounded-xl border border-[var(--gl-border)]">
+        <table className="w-full text-left text-[var(--gl-text-secondary)] border-collapse">
+          <thead className="bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] text-[var(--gl-text-muted)] uppercase font-mono text-[9px]">
             <tr>
               <th className="p-4.5">Tên chương trình</th>
               <th className="p-4.5 text-center">Phạm vi</th>
@@ -503,7 +504,7 @@ export const AdminPromotionsTab: React.FC = () => {
               <th className="p-4.5 text-right">Thao tác</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+          <tbody className="divide-y divide-[var(--gl-border)]">
             {loading ? (
               <tr>
                 <td colSpan={7} className="p-4">
@@ -522,24 +523,24 @@ export const AdminPromotionsTab: React.FC = () => {
               </tr>
             ) : (
               promotions.map((promo) => (
-                <tr key={promo.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
+                <tr key={promo.id} className="hover:bg-[var(--gl-bg-muted)] transition-colors">
                   {/* Name */}
-                  <td className="p-4.5 font-semibold text-stone-900 dark:text-stone-100">
+                  <td className="p-4.5 font-semibold text-[var(--gl-text-primary)]">
                     <div>
                       <span className="block">{promo.name}</span>
-                      <span className="text-[9px] text-stone-400 font-mono block">ID: {promo.id}</span>
+                      <span className="text-[9px] text-[var(--gl-text-muted)] font-mono block">ID: {promo.id}</span>
                     </div>
                   </td>
                   
                   {/* Scope */}
                   <td className="p-4.5 text-center font-mono">
-                    <span className="px-2 py-0.5 rounded-full bg-stone-200 dark:bg-stone-900 text-stone-500 dark:text-stone-400">
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--gl-bg-elevated)] text-[var(--gl-text-secondary)]">
                       {promo.scopeType}
                     </span>
                   </td>
 
                   {/* Value */}
-                  <td className="p-4.5 text-center font-mono font-bold text-emerald-600 dark:text-emerald-450">
+                  <td className="p-4.5 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400">
                     {promo.discountType === "PERCENTAGE" 
                       ? `${promo.discountValue}%` 
                       : `${promo.discountValue.toLocaleString("vi-VN")}₫`
@@ -567,48 +568,58 @@ export const AdminPromotionsTab: React.FC = () => {
                   <td className="p-4.5 text-right">
                     <div className="flex justify-end gap-1.5">
                       <button
+                        type="button"
                         onClick={() => handleViewDetail(promo.id)}
-                        className="p-1 px-2.5 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 border border-stone-250 dark:border-stone-800"
+                        className="p-1 px-2.5 min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         title="Xem chi tiết & Nhật ký"
+                        aria-label="Xem chi tiết chiến dịch"
                       >
-                        <Eye className="h-3 w-3" />
+                        <Eye className="h-3.5 w-3.5" />
                       </button>
 
                       {promo.status === "DRAFT" && (
                         <>
                           <button
+                            type="button"
                             onClick={() => handleOpenEdit(promo)}
-                            className="p-1 px-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-450 font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 border border-amber-550/20"
+                            className="p-1 px-2.5 min-h-[40px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 border border-amber-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             title="Sửa chương trình nháp"
+                            aria-label="Chỉnh sửa chiến dịch"
                           >
-                            <Edit className="h-3 w-3" />
+                            <Edit className="h-3.5 w-3.5" />
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => handleOpenAction(promo.id, promo.version, "activate")}
-                            className="p-1 px-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-450 font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 border border-emerald-550/20"
+                            className="p-1 px-2.5 min-h-[40px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 border border-emerald-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             title="Kích hoạt áp dụng"
+                            aria-label="Kích hoạt chiến dịch"
                           >
-                            <Play className="h-3 w-3" />
+                            <Play className="h-3.5 w-3.5" />
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => handleOpenAction(promo.id, promo.version, "cancel")}
-                            className="p-1 px-2.5 bg-stone-800 hover:bg-stone-750 text-stone-400 font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 border border-stone-700"
+                            className="p-1 px-2.5 min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-muted)] font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             title="Hủy bỏ chương trình"
+                            aria-label="Hủy bỏ chiến dịch"
                           >
-                            <Ban className="h-3 w-3" />
+                            <Ban className="h-3.5 w-3.5" />
                           </button>
                         </>
                       )}
 
                       {promo.status === "ACTIVE" && (
                         <button
+                          type="button"
                           onClick={() => handleOpenAction(promo.id, promo.version, "end")}
-                          className="p-1 px-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-455 font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 border border-rose-550/20"
+                          className="p-1 px-2.5 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 border border-rose-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                           title="Kết thúc chiến dịch sớm"
+                          aria-label="Kết thúc chiến dịch sớm"
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>
@@ -622,22 +633,24 @@ export const AdminPromotionsTab: React.FC = () => {
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 border-t border-stone-200 dark:border-stone-850">
-          <span className="text-[10px] text-stone-400">
+        <div className="flex items-center justify-between pt-4 border-t border-[var(--gl-border)]">
+          <span className="text-[10px] text-[var(--gl-text-muted)]">
             Trang {page + 1} / {totalPages}
           </span>
           <div className="flex gap-2">
             <button
+              type="button"
               disabled={page === 0 || loading}
               onClick={() => fetchPromotions(page - 1)}
-              className="p-1 px-3 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-200 dark:disabled:hover:bg-stone-900 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-stone-250 dark:border-stone-800"
+              className="p-1 px-3 min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--gl-text-secondary)] font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
             >
               Trước
             </button>
             <button
+              type="button"
               disabled={page >= totalPages - 1 || loading}
               onClick={() => fetchPromotions(page + 1)}
-              className="p-1 px-3 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-200 dark:disabled:hover:bg-stone-900 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-stone-250 dark:border-stone-800"
+              className="p-1 px-3 min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--gl-text-secondary)] font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
             >
               Sau
             </button>
@@ -647,22 +660,24 @@ export const AdminPromotionsTab: React.FC = () => {
 
       {/* ==================== CREATE / EDIT MODAL DRAWER ==================== */}
       {formOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-stone-950 border border-stone-850 w-full max-w-2xl rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl relative my-8 animate-slide-down text-left text-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-2xl rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl relative max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain text-left text-xs text-[var(--gl-text-primary)]">
             <button 
+              type="button"
               onClick={() => setFormOpen(false)}
-              className="absolute right-4.5 top-4.5 p-2 rounded-full bg-stone-900 hover:bg-stone-850 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer"
+              className="absolute right-4 top-4 p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+              aria-label="Đóng"
             >
               <X className="h-5 w-5" />
             </button>
 
             <div className="space-y-1.5">
-              <span className="text-[9px] font-mono text-emerald-500 font-bold uppercase tracking-widest block">PROMOTION PLANNER</span>
-              <h3 className="text-xl font-display font-bold text-stone-100 flex items-center gap-2">
+              <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest block">PROMOTION PLANNER</span>
+              <h3 className="text-xl font-display font-bold text-[var(--gl-text-primary)] flex items-center gap-2">
                 <Tag className="h-6 w-6 text-emerald-500 animate-pulse" />
                 {editingId !== null ? "Hiệu Chỉnh Khuyến Mãi DRAFT" : "Thiết Lập Chiến Dịch Khuyến Mãi Mới"}
               </h3>
-              <p className="text-[10px] text-stone-400">
+              <p className="text-[10px] text-[var(--gl-text-muted)]">
                 Lưu ý: Chỉ áp dụng lưu cấu hình ở trạng thái nháp DRAFT trước khi kích hoạt.
               </p>
             </div>
@@ -671,36 +686,36 @@ export const AdminPromotionsTab: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Campaign Name */}
                 <div className="space-y-1 md:col-span-2">
-                  <label className="text-stone-400 block font-semibold">Tên chương trình *</label>
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Tên chương trình *</label>
                   <input
                     type="text"
                     required
                     placeholder="Ví dụ: Chiến dịch mùa hè xanh trợ giá 15%"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-sans"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-sans"
                   />
                 </div>
 
                 {/* Description */}
                 <div className="space-y-1 md:col-span-2">
-                  <label className="text-stone-400 block font-semibold">Mô tả chi tiết</label>
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Mô tả chi tiết</label>
                   <textarea
                     rows={2}
                     placeholder="Mô tả tóm tắt mục tiêu chiến dịch áp dụng..."
                     value={formDesc}
                     onChange={(e) => setFormDesc(e.target.value)}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-sans"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-sans"
                   />
                 </div>
 
                 {/* Scope Type */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Phạm vi áp dụng *</label>
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Phạm vi áp dụng *</label>
                   <select
                     value={formScope}
                     onChange={(e) => setFormScope(e.target.value as PromotionScopeType)}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-sans cursor-pointer"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-sans cursor-pointer"
                   >
                     <option value="GLOBAL">Toàn bộ sàn giao dịch (GLOBAL)</option>
                     <option value="STORE">Theo danh sách Cửa Hàng (STORE)</option>
@@ -710,11 +725,11 @@ export const AdminPromotionsTab: React.FC = () => {
 
                 {/* Funding Source */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Nguồn lực tài trợ *</label>
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Nguồn lực tài trợ *</label>
                   <select
                     value={formFundingSource}
                     onChange={(e) => setFormFundingSource(e.target.value as PromotionFundingSource)}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-sans cursor-pointer"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-sans cursor-pointer"
                   >
                     <option value="PLATFORM_FUNDED">Nền tảng GreenLife tài trợ 100%</option>
                     <option value="STORE_FUNDED">Nhà Vườn tự chi trả 100%</option>
@@ -724,7 +739,7 @@ export const AdminPromotionsTab: React.FC = () => {
 
                 {/* Platform Funding Ratio */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Tỷ lệ Nền tảng chia sẻ (%) *</label>
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Tỷ lệ Nền tảng chia sẻ (%) *</label>
                   <input
                     type="number"
                     required
@@ -739,13 +754,13 @@ export const AdminPromotionsTab: React.FC = () => {
                         setFormStoreRatio(String(100 - parsed));
                       }
                     }}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-mono disabled:opacity-50"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono disabled:opacity-50"
                   />
                 </div>
 
                 {/* Store Funding Ratio */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Tỷ lệ Nhà Vườn chia sẻ (%) *</label>
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Tỷ lệ Nhà Vườn chia sẻ (%) *</label>
                   <input
                     type="number"
                     required
@@ -760,17 +775,17 @@ export const AdminPromotionsTab: React.FC = () => {
                         setFormPlatformRatio(String(100 - parsed));
                       }
                     }}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-mono disabled:opacity-50"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono disabled:opacity-50"
                   />
                 </div>
 
                 {/* Discount Type */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Phương thức giảm giá *</label>
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Phương thức giảm giá *</label>
                   <select
                     value={formDiscountType}
                     onChange={(e) => setFormDiscountType(e.target.value as PromotionDiscountType)}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-sans cursor-pointer"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-sans cursor-pointer"
                   >
                     <option value="PERCENTAGE">Giảm phần trăm (%)</option>
                     <option value="FIXED">Khấu trừ tiền cố định (VND)</option>
@@ -779,7 +794,7 @@ export const AdminPromotionsTab: React.FC = () => {
 
                 {/* Discount Value */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">
                     Mức giảm giá ({formDiscountType === "PERCENTAGE" ? "%" : "VND"}) *
                   </label>
                   <input
@@ -788,39 +803,39 @@ export const AdminPromotionsTab: React.FC = () => {
                     placeholder={formDiscountType === "PERCENTAGE" ? "Ví dụ: 15" : "Ví dụ: 20000"}
                     value={formDiscountValue}
                     onChange={(e) => setFormDiscountValue(e.target.value)}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-mono"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
                   />
                 </div>
 
                 {/* Max Discount Amount */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Giới hạn giảm tối đa (VND) {formDiscountType === "PERCENTAGE" ? "" : "(Không khả dụng)"}</label>
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Giới hạn giảm tối đa (VND) {formDiscountType === "PERCENTAGE" ? "" : "(Không khả dụng)"}</label>
                   <input
                     type="number"
                     disabled={formDiscountType !== "PERCENTAGE"}
                     placeholder="Không giới hạn"
                     value={formMaxDiscount}
                     onChange={(e) => setFormMaxDiscount(e.target.value)}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-mono disabled:opacity-30"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono disabled:opacity-30"
                   />
                 </div>
 
                 {/* Budget */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Hạn mức ngân sách trợ giá (VND) *</label>
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Hạn mức ngân sách trợ giá (VND) *</label>
                   <input
                     type="number"
                     required
                     placeholder="Ví dụ: 5000000"
                     value={formBudget}
                     onChange={(e) => setFormBudget(e.target.value)}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-mono"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
                   />
                 </div>
 
                 {/* Priority */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Độ ưu tiên áp dụng (0 - 100) *</label>
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Độ ưu tiên áp dụng (0 - 100) *</label>
                   <input
                     type="number"
                     required
@@ -829,35 +844,35 @@ export const AdminPromotionsTab: React.FC = () => {
                     placeholder="Mức độ chen giá ưu tiên"
                     value={formPriority}
                     onChange={(e) => setFormPriority(e.target.value)}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-250 focus:outline-none focus:border-emerald-500 font-mono"
+                    className="w-full p-3 rounded-xl bg-[var(--gl-bg-page)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
                   />
                 </div>
               </div>
 
               {/* STORE target list */}
               {formScope === "STORE" && (
-                <div className="space-y-2 border-t border-stone-850 pt-4">
-                  <label className="text-stone-400 block font-semibold">Chọn Cửa Hàng Áp Dụng *</label>
-                  {loadingStores && <div className="text-stone-500">Đang tải danh sách cửa hàng đã duyệt...</div>}
-                  {storeError && <div className="text-rose-500 p-2 bg-rose-500/10 border border-rose-500/20 rounded-lg">{storeError}</div>}
+                <div className="space-y-2 border-t border-[var(--gl-border)] pt-4">
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Chọn Cửa Hàng Áp Dụng *</label>
+                  {loadingStores && <div className="text-[var(--gl-text-muted)]">Đang tải danh sách cửa hàng đã duyệt...</div>}
+                  {storeError && <div className="text-rose-600 dark:text-rose-400 p-2 bg-rose-500/10 border border-rose-500/20 rounded-lg">{storeError}</div>}
                   {!loadingStores && !storeError && dbStores.length === 0 && (
-                    <div className="text-stone-500 italic">Không có cửa hàng nào đã được phê duyệt (APPROVED).</div>
+                    <div className="text-[var(--gl-text-muted)] italic">Không có cửa hàng nào đã được phê duyệt (APPROVED).</div>
                   )}
                   {!loadingStores && !storeError && dbStores.length > 0 && (
-                    <div className="max-h-48 overflow-y-auto space-y-2 bg-stone-900/50 p-3 rounded-xl border border-stone-800">
+                    <div className="max-h-48 overflow-y-auto space-y-2 bg-[var(--gl-bg-muted)] p-3 rounded-xl border border-[var(--gl-border)]">
                       {dbStores.map(st => {
                         const isChecked = selectedStoreIds.includes(st.id);
                         return (
-                          <label key={st.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-stone-900 cursor-pointer select-none">
+                          <label key={st.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--gl-bg-elevated)] cursor-pointer select-none">
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => handleToggleStore(st.id)}
-                              className="h-4 w-4 rounded bg-stone-950 border-stone-800 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                              className="h-4 w-4 rounded bg-[var(--gl-bg-page)] border-[var(--gl-border)] text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                             />
                             <div>
-                              <span className="block font-semibold text-stone-200">{st.name}</span>
-                              <span className="text-[10px] text-stone-500 block">{st.city}, {st.district} — ID: {st.id}</span>
+                              <span className="block font-semibold text-[var(--gl-text-primary)]">{st.name}</span>
+                              <span className="text-[10px] text-[var(--gl-text-muted)] block">{st.city}, {st.district} — ID: {st.id}</span>
                             </div>
                           </label>
                         );
@@ -868,29 +883,29 @@ export const AdminPromotionsTab: React.FC = () => {
               )}
 
               {formScope === "PRODUCT" && (
-                <div className="space-y-2 border-t border-stone-850 pt-4">
-                  <label className="text-stone-400 block font-semibold">Chọn Sản Phẩm áp dụng *</label>
-                  {loadingProducts && <div className="text-stone-500">Đang tải danh sách sản phẩm từ hệ thống...</div>}
-                  {productError && <div className="text-rose-500 p-2 bg-rose-500/10 border border-rose-500/20 rounded-lg">{productError}</div>}
+                <div className="space-y-2 border-t border-[var(--gl-border)] pt-4">
+                  <label className="text-[var(--gl-text-secondary)] block font-semibold">Chọn Sản Phẩm áp dụng *</label>
+                  {loadingProducts && <div className="text-[var(--gl-text-muted)]">Đang tải danh sách sản phẩm từ hệ thống...</div>}
+                  {productError && <div className="text-rose-600 dark:text-rose-400 p-2 bg-rose-500/10 border border-rose-500/20 rounded-lg">{productError}</div>}
                   {!loadingProducts && !productError && dbProducts.length === 0 && (
-                    <div className="text-stone-500 italic">Không tìm thấy sản phẩm hoạt động (ACTIVE) nào.</div>
+                    <div className="text-[var(--gl-text-muted)] italic">Không tìm thấy sản phẩm hoạt động (ACTIVE) nào.</div>
                   )}
                   {!loadingProducts && !productError && dbProducts.length > 0 && (
-                    <div className="max-h-48 overflow-y-auto space-y-2 bg-stone-900/50 p-3 rounded-xl border border-stone-800">
+                    <div className="max-h-48 overflow-y-auto space-y-2 bg-[var(--gl-bg-muted)] p-3 rounded-xl border border-[var(--gl-border)]">
                       {dbProducts.map(p => {
                         const idNum = parseInt(p.id);
                         const isChecked = selectedProductIds.includes(isNaN(idNum) ? 0 : idNum);
                         return (
-                          <label key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-stone-900 cursor-pointer select-none">
+                          <label key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--gl-bg-elevated)] cursor-pointer select-none">
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => handleToggleProduct(isNaN(idNum) ? 0 : idNum)}
-                              className="h-4 w-4 rounded bg-stone-950 border-stone-800 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                              className="h-4 w-4 rounded bg-[var(--gl-bg-page)] border-[var(--gl-border)] text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                             />
                             <div>
-                              <span className="block font-semibold text-stone-200">{p.name}</span>
-                              <span className="text-[10px] text-stone-500 block">Giá niêm yết: {p.price.toLocaleString("vi-VN")}₫</span>
+                              <span className="block font-semibold text-[var(--gl-text-primary)]">{p.name}</span>
+                              <span className="text-[10px] text-[var(--gl-text-muted)] block">Giá niêm yết: {p.price.toLocaleString("vi-VN")}₫</span>
                             </div>
                           </label>
                         );
@@ -904,14 +919,14 @@ export const AdminPromotionsTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setFormOpen(false)}
-                  className="flex-1 py-3 bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-stone-100 font-bold rounded-xl cursor-pointer transition-colors border border-stone-800 uppercase"
+                  className="flex-1 py-3 min-h-[44px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] font-bold rounded-xl cursor-pointer transition-colors border border-[var(--gl-border)] uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Hủy Bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={submittingForm}
-                  className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl cursor-pointer transition-all shadow-md shadow-emerald-500/10 uppercase border border-emerald-400 disabled:opacity-50"
+                  className="flex-1 py-3 min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl cursor-pointer transition-all shadow-md uppercase disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   {submittingForm ? "Đang xử lý..." : editingId !== null ? "Cập Nhật Chiến Dịch" : "Tạo Chiến Dịch"}
                 </button>
@@ -923,18 +938,20 @@ export const AdminPromotionsTab: React.FC = () => {
 
       {/* ==================== DETAIL / AUDIT LOG MODAL ==================== */}
       {selectedPromo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-stone-950 border border-stone-850 w-full max-w-2xl rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl relative my-8 animate-slide-down text-left text-xs text-stone-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-2xl rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl relative max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain text-left text-xs text-[var(--gl-text-secondary)]">
             <button 
+              type="button"
               onClick={() => setSelectedPromo(null)}
-              className="absolute right-4.5 top-4.5 p-2 rounded-full bg-stone-900 hover:bg-stone-850 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer"
+              className="absolute right-4 top-4 p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+              aria-label="Đóng"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <div className="space-y-1.5 pb-4 border-b border-stone-850">
-              <span className="text-[9px] font-mono text-emerald-500 font-bold uppercase tracking-widest block">CAMPAIGN DETAIL & AUDIT LOGS</span>
-              <h3 className="text-xl font-display font-bold text-stone-100 flex items-center gap-2">
+            <div className="space-y-1.5 pb-4 border-b border-[var(--gl-border)]">
+              <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest block">CAMPAIGN DETAIL & AUDIT LOGS</span>
+              <h3 className="text-xl font-display font-bold text-[var(--gl-text-primary)] flex items-center gap-2">
                 <FileText className="h-6 w-6 text-emerald-500" />
                 {selectedPromo.name}
               </h3>
@@ -942,7 +959,7 @@ export const AdminPromotionsTab: React.FC = () => {
                 <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase border ${getStatusBadge(selectedPromo.status)}`}>
                   {selectedPromo.status}
                 </span>
-                <span className="text-[10px] text-stone-500 font-mono">Phiên bản khóa: v{selectedPromo.version}</span>
+                <span className="text-[10px] text-[var(--gl-text-muted)] font-mono">Phiên bản khóa: v{selectedPromo.version}</span>
               </div>
             </div>
 
@@ -950,18 +967,18 @@ export const AdminPromotionsTab: React.FC = () => {
               {/* Left Column: Properties */}
               <div className="space-y-4">
                 <div>
-                  <span className="text-stone-500 font-semibold block">Mô tả</span>
-                  <p className="text-stone-200 mt-1">{selectedPromo.description || "Không có mô tả chi tiết."}</p>
+                  <span className="text-[var(--gl-text-muted)] font-semibold block">Mô tả</span>
+                  <p className="text-[var(--gl-text-primary)] mt-1">{selectedPromo.description || "Không có mô tả chi tiết."}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 bg-stone-900/50 p-4 rounded-2xl border border-stone-800 font-mono">
+                <div className="grid grid-cols-2 gap-4 bg-[var(--gl-bg-muted)] p-4 rounded-2xl border border-[var(--gl-border)] font-mono">
                   <div>
-                    <span className="text-[10px] text-stone-500 uppercase block">Phạm vi</span>
-                    <span className="font-bold text-stone-200 block mt-0.5">{getScopeLabel(selectedPromo.scopeType)}</span>
+                    <span className="text-[10px] text-[var(--gl-text-muted)] uppercase block">Phạm vi</span>
+                    <span className="font-bold text-[var(--gl-text-primary)] block mt-0.5">{getScopeLabel(selectedPromo.scopeType)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-stone-500 uppercase block">Giảm giá</span>
-                    <span className="font-bold text-emerald-450 block mt-0.5">
+                    <span className="text-[10px] text-[var(--gl-text-muted)] uppercase block">Giảm giá</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400 block mt-0.5">
                       {selectedPromo.discountType === "PERCENTAGE" 
                         ? `${selectedPromo.discountValue}%` 
                         : `${selectedPromo.discountValue.toLocaleString("vi-VN")}₫`
@@ -969,27 +986,27 @@ export const AdminPromotionsTab: React.FC = () => {
                     </span>
                   </div>
                   {selectedPromo.maxDiscountAmount && (
-                    <div className="col-span-2 border-t border-stone-800/50 pt-2">
-                      <span className="text-[10px] text-stone-500 uppercase block">Mức tối đa giảm</span>
-                      <span className="font-bold text-stone-200 block mt-0.5">{selectedPromo.maxDiscountAmount.toLocaleString("vi-VN")}₫</span>
+                    <div className="col-span-2 border-t border-[var(--gl-border)] pt-2">
+                      <span className="text-[10px] text-[var(--gl-text-muted)] uppercase block">Mức tối đa giảm</span>
+                      <span className="font-bold text-[var(--gl-text-primary)] block mt-0.5">{selectedPromo.maxDiscountAmount.toLocaleString("vi-VN")}₫</span>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <span className="text-stone-500 font-semibold block">Tài trợ & Đồng tài trợ</span>
-                  <div className="p-3 bg-stone-900/40 rounded-xl border border-stone-850 font-mono text-[11px] space-y-1">
+                  <span className="text-[var(--gl-text-muted)] font-semibold block">Tài trợ & Đồng tài trợ</span>
+                  <div className="p-3 bg-[var(--gl-bg-muted)] rounded-xl border border-[var(--gl-border)] font-mono text-[11px] space-y-1">
                     <div className="flex justify-between">
-                      <span className="text-stone-400">Nguồn chính:</span>
-                      <span className="text-stone-200 font-bold">{getFundingLabel(selectedPromo.fundingSource)}</span>
+                      <span className="text-[var(--gl-text-muted)]">Nguồn chính:</span>
+                      <span className="text-[var(--gl-text-primary)] font-bold">{getFundingLabel(selectedPromo.fundingSource)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-stone-400">Nền tảng trợ giá:</span>
-                      <span className="text-stone-200">{selectedPromo.platformFundingRatio}%</span>
+                      <span className="text-[var(--gl-text-muted)]">Nền tảng trợ giá:</span>
+                      <span className="text-[var(--gl-text-primary)]">{selectedPromo.platformFundingRatio}%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-stone-400">Nhà Vườn trợ giá:</span>
-                      <span className="text-stone-200">{selectedPromo.storeFundingRatio}%</span>
+                      <span className="text-[var(--gl-text-muted)]">Nhà Vườn trợ giá:</span>
+                      <span className="text-[var(--gl-text-primary)]">{selectedPromo.storeFundingRatio}%</span>
                     </div>
                   </div>
                 </div>
@@ -998,36 +1015,36 @@ export const AdminPromotionsTab: React.FC = () => {
               {/* Right Column: Budgets & Dates */}
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <span className="text-stone-500 font-semibold block">Dòng chảy ngân sách chiến dịch</span>
-                  <div className="bg-stone-900/60 p-4 rounded-2xl border border-stone-800 font-mono space-y-2.5 text-[11px]">
+                  <span className="text-[var(--gl-text-muted)] font-semibold block">Dòng chảy ngân sách chiến dịch</span>
+                  <div className="bg-[var(--gl-bg-muted)] p-4 rounded-2xl border border-[var(--gl-border)] font-mono space-y-2.5 text-[11px]">
                     <div className="flex justify-between">
-                      <span className="text-stone-400">Ngân sách tổng cấp:</span>
-                      <span className="text-stone-200 font-bold">{selectedPromo.budget.toLocaleString("vi-VN")}₫</span>
+                      <span className="text-[var(--gl-text-muted)]">Ngân sách tổng cấp:</span>
+                      <span className="text-[var(--gl-text-primary)] font-bold">{selectedPromo.budget.toLocaleString("vi-VN")}₫</span>
                     </div>
-                    <div className="flex justify-between border-t border-stone-800/40 pt-2">
-                      <span className="text-stone-400 flex items-center gap-1">
+                    <div className="flex justify-between border-t border-[var(--gl-border)] pt-2">
+                      <span className="text-[var(--gl-text-muted)] flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Tạm giữ (Reserved):
                       </span>
-                      <span className="text-amber-500 font-semibold">{selectedPromo.reservedBudget.toLocaleString("vi-VN")}₫</span>
+                      <span className="text-amber-600 dark:text-amber-400 font-semibold">{selectedPromo.reservedBudget.toLocaleString("vi-VN")}₫</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-stone-400 flex items-center gap-1">
+                      <span className="text-[var(--gl-text-muted)] flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Tiêu dùng (Consumed):
                       </span>
-                      <span className="text-rose-455 font-semibold">{selectedPromo.consumedBudget.toLocaleString("vi-VN")}₫</span>
+                      <span className="text-rose-600 dark:text-rose-400 font-semibold">{selectedPromo.consumedBudget.toLocaleString("vi-VN")}₫</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-stone-400 flex items-center gap-1">
+                      <span className="text-[var(--gl-text-muted)] flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Giải phóng (Released):
                       </span>
-                      <span className="text-emerald-450 font-semibold">{selectedPromo.releasedBudget.toLocaleString("vi-VN")}₫</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{selectedPromo.releasedBudget.toLocaleString("vi-VN")}₫</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-1 font-mono text-[10px] text-stone-400">
+                <div className="space-y-1 font-mono text-[10px] text-[var(--gl-text-muted)]">
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-stone-500" />
+                    <Calendar className="h-3.5 w-3.5 text-[var(--gl-text-muted)]" />
                     <span>Khởi tạo lúc: {new Date(selectedPromo.createdAt).toLocaleString("vi-VN")}</span>
                   </div>
                   {selectedPromo.activatedAt && (
@@ -1048,14 +1065,14 @@ export const AdminPromotionsTab: React.FC = () => {
 
             {/* Target IDs lists mapping back to names */}
             {(selectedPromo.scopeType === "STORE" || selectedPromo.scopeType === "PRODUCT") && (
-              <div className="border-t border-stone-850 pt-4 space-y-2">
-                <span className="text-stone-500 font-semibold block">Đối tượng chỉ định áp dụng</span>
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto bg-stone-900/30 p-3 rounded-xl border border-stone-850 font-mono text-[10px]">
+              <div className="border-t border-[var(--gl-border)] pt-4 space-y-2">
+                <span className="text-[var(--gl-text-muted)] font-semibold block">Đối tượng chỉ định áp dụng</span>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto bg-[var(--gl-bg-muted)] p-3 rounded-xl border border-[var(--gl-border)] font-mono text-[10px]">
                   {selectedPromo.scopeType === "STORE" && (
                     selectedPromo.storeIds.map(sid => {
                       const name = dbStores.find(s => s.id === sid)?.name || `Cửa hàng #${sid}`;
                       return (
-                        <span key={sid} className="px-2 py-0.5 bg-stone-900 border border-stone-800 text-stone-300 rounded">
+                        <span key={sid} className="px-2 py-0.5 bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] text-[var(--gl-text-secondary)] rounded">
                           {name}
                         </span>
                       );
@@ -1065,7 +1082,7 @@ export const AdminPromotionsTab: React.FC = () => {
                     selectedPromo.productIds.map(pid => {
                       const name = dbProducts.find(p => parseInt(p.id) === pid)?.name || `Sản phẩm #${pid}`;
                       return (
-                        <span key={pid} className="px-2 py-0.5 bg-stone-900 border border-stone-800 text-stone-300 rounded">
+                        <span key={pid} className="px-2 py-0.5 bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] text-[var(--gl-text-secondary)] rounded">
                           {name}
                         </span>
                       );
@@ -1076,14 +1093,14 @@ export const AdminPromotionsTab: React.FC = () => {
             )}
 
             {/* Audit History Log Block */}
-            <div className="border-t border-stone-850 pt-4 space-y-2.5">
-              <span className="text-stone-500 font-semibold block flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-stone-400" />
+            <div className="border-t border-[var(--gl-border)] pt-4 space-y-2.5">
+              <span className="text-[var(--gl-text-muted)] font-semibold flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-[var(--gl-text-muted)]" />
                 Nhật Ký Kiểm Toán Trạng Thái (Audit Logs)
               </span>
-              <div className="overflow-x-auto rounded-xl border border-stone-850">
-                <table className="w-full text-left text-stone-400 border-collapse">
-                  <thead className="bg-stone-900 border-b border-stone-800 text-[8px] font-mono text-stone-500 uppercase">
+              <div className="overflow-x-auto rounded-xl border border-[var(--gl-border)]">
+                <table className="w-full text-left text-[var(--gl-text-secondary)] border-collapse">
+                  <thead className="bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] text-[8px] font-mono text-[var(--gl-text-muted)] uppercase">
                     <tr>
                       <th className="p-3">Thời gian</th>
                       <th className="p-3">Người thực hiện</th>
@@ -1092,32 +1109,32 @@ export const AdminPromotionsTab: React.FC = () => {
                       <th className="p-3">Lý do</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-850 font-mono text-[10px]">
+                  <tbody className="divide-y divide-[var(--gl-border)] font-mono text-[10px]">
                     {selectedPromo.auditHistory && selectedPromo.auditHistory.length > 0 ? (
                       selectedPromo.auditHistory.map((log) => (
-                        <tr key={log.id} className="hover:bg-stone-900/30">
-                          <td className="p-3 whitespace-nowrap text-[9px] text-stone-500">
+                        <tr key={log.id} className="hover:bg-[var(--gl-bg-muted)]">
+                          <td className="p-3 whitespace-nowrap text-[9px] text-[var(--gl-text-muted)]">
                             {new Date(log.createdAt).toLocaleString("vi-VN")}
                           </td>
                           <td className="p-3">
-                            <span className="font-semibold text-stone-300 block">User ID: #{log.actorUserId}</span>
+                            <span className="font-semibold text-[var(--gl-text-primary)] block">User ID: #{log.actorUserId}</span>
                           </td>
-                          <td className="p-3 text-center font-bold text-stone-300 uppercase">
+                          <td className="p-3 text-center font-bold text-[var(--gl-text-primary)] uppercase">
                             {log.actionType}
                           </td>
                           <td className="p-3 text-center text-[9px]">
-                            <span className="text-stone-500">{log.previousStatus}</span>
-                            <span className="text-stone-600 mx-1">→</span>
-                            <span className="text-emerald-500 font-bold">{log.newStatus}</span>
+                            <span className="text-[var(--gl-text-muted)]">{log.previousStatus}</span>
+                            <span className="text-[var(--gl-text-muted)] mx-1">→</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">{log.newStatus}</span>
                           </td>
-                          <td className="p-3 text-stone-300 italic truncate max-w-xs" title={log.reason || ""}>
-                            {log.reason || <span className="text-stone-600">-</span>}
+                          <td className="p-3 text-[var(--gl-text-secondary)] italic truncate max-w-xs" title={log.reason || ""}>
+                            {log.reason || <span className="text-[var(--gl-text-muted)]">-</span>}
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="p-4 text-center text-stone-600">
+                        <td colSpan={5} className="p-4 text-center text-[var(--gl-text-muted)]">
                           Không có bản ghi nhật ký nào.
                         </td>
                       </tr>
@@ -1128,23 +1145,25 @@ export const AdminPromotionsTab: React.FC = () => {
             </div>
 
             {/* Quick action button within details */}
-            <div className="flex gap-3 pt-4 border-t border-stone-850">
+            <div className="flex gap-3 pt-4 border-t border-[var(--gl-border)]">
               {selectedPromo.status === "DRAFT" && (
                 <>
                   <button
+                    type="button"
                     onClick={() => {
                       const id = selectedPromo.id;
                       const version = selectedPromo.version;
                       setSelectedPromo(null);
                       handleOpenEdit(selectedPromo);
                     }}
-                    className="flex-1 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-550 border border-amber-900/30 font-bold rounded-xl uppercase font-mono tracking-wider transition-all cursor-pointer text-center"
+                    className="flex-1 py-2.5 min-h-[44px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold rounded-xl uppercase font-mono tracking-wider transition-all cursor-pointer text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                   >
                     Hiệu Chỉnh Chiến Dịch
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleOpenAction(selectedPromo.id, selectedPromo.version, "activate")}
-                    className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl uppercase font-mono tracking-wider transition-all cursor-pointer text-center"
+                    className="flex-1 py-2.5 min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl uppercase font-mono tracking-wider transition-all cursor-pointer text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                   >
                     Kích Hoạt Chiến Dịch
                   </button>
@@ -1153,8 +1172,9 @@ export const AdminPromotionsTab: React.FC = () => {
 
               {selectedPromo.status === "ACTIVE" && (
                 <button
+                  type="button"
                   onClick={() => handleOpenAction(selectedPromo.id, selectedPromo.version, "end")}
-                  className="flex-1 py-2.5 bg-rose-955/20 text-rose-500 hover:bg-rose-955/40 border border-rose-900/30 font-bold rounded-xl uppercase font-mono tracking-wider transition-all cursor-pointer text-center"
+                  className="flex-1 py-2.5 min-h-[44px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-bold rounded-xl uppercase font-mono tracking-wider transition-all cursor-pointer text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Kết Thúc Ngay Lập Tức
                 </button>
@@ -1167,35 +1187,37 @@ export const AdminPromotionsTab: React.FC = () => {
       {/* ==================== ACTION CONFRIM REASON MODAL ==================== */}
       {actionModalOpen && actionPromo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-stone-950 border border-stone-850 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative text-left text-xs">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain text-left text-xs text-[var(--gl-text-primary)]">
             <button
+              type="button"
               onClick={() => {
                 setActionModalOpen(false);
                 setActionPromo(null);
               }}
-              className="absolute top-4 right-4 p-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-stone-100 transition-all cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+              aria-label="Đóng"
             >
               <X className="h-4 w-4" />
             </button>
 
             <div className="flex items-center gap-3">
               <div className={`p-2.5 rounded-2xl ${
-                actionPromo.type === "activate" 
-                  ? "bg-emerald-500/10 text-emerald-500" 
-                  : actionPromo.type === "end" 
-                    ? "bg-rose-500/10 text-rose-500" 
-                    : "bg-stone-800 text-stone-400"
+                actionPromo.type === "activate"
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : actionPromo.type === "end"
+                    ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                    : "bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)]"
               }`}>
                 <AlertTriangle className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-bold text-stone-100 font-display">
+              <h3 className="text-base font-bold text-[var(--gl-text-primary)] font-display">
                 {actionPromo.type === "activate" && "Xác nhận kích hoạt khuyến mãi"}
                 {actionPromo.type === "end" && "Xác nhận kết thúc khuyến mãi"}
                 {actionPromo.type === "cancel" && "Xác nhận hủy bỏ khuyến mãi"}
               </h3>
             </div>
 
-            <div className="text-stone-300 space-y-3 leading-relaxed">
+            <div className="text-[var(--gl-text-secondary)] space-y-3 leading-relaxed">
               <p>
                 {actionPromo.type === "activate" && "Khuyến mãi sẽ được chuyển từ trạng thái nháp DRAFT sang ACTIVE. Khách hàng sẽ nhìn thấy các mức giá ưu đãi được tính toán tự động."}
                 {actionPromo.type === "end" && "Khuyến mãi ACTIVE sẽ kết thúc ngay lập tức. Dữ liệu giá sẽ quay về giá niêm yết ban đầu."}
@@ -1203,7 +1225,7 @@ export const AdminPromotionsTab: React.FC = () => {
               </p>
               
               <div className="space-y-1">
-                <label className="text-[10px] font-semibold text-stone-500 uppercase block tracking-wider">
+                <label className="text-[10px] font-semibold text-[var(--gl-text-muted)] uppercase block tracking-wider">
                   Lý do thực hiện {actionPromo.type === "activate" ? "(Không bắt buộc)" : "*"}
                 </label>
                 <textarea
@@ -1211,7 +1233,7 @@ export const AdminPromotionsTab: React.FC = () => {
                   value={actionReason}
                   onChange={(e) => setActionReason(e.target.value)}
                   placeholder="Nhập lý do thực hiện chuyển đổi trạng thái khuyến mãi..."
-                  className="w-full p-3 bg-stone-900 border border-stone-800 rounded-xl text-stone-200 placeholder:text-stone-500 focus:outline-none focus:border-emerald-500 transition-all font-sans"
+                  className="w-full p-3 bg-[var(--gl-bg-page)] border border-[var(--gl-border)] rounded-xl text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] transition-all font-sans"
                 />
               </div>
             </div>
@@ -1223,7 +1245,7 @@ export const AdminPromotionsTab: React.FC = () => {
                   setActionModalOpen(false);
                   setActionPromo(null);
                 }}
-                className="flex-1 py-2.5 bg-stone-900 hover:bg-stone-800 text-stone-450 rounded-xl font-semibold cursor-pointer transition-all border border-stone-800"
+                className="flex-1 py-2.5 min-h-[44px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] rounded-xl font-semibold cursor-pointer transition-all border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 Hủy bỏ
               </button>
@@ -1231,12 +1253,12 @@ export const AdminPromotionsTab: React.FC = () => {
                 type="button"
                 onClick={handleConfirmAction}
                 disabled={submittingAction || (actionPromo.type !== "activate" && !actionReason.trim())}
-                className={`flex-1 py-2.5 text-black font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm rounded-xl ${
-                  actionPromo.type === "activate" 
-                    ? "bg-emerald-500 hover:bg-emerald-400" 
-                    : actionPromo.type === "end" 
-                      ? "bg-rose-500 hover:bg-rose-455 text-white" 
-                      : "bg-stone-200 hover:bg-white text-stone-950"
+                className={`flex-1 py-2.5 min-h-[44px] font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
+                  actionPromo.type === "activate"
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    : actionPromo.type === "end"
+                      ? "bg-rose-600 hover:bg-rose-700 text-white"
+                      : "bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-primary)]"
                 } disabled:opacity-50`}
               >
                 Xác nhận

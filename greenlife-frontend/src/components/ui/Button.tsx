@@ -15,14 +15,14 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyle = "inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 cursor-pointer focus:outline-none select-none disabled:opacity-50 disabled:pointer-events-none active:scale-95";
+  const baseStyle = "inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] select-none disabled:opacity-50 disabled:pointer-events-none active:scale-95";
 
   const variants = {
-    primary: "bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-md shadow-emerald-950/20 active:bg-emerald-600",
-    secondary: "bg-stone-800 hover:bg-stone-755 text-stone-200 border border-stone-700 hover:text-white",
-    outline: "bg-transparent border border-stone-700 text-stone-300 hover:bg-stone-900 hover:text-white hover:border-stone-500",
-    ghost: "bg-transparent hover:bg-stone-900 text-stone-400 hover:text-stone-100",
-    danger: "bg-rose-500 hover:bg-rose-450 text-white font-semibold shadow-md shadow-rose-950/20"
+    primary: "bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-semibold shadow-md shadow-emerald-900/10 active:bg-[var(--gl-accent-hover)]",
+    secondary: "bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] border border-[var(--gl-border-subtle)]",
+    outline: "bg-transparent border border-[var(--gl-border)] text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-muted)] hover:border-[var(--gl-accent)]",
+    ghost: "bg-transparent text-[var(--gl-text-secondary)] hover:bg-[var(--gl-bg-muted)] hover:text-[var(--gl-text-primary)]",
+    danger: "bg-[var(--gl-danger)] hover:opacity-90 text-white font-semibold shadow-md shadow-rose-950/20"
   };
 
   const sizes = {
@@ -39,7 +39,7 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {loading && (
-        <svg className="animate-spin -ml-1 mr-2 h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <svg className="animate-spin -ml-1 mr-2 h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
