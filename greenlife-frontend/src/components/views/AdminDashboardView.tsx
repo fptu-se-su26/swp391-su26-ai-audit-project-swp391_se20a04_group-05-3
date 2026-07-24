@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { 
   ShieldCheck, 
   Sprout, 
@@ -35,6 +34,7 @@ import {
 } from "lucide-react";
 import { useAppContext } from "../../context/AppContext";
 import { ArticleService } from "../../services/articleService";
+import PlantService from "../../services/plantService";
 import { BlogPost, Product } from "../../types";
 import toast from "react-hot-toast";
 import { DashboardSkeleton, TableSkeleton } from "../common/Skeleton";
@@ -48,6 +48,71 @@ import { MessageSquare, ShieldAlert } from "lucide-react";
 import { AdminSecurityService, AdminLoginAuditResponse } from "../../services/adminSecurityService";
 import { getMediaUrl } from "../../utils/mediaUrl";
 import { AdminPromotionsTab } from "../promotion/AdminPromotionsTab";
+const SecureKycImage: React.FC<{ url: string; alt: string }> = ({ url, alt }) => {
+  const [blobUrl, setBlobUrl] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<boolean>(false);
+
+  useEffect(() => {
+    let active = true;
+    let createdUrl = "";
+
+    if (!url) {
+      setLoading(false);
+      setError(true);
+      return;
+    }
+
+    AdminStoreService.fetchKycDocumentBlob(url)
+      .then((objectUrl) => {
+        if (active && objectUrl) {
+          createdUrl = objectUrl;
+          setBlobUrl(objectUrl);
+          setLoading(false);
+        } else {
+          if (active) {
+            setLoading(false);
+            setError(true);
+          }
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setLoading(false);
+          setError(true);
+        }
+      });
+
+    return () => {
+      active = false;
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [url]);
+
+  if (loading) {
+    return (
+      <div className="border border-[var(--gl-border)] rounded-lg w-20 h-14 bg-[var(--gl-bg-surface)] flex items-center justify-center text-[9px] text-[var(--gl-text-muted)] animate-pulse font-mono">
+        Đang tải...
+      </div>
+    );
+  }
+
+  if (error || !blobUrl) {
+    return (
+      <div className="border border-rose-500/20 rounded-lg w-20 h-14 bg-rose-500/5 flex items-center justify-center text-[8px] text-rose-500 text-center p-1 font-mono">
+        Bảo mật KYC
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-[var(--gl-border)] rounded-lg overflow-hidden w-20 h-14 bg-[var(--gl-bg-surface)] flex items-center justify-center cursor-pointer hover:opacity-90">
+      <img src={blobUrl} alt={alt} className="max-h-full max-w-full object-contain" />
+    </div>
+  );
+};
 
 export const AdminDashboardView: React.FC = () => {
   const { 
@@ -60,7 +125,8 @@ export const AdminDashboardView: React.FC = () => {
     setAdminActiveTab,
     blogPosts,
     refreshArticles,
-    currentUser
+    currentUser,
+    loadProducts
   } = useAppContext();
 
   // Reference context state directly
@@ -427,16 +493,6 @@ export const AdminDashboardView: React.FC = () => {
     specs: { "Chất liệu": "Bao bì Organic", "Dấu chân Carbon": "Thấp (-10kg CO2eq)" }
   });
 
-  // Recharts carbon reduction mock dataset
-  const offsetHistory = useMemo(() => [
-    { year: "2021", LamDong: 80, HaNoi: 20, DaNang: 12 },
-    { year: "2022", LamDong: 150, HaNoi: 45, DaNang: 30 },
-    { year: "2023", LamDong: 220, HaNoi: 95, DaNang: 65 },
-    { year: "2024", LamDong: 380, HaNoi: 160, DaNang: 110 },
-    { year: "2025", LamDong: 540, HaNoi: 280, DaNang: 190 },
-    { year: "2026", LamDong: 720, HaNoi: 450, DaNang: 320 }
-  ], []);
-
   // Filtering stores
   const pendingStores = useMemo(() => {
     return dbPendingStores.length > 0 ? dbPendingStores : stores.filter((s) => !s.verified);
@@ -561,6 +617,19 @@ export const AdminDashboardView: React.FC = () => {
     toast.error("Quyền cập nhật trạng thái đơn hàng thuộc về Nhà Vườn (Store Owner).");
   }, []);
 
+  const handleDeleteProduct = useCallback(async (productId: string | number) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này không?")) {
+      return;
+    }
+    try {
+      await PlantService.deleteProductAdmin(productId);
+      toast.success("Xóa sản phẩm thành công!");
+      await loadProducts();
+    } catch (err: any) {
+      toast.error("Không thể xóa sản phẩm. Vui lòng thử lại sau.");
+    }
+  }, [loadProducts]);
+
   const handleAddProductSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!newProduct.name || !newProduct.price || !newProduct.stock) {
@@ -614,7 +683,7 @@ export const AdminDashboardView: React.FC = () => {
   }, [stores, approvedStores, dbOrders]);
 
   return (
-    <div className="space-y-8 pb-24 text-stone-850 dark:text-stone-100">
+    <div className="space-y-8 pb-24 text-[var(--gl-text-primary)]">
       
       {fallbackWarning && (
         <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl text-xs flex items-center gap-2.5 animate-badge-pop">
@@ -624,39 +693,39 @@ export const AdminDashboardView: React.FC = () => {
       )}
 
       {/* Intro Portal header with green luxury accent */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 p-6 rounded-3xl bg-linear-to-br from-emerald-500/5 via-stone-950/20 to-transparent border border-stone-200/50 dark:border-stone-850/40 shadow-xs backdrop-blur-md">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 p-6 rounded-3xl bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] shadow-xs">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--gl-accent)] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--gl-accent)]"></span>
             </span>
-            <span className="text-xs text-emerald-600 dark:text-emerald-500 font-mono tracking-widest uppercase font-semibold">ECO SYSTEM ROOT PORTAL</span>
+            <span className="text-xs text-[var(--gl-accent)] font-mono tracking-widest uppercase font-semibold">ECO SYSTEM ROOT PORTAL</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-display font-bold text-stone-900 dark:text-stone-100 tracking-tight flex items-center gap-2.5">
-            <ShieldCheck className="h-9 w-9 text-emerald-600 dark:text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+          <h1 className="text-3xl sm:text-4xl font-display font-bold text-[var(--gl-text-primary)] tracking-tight flex items-center gap-2.5">
+            <ShieldCheck className="h-9 w-9 text-[var(--gl-accent)] drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
             Kiểm Soát Sinh Thái GreenLife
           </h1>
-          <p className="text-stone-500 dark:text-stone-400 text-sm max-w-xl leading-relaxed">
+          <p className="text-[var(--gl-text-muted)] text-sm max-w-xl leading-relaxed">
             Hệ thống điều hành trung tâm của Admin. Quản trị phê duyệt nhà vườn, thẩm định chất lượng nông nghiệp xanh, phân phối dòng carbon tín chỉ và giám sát thanh khoản sàn.
           </p>
         </div>
 
         {/* Real-time server connection stats */}
-        <div className="flex flex-wrap md:flex-col lg:flex-row items-start lg:items-center gap-3.5 bg-stone-900/5 dark:bg-stone-950/60 p-4 rounded-2xl border border-stone-200 dark:border-stone-850 font-mono text-[10px] text-stone-500 dark:text-stone-400">
+        <div className="flex flex-wrap md:flex-col lg:flex-row items-start lg:items-center gap-3.5 bg-[var(--gl-bg-muted)] p-4 rounded-2xl border border-[var(--gl-border)] font-mono text-[10px] text-[var(--gl-text-muted)]">
           <div className="flex items-center gap-1.5">
-            <Cpu className="h-3.5 w-3.5 text-emerald-500" />
-            <span>Core DB: <strong className="text-emerald-500 dark:text-emerald-400">MSSQL Live</strong></span>
+            <Cpu className="h-3.5 w-3.5 text-[var(--gl-accent)]" />
+            <span>Core DB: <strong className="text-[var(--gl-accent)]">MSSQL Live</strong></span>
           </div>
-          <span className="hidden lg:inline text-stone-300 dark:text-stone-800">|</span>
+          <span className="hidden lg:inline text-[var(--gl-border)]">|</span>
           <div className="flex items-center gap-1.5">
-            <Activity className="h-3.5 w-3.5 text-emerald-500" />
-            <span>API Gateway: <strong className="text-emerald-500 dark:text-emerald-400">Online</strong></span>
+            <Activity className="h-3.5 w-3.5 text-[var(--gl-accent)]" />
+            <span>API Gateway: <strong className="text-[var(--gl-accent)]">Online</strong></span>
           </div>
-          <span className="hidden lg:inline text-stone-300 dark:text-stone-800">|</span>
+          <span className="hidden lg:inline text-[var(--gl-border)]">|</span>
           <div className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
-            <span>AI Engine: <strong className="text-emerald-500 dark:text-emerald-400">v1.4 Loaded</strong></span>
+            <Sparkles className="h-3.5 w-3.5 text-[var(--gl-accent)] animate-pulse" />
+            <span>AI Engine: <strong className="text-[var(--gl-accent)]">v1.4 Loaded</strong></span>
           </div>
         </div>
       </div>
@@ -711,30 +780,30 @@ export const AdminDashboardView: React.FC = () => {
             ].map((stat, idx) => {
               const Icon = stat.icon;
               return (
-                <div key={idx} className={`group bg-linear-to-br ${stat.color} bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-5 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300`}>
+                <div key={idx} className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-5 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300">
                   <div className="flex justify-between items-start">
-                    <span className="px-2 py-0.5 rounded text-[8px] bg-stone-200 dark:bg-stone-900 text-stone-500 dark:text-stone-400 font-mono tracking-wider font-bold">
+                    <span className="px-2 py-0.5 rounded text-[8px] bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] font-mono tracking-wider font-bold">
                       {stat.badge}
                     </span>
-                    <div className="p-2 rounded-lg bg-stone-200/50 dark:bg-stone-900 text-stone-600 dark:text-stone-400 group-hover:text-emerald-500 group-hover:bg-emerald-500/10 transition-colors">
+                    <div className="p-2 rounded-lg bg-[var(--gl-bg-muted)] text-[var(--gl-text-secondary)] transition-colors">
                       <Icon className="h-4.5 w-4.5" />
                     </div>
                   </div>
                   <div className="mt-4">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold font-display text-stone-900 dark:text-stone-100 tracking-tight">{stat.title}</span>
+                      <span className="text-2xl font-bold font-display text-[var(--gl-text-primary)] tracking-tight">{stat.title}</span>
                       {stat.trend && (
-                        <span className="text-[10px] text-emerald-500 font-bold flex items-center font-mono">
+                        <span className="text-[10px] text-[var(--gl-accent)] font-bold flex items-center font-mono">
                           <TrendingUp className="h-3 w-3 inline mr-0.5" />
                           {stat.trend}
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-stone-400 dark:text-stone-500 mt-0.5 block">{stat.desc}</span>
+                    <span className="text-xs text-[var(--gl-text-muted)] mt-0.5 block">{stat.desc}</span>
                   </div>
-                  <div className="border-t border-stone-200/60 dark:border-stone-850/50 mt-4 pt-2.5 flex items-center justify-between text-[10px] text-stone-500 dark:text-stone-400 font-mono">
+                  <div className="border-t border-[var(--gl-border)] mt-4 pt-2.5 flex items-center justify-between text-[10px] text-[var(--gl-text-muted)] font-mono">
                     <span>{stat.sub}</span>
-                    <ArrowUpRight className="h-3 w-3 text-stone-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                    <ArrowUpRight className="h-3 w-3 text-[var(--gl-text-muted)] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
                   </div>
                 </div>
               );
@@ -745,61 +814,21 @@ export const AdminDashboardView: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Growth Chart - Left 2/3 */}
-            <div className="lg:col-span-2 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-4 shadow-xs">
+            <div className="lg:col-span-2 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-4 shadow-xs">
               <div className="flex justify-between items-center">
                 <div className="space-y-1">
-                  <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase flex items-center gap-1.5">
-                    <Leaf className="h-4 w-4 text-emerald-500 animate-pulse" />
+                  <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase flex items-center gap-1.5">
+                    <Leaf className="h-4 w-4 text-[var(--gl-accent)] animate-pulse" />
                     Hiệu Suất Khử Carbon Khu Vực Lũy Kế (Tấn CO2)
                   </h3>
-                  <p className="text-[10px] text-stone-400 font-mono">Dữ liệu tổng hợp từ các chi hội nhà vườn GreenLife liên kết địa phương</p>
-                </div>
-                <div className="flex items-center gap-2 text-[9px] font-mono text-stone-400 bg-stone-100 dark:bg-stone-900 px-2.5 py-1 rounded-lg">
-                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                  Lâm Đồng
-                  <span className="inline-block w-2 h-2 rounded-full bg-blue-500 ml-2"></span>
-                  Hà Nội
-                  <span className="inline-block w-2 h-2 rounded-full bg-amber-500 ml-2"></span>
-                  Đà Nẵng
+                  <p className="text-[10px] text-[var(--gl-text-muted)] font-mono">Dữ liệu tổng hợp từ các chi hội nhà vườn GreenLife liên kết địa phương</p>
                 </div>
               </div>
               
-              <div className="h-72 w-full pt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={offsetHistory} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorLamDong" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorHaNoi" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorDaNang" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="#88888812" strokeDasharray="3 3" />
-                    <XAxis dataKey="year" stroke="#666" fontSize={11} axisLine={false} tickLine={false} />
-                    <YAxis stroke="#666" fontSize={11} axisLine={false} tickLine={false} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: "var(--stone-950)", 
-                        borderColor: "var(--stone-850)", 
-                        borderRadius: "16px",
-                        boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
-                        backdropFilter: "blur(8px)" 
-                      }}
-                      labelStyle={{ color: "var(--stone-200)", fontSize: "11px", fontWeight: "bold", fontFamily: "var(--font-mono)" }}
-                      itemStyle={{ fontSize: "12px", padding: "2px 0" }}
-                    />
-                    <Area type="monotone" dataKey="LamDong" stroke="#10b981" fillOpacity={1} fill="url(#colorLamDong)" strokeWidth={2} name="Lâm Đồng (Chuyên canh)" />
-                    <Area type="monotone" dataKey="HaNoi" stroke="#3b82f6" fillOpacity={1} fill="url(#colorHaNoi)" strokeWidth={1.5} name="Ban Công Hà Nội" />
-                    <Area type="monotone" dataKey="DaNang" stroke="#f59e0b" fillOpacity={1} fill="url(#colorDaNang)" strokeWidth={1.5} name="Đà Nẵng Xanh" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="h-72 w-full pt-4 flex flex-col items-center justify-center border border-dashed border-[var(--gl-border)] rounded-2xl bg-[var(--gl-bg-muted)]">
+                <Leaf className="h-10 w-10 text-[var(--gl-text-muted)] mb-2" />
+                <p className="text-xs text-[var(--gl-text-muted)] font-medium">Chưa có dữ liệu thống kê</p>
+                <p className="text-[10px] text-[var(--gl-text-muted)] font-mono mt-1">Hệ thống đang tích lũy chỉ số carbon thực tế</p>
               </div>
             </div>
 
@@ -807,38 +836,38 @@ export const AdminDashboardView: React.FC = () => {
             <div className="flex flex-col gap-6 lg:col-span-1">
               
               {/* System Health Status Grid */}
-              <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-5 rounded-3xl space-y-4 shadow-xs">
-                <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase flex items-center gap-1.5">
-                  <Activity className="h-4.5 w-4.5 text-stone-400" />
+              <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-5 rounded-3xl space-y-4 shadow-xs">
+                <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase flex items-center gap-1.5">
+                  <Activity className="h-4.5 w-4.5 text-[var(--gl-text-muted)]" />
                   Trạng Thái Hệ Thống
                 </h3>
                 
                 <div className="grid grid-cols-2 gap-3 text-[10px] font-mono">
-                  <div className="bg-stone-100 dark:bg-stone-900/60 p-3 rounded-xl border border-stone-200 dark:border-stone-850 flex flex-col justify-between h-18">
-                    <span className="text-stone-400">Database Core</span>
-                    <span className="flex items-center gap-1.5 text-emerald-500 font-bold">
-                      <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                  <div className="bg-[var(--gl-bg-muted)] p-3 rounded-xl border border-[var(--gl-border)] flex flex-col justify-between h-18">
+                    <span className="text-[var(--gl-text-muted)]">Database Core</span>
+                    <span className="flex items-center gap-1.5 text-[var(--gl-accent)] font-bold">
+                      <span className="inline-block w-1.5 h-1.5 bg-[var(--gl-accent)] rounded-full animate-pulse"></span>
                       MSSQL Sync
                     </span>
                   </div>
-                  <div className="bg-stone-100 dark:bg-stone-900/60 p-3 rounded-xl border border-stone-200 dark:border-stone-850 flex flex-col justify-between h-18">
-                    <span className="text-stone-400">Diag Engine AI</span>
-                    <span className="flex items-center gap-1.5 text-emerald-500 font-bold">
-                      <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                  <div className="bg-[var(--gl-bg-muted)] p-3 rounded-xl border border-[var(--gl-border)] flex flex-col justify-between h-18">
+                    <span className="text-[var(--gl-text-muted)]">Diag Engine AI</span>
+                    <span className="flex items-center gap-1.5 text-[var(--gl-accent)] font-bold">
+                      <span className="inline-block w-1.5 h-1.5 bg-[var(--gl-accent)] rounded-full animate-pulse"></span>
                       94% Conf.
                     </span>
                   </div>
-                  <div className="bg-stone-100 dark:bg-stone-900/60 p-3 rounded-xl border border-stone-200 dark:border-stone-850 flex flex-col justify-between h-18">
-                    <span className="text-stone-400">Eco-Stripe Gateway</span>
-                    <span className="flex items-center gap-1.5 text-emerald-500 font-bold">
-                      <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                  <div className="bg-[var(--gl-bg-muted)] p-3 rounded-xl border border-[var(--gl-border)] flex flex-col justify-between h-18">
+                    <span className="text-[var(--gl-text-muted)]">Eco-Stripe Gateway</span>
+                    <span className="flex items-center gap-1.5 text-[var(--gl-accent)] font-bold">
+                      <span className="inline-block w-1.5 h-1.5 bg-[var(--gl-accent)] rounded-full animate-pulse"></span>
                       0.02s Lat.
                     </span>
                   </div>
-                  <div className="bg-stone-100 dark:bg-stone-900/60 p-3 rounded-xl border border-stone-200 dark:border-stone-850 flex flex-col justify-between h-18">
-                    <span className="text-stone-400">EcoScore Auditor</span>
-                    <span className="flex items-center gap-1.5 text-emerald-500 font-bold">
-                      <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                  <div className="bg-[var(--gl-bg-muted)] p-3 rounded-xl border border-[var(--gl-border)] flex flex-col justify-between h-18">
+                    <span className="text-[var(--gl-text-muted)]">EcoScore Auditor</span>
+                    <span className="flex items-center gap-1.5 text-[var(--gl-accent)] font-bold">
+                      <span className="inline-block w-1.5 h-1.5 bg-[var(--gl-accent)] rounded-full animate-pulse"></span>
                       LCA Valid
                     </span>
                   </div>
@@ -846,29 +875,14 @@ export const AdminDashboardView: React.FC = () => {
               </div>
 
               {/* Activity Timeline */}
-              <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-5 rounded-3xl flex-1 space-y-4 shadow-xs">
-                <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase flex items-center gap-1.5">
-                  <Clock className="h-4.5 w-4.5 text-stone-400" />
+              <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-5 rounded-3xl flex-1 space-y-4 shadow-xs">
+                <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase flex items-center gap-1.5">
+                  <Clock className="h-4.5 w-4.5 text-[var(--gl-text-muted)]" />
                   Nhật Ký Điều Hành
                 </h3>
 
-                <div className="space-y-3.5 text-[11px] leading-relaxed">
-                  {[
-                    { time: "21:05", desc: "ThS. Nguyễn Thành Trung hoàn thành tư vấn ca #BK-9021.", tag: "Booking" },
-                    { time: "20:46", desc: "Đơn hàng #GL-9524 thanh toán thành công 570,000₫.", tag: "Order" },
-                    { time: "19:30", desc: "Nhà Vườn Thảo Mộc vừa cập nhật số lượng kho Sen Đá.", tag: "Inventory" },
-                    { time: "18:15", desc: "Yêu cầu liên kết mới từ Hợp tác xã Hòa Vang gửi tới hệ thống.", tag: "Partner" }
-                  ].map((act, idx) => (
-                    <div key={idx} className="flex gap-2.5 items-start">
-                      <span className="font-mono text-stone-400 text-[10px] pt-0.5">{act.time}</span>
-                      <div className="space-y-0.5 flex-1">
-                        <p className="text-stone-650 dark:text-stone-300">{act.desc}</p>
-                        <span className="inline-block px-1.5 py-0.2 bg-stone-100 dark:bg-stone-900 text-stone-400 font-mono text-[8px] rounded uppercase border border-stone-200 dark:border-stone-800">
-                          {act.tag}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex flex-col items-center justify-center py-8 text-[var(--gl-text-muted)] font-mono text-[10px]">
+                  <span>Chưa có nhật ký điều hành phát sinh</span>
                 </div>
               </div>
 
@@ -883,24 +897,26 @@ export const AdminDashboardView: React.FC = () => {
         <div className="space-y-6 animate-slide-down">
           
           {/* Sub Tab selection */}
-          <div className="flex border-b border-stone-200 dark:border-stone-850 gap-6">
+          <div className="flex border-b border-[var(--gl-border)] gap-6">
             <button 
+              type="button"
               onClick={() => setStoreTab("pending")}
-              className={`pb-3 text-xs font-semibold relative cursor-pointer ${
-                storeTab === "pending" ? "text-emerald-500 font-bold" : "text-stone-400 hover:text-stone-300"
+              className={`pb-3 text-xs font-semibold relative cursor-pointer min-h-[40px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-t-lg ${
+                storeTab === "pending" ? "text-[var(--gl-accent)] font-bold" : "text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)]"
               }`}
             >
               Hồ Sơ Chờ Phê Duyệt ({pendingStores.length})
-              {storeTab === "pending" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 rounded-full" />}
+              {storeTab === "pending" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--gl-accent)] rounded-full" />}
             </button>
             <button 
+              type="button"
               onClick={() => setStoreTab("active")}
-              className={`pb-3 text-xs font-semibold relative cursor-pointer ${
-                storeTab === "active" ? "text-emerald-500 font-bold" : "text-stone-400 hover:text-stone-300"
+              className={`pb-3 text-xs font-semibold relative cursor-pointer min-h-[40px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-t-lg ${
+                storeTab === "active" ? "text-[var(--gl-accent)] font-bold" : "text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)]"
               }`}
             >
               Cửa Hàng Đối Tác Hoạt Động ({approvedStores.length})
-              {storeTab === "active" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 rounded-full" />}
+              {storeTab === "active" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--gl-accent)] rounded-full" />}
             </button>
           </div>
 
@@ -915,28 +931,51 @@ export const AdminDashboardView: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {pendingStores.map((store) => (
-                    <div key={store.id} className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 rounded-2xl p-6 flex flex-col gap-4 shadow-sm hover:border-emerald-500/40 transition-all duration-300">
+                    <div key={store.id} className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl p-6 flex flex-col gap-4 shadow-xs hover:border-[var(--gl-accent)]/40 transition-all duration-300">
                       
                       <div className="flex justify-between items-start gap-4">
                         <div className="flex items-center gap-3">
-                          <img src={getMediaUrl(store.avatar) || "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=100"} alt={store.name} className="w-11 h-11 object-cover rounded-xl border border-stone-200 dark:border-stone-800" />
+                          <img src={getMediaUrl(store.avatar) || "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=100"} alt={store.name} className="w-11 h-11 object-cover rounded-xl border border-[var(--gl-border)]" />
                           <div>
-                            <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100 leading-snug">{store.name}</h4>
-                            <p className="text-[10px] text-stone-400 mt-0.5">Chủ vườn: {store.ownerName} ({store.ownerEmail})</p>
+                            <h4 className="text-xs font-bold text-[var(--gl-text-primary)] leading-snug">{store.name}</h4>
+                            <p className="text-[10px] text-[var(--gl-text-muted)] mt-0.5">Chủ vườn: {store.ownerName} ({store.ownerEmail})</p>
                           </div>
                         </div>
-                        <span className="px-2 py-0.5 rounded text-[8px] bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-mono uppercase font-bold border border-amber-250 dark:border-amber-900/30 animate-pulse">
+                        <span className="px-2 py-0.5 rounded text-[8px] bg-amber-500/10 text-amber-500 font-mono uppercase font-bold border border-amber-500/20 animate-pulse">
                           Chờ Duyệt
                         </span>
                       </div>
 
-                      <div className="space-y-2 text-[10px] font-mono text-stone-500 border-y border-stone-200/50 dark:border-stone-850/50 py-3 my-1">
-                        <p className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-stone-400" /> <span>📍 {store.address}</span></p>
-                        <p className="flex items-center gap-1.5"><ShoppingBag className="h-3 w-3 text-stone-400" /> <span>Quy mô đăng ký: {store.productsCount} mặt hàng thảo dược/kiểng lá</span></p>
+                      <div className="space-y-2 text-[10px] font-mono text-[var(--gl-text-muted)] border-y border-[var(--gl-border)] py-3 my-1">
+                        <p className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-[var(--gl-text-muted)]" /> <span>📍 {store.address}</span></p>
+                        <p className="flex items-center gap-1.5"><ShoppingBag className="h-3 w-3 text-[var(--gl-text-muted)]" /> <span>Quy mô đăng ký: {store.productsCount} mặt hàng thảo dược/kiểng lá</span></p>
+                        {(store as any).businessType && (
+                          <p className="flex items-center gap-1.5 font-bold text-[var(--gl-accent)]">
+                            <span>🏢 Hình thức: {(store as any).businessType === "PHYSICAL_STORE" ? "Có cửa hàng trực tiếp" : "Kinh doanh online / nhà vườn đóng gói"}</span>
+                          </p>
+                        )}
                       </div>
 
-                      <div className="text-[10px] text-stone-650 dark:text-stone-400 leading-relaxed bg-stone-100 dark:bg-stone-900/50 p-3.5 rounded-xl border border-stone-200 dark:border-stone-850">
-                        <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold uppercase mb-1">
+                      {/* KYC & Business Evidence Inspection */}
+                      {((store as any).cccdFrontUrl || (store as any).verificationDocument || ((store as any).businessEvidenceUrls && (store as any).businessEvidenceUrls.length > 0)) && (
+                        <div className="space-y-2 bg-[var(--gl-bg-muted)] p-3 rounded-xl border border-[var(--gl-border)] text-[10px]">
+                          <span className="font-bold text-[var(--gl-text-primary)] block font-mono">Hồ sơ Định danh KYC & Minh chứng (Bảo mật Admin):</span>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {((store as any).cccdFrontUrl || (store as any).verificationDocument) && (
+                              <SecureKycImage url={(store as any).cccdFrontUrl || (store as any).verificationDocument} alt="CCCD Mặt trước" />
+                            )}
+                            {(store as any).cccdBackUrl && (
+                              <SecureKycImage url={(store as any).cccdBackUrl} alt="CCCD Mặt sau" />
+                            )}
+                            {(store as any).businessEvidenceUrls && (store as any).businessEvidenceUrls.map((evUrl: string, evIdx: number) => (
+                              <SecureKycImage key={evIdx} url={evUrl} alt={`Minh chứng ${evIdx + 1}`} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-[10px] text-[var(--gl-text-secondary)] leading-relaxed bg-[var(--gl-bg-muted)] p-3.5 rounded-xl border border-[var(--gl-border)]">
+                        <div className="flex items-center gap-1 text-[9px] text-[var(--gl-accent)] font-bold uppercase mb-1">
                           <Leaf className="h-3 w-3" />
                           Cam Kết Bảo Vệ Môi Trường
                         </div>
@@ -945,15 +984,17 @@ export const AdminDashboardView: React.FC = () => {
 
                       <div className="flex gap-3.5 pt-2 mt-auto">
                         <button
+                          type="button"
                           onClick={() => handleApproveStore(store.id)}
-                          className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase"
+                          className="flex-1 py-2.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-black font-semibold rounded-xl text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         >
                           <Check className="h-3.5 w-3.5" />
                           Phê Duyệt Hồ Sơ
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleRejectStore(store.id)}
-                          className="py-2.5 px-4 bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/20 text-rose-800 dark:text-rose-400 font-semibold rounded-xl text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase border border-rose-200 dark:border-rose-900/30"
+                          className="py-2.5 px-4 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-semibold rounded-xl text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase border border-rose-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         >
                           <X className="h-3.5 w-3.5" />
                           Từ Chối
@@ -965,38 +1006,38 @@ export const AdminDashboardView: React.FC = () => {
               )}
             </div>
           ) : (
-            <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-5 shadow-xs">
+            <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-5 shadow-xs">
               
               {/* Search and filter controls */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)]" />
                   <input
                     type="text"
                     placeholder="Tìm tên nhà vườn, email, chủ vườn..."
                     value={storeSearch}
                     onChange={(e) => setStoreSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono"
+                    className="w-full pl-9 pr-4 py-2 min-h-[40px] text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
                   />
                 </div>
                 <div className="relative w-full sm:w-48">
-                  <Filter className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                  <Filter className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)]" />
                   <select
                     value={storeCityFilter}
                     onChange={(e) => setStoreCityFilter(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono cursor-pointer"
+                    className="w-full pl-9 pr-4 py-2 min-h-[40px] text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono cursor-pointer"
                   >
-                    <option value="">Tất cả tỉnh thành</option>
-                    <option value="Hà Nội">Hà Nội</option>
-                    <option value="Lâm Đồng">Lâm Đồng</option>
-                    <option value="Đà Nẵng">Đà Nẵng</option>
+                    <option value="" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Tất cả tỉnh thành</option>
+                    <option value="Hà Nội" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Hà Nội</option>
+                    <option value="Lâm Đồng" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Lâm Đồng</option>
+                    <option value="Đà Nẵng" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đà Nẵng</option>
                   </select>
                 </div>
               </div>
 
-              <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
-                <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-                  <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+              <div className="overflow-x-auto text-xs rounded-xl border border-[var(--gl-border)]">
+                <table className="w-full text-left text-[var(--gl-text-secondary)] border-collapse">
+                  <thead className="bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] text-[var(--gl-text-muted)] uppercase font-mono text-[9px]">
                     <tr>
                       <th className="p-4.5">Tên Nhà Vườn</th>
                       <th className="p-4.5">Đại Diện Pháp Nhân</th>
@@ -1006,7 +1047,7 @@ export const AdminDashboardView: React.FC = () => {
                       <th className="p-4.5 text-right">Hành Động</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+                  <tbody className="divide-y divide-[var(--gl-border)]">
                     {filteredApprovedStores.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="p-8">
@@ -1019,29 +1060,29 @@ export const AdminDashboardView: React.FC = () => {
                       </tr>
                     ) : (
                       filteredApprovedStores.map((store) => (
-                        <tr key={store.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
+                        <tr key={store.id} className="hover:bg-[var(--gl-bg-muted)]/50 transition-colors">
                           <td className="p-4.5">
                             <div className="flex items-center gap-2.5">
                               <img src={getMediaUrl(store.avatar) || "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=100"} alt={store.name} className="w-7 h-7 object-cover rounded-md" />
                               <div>
-                                <span className="font-semibold text-stone-900 dark:text-stone-100 block">{store.name}</span>
-                                <span className="text-[9px] text-stone-450 dark:text-stone-500 font-mono block">ID: {store.id}</span>
+                                <span className="font-semibold text-[var(--gl-text-primary)] block">{store.name}</span>
+                                <span className="text-[9px] text-[var(--gl-text-muted)] font-mono block">ID: {store.id}</span>
                               </div>
                             </div>
                           </td>
                           <td className="p-4.5">
                             <div className="space-y-0.5">
                               <span className="block">{store.ownerName}</span>
-                              <span className="text-[10px] text-stone-400 font-mono block">{store.ownerEmail}</span>
+                              <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block">{store.ownerEmail}</span>
                             </div>
                           </td>
                           <td className="p-4.5 font-mono">{store.city}</td>
-                          <td className="p-4.5 text-center font-mono font-bold text-emerald-600 dark:text-emerald-450">
+                          <td className="p-4.5 text-center font-mono font-bold text-[var(--gl-accent)]">
                             {store.carbonOffsetKg} kg
                           </td>
                           <td className="p-4.5 text-center font-mono">{store.productsCount} món</td>
                           <td className="p-4.5 text-right">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[8px] bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-mono font-bold uppercase border border-emerald-250 dark:border-emerald-900/30">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[8px] bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] font-mono font-bold uppercase border border-[var(--gl-accent)]/20">
                               <CheckCircle2 className="h-3 w-3" /> Active
                             </span>
                           </td>
@@ -1058,47 +1099,47 @@ export const AdminDashboardView: React.FC = () => {
 
       {/* 3. USER MANAGEMENT TAB */}
       {activeTab === "users" && (
-        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down">
+        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down">
           
           {/* Header & filters */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase">
+              <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase">
                 Quản Lý Thành Viên Cổng Hệ Thống
               </h3>
-              <p className="text-[10px] text-stone-400">Giám sát tài khoản, hạn mức Carbon Credits tích lũy, đổi thưởng xanh và quyền phân vai điều hành.</p>
+              <p className="text-[10px] text-[var(--gl-text-muted)]">Giám sát tài khoản, hạn mức Carbon Credits tích lũy, đổi thưởng xanh và quyền phân vai điều hành.</p>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)]" />
                 <input
                   type="text"
                   placeholder="Tìm họ tên, email..."
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
-                  className="w-full sm:w-64 pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono"
+                  className="w-full sm:w-64 pl-9 pr-4 py-2 min-h-[40px] text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
                 />
               </div>
               <div className="relative">
-                <Filter className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                <Filter className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)]" />
                 <select
                   value={userRoleFilter}
                   onChange={(e) => setUserRoleFilter(e.target.value)}
-                  className="w-full sm:w-48 pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono cursor-pointer"
+                  className="w-full sm:w-48 pl-9 pr-4 py-2 min-h-[40px] text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono cursor-pointer"
                 >
-                  <option value="">Tất cả chức vụ</option>
-                  <option value="admin">Quản trị viên (Admin)</option>
-                  <option value="store">Chủ cửa hàng (Store)</option>
-                  <option value="customer">Khách hàng (Customer)</option>
+                  <option value="" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Tất cả chức vụ</option>
+                  <option value="admin" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Quản trị viên (Admin)</option>
+                  <option value="store" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Chủ cửa hàng (Store)</option>
+                  <option value="customer" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Khách hàng (Customer)</option>
                 </select>
               </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
-            <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-              <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+          <div className="overflow-x-auto text-xs rounded-xl border border-[var(--gl-border)]">
+            <table className="w-full text-left text-[var(--gl-text-secondary)] border-collapse">
+              <thead className="bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] text-[var(--gl-text-muted)] uppercase font-mono text-[9px]">
                 <tr>
                   <th className="p-4.5">Tên thành viên</th>
                   <th className="p-4.5">Liên hệ</th>
@@ -1108,7 +1149,7 @@ export const AdminDashboardView: React.FC = () => {
                   <th className="p-4.5 text-right">Chi tiết</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+              <tbody className="divide-y divide-[var(--gl-border)]">
                 {loadingUsers ? (
                   <tr>
                     <td colSpan={6} className="p-4">
@@ -1127,15 +1168,15 @@ export const AdminDashboardView: React.FC = () => {
                   </tr>
                 ) : (
                   filteredUsers.map((u, idx) => (
-                  <tr key={idx} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
-                    <td className="p-4.5 font-semibold text-stone-900 dark:text-stone-100">
+                  <tr key={idx} className="hover:bg-[var(--gl-bg-muted)]/50 transition-colors">
+                    <td className="p-4.5 font-semibold text-[var(--gl-text-primary)]">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold font-display border border-emerald-500/20">
+                        <div className="w-8 h-8 rounded-full bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] flex items-center justify-center font-bold font-display border border-[var(--gl-accent)]/20">
                           {u.name.charAt(0)}
                         </div>
                         <div>
                           <span className="block">{u.name}</span>
-                          <span className={`text-[8px] font-mono font-bold uppercase ${u.status === "Active" ? "text-emerald-500" : "text-rose-500"}`}>
+                          <span className={`text-[8px] font-mono font-bold uppercase ${u.status === "Active" ? "text-[var(--gl-accent)]" : "text-rose-500"}`}>
                             ● {u.status}
                           </span>
                         </div>
@@ -1143,31 +1184,32 @@ export const AdminDashboardView: React.FC = () => {
                     </td>
                     <td className="p-4.5 font-mono">
                       <div className="space-y-0.5 text-[10px]">
-                        <span className="block text-stone-450 dark:text-stone-400">{u.email}</span>
-                        <span className="block text-stone-400">{u.phone}</span>
+                        <span className="block text-[var(--gl-text-muted)] min-w-0 break-all">{u.email}</span>
+                        <span className="block text-[var(--gl-text-muted)]">{u.phone}</span>
                       </div>
                     </td>
-                    <td className="p-4.5 text-center font-mono font-bold text-stone-900 dark:text-stone-200">
+                    <td className="p-4.5 text-center font-mono font-bold text-[var(--gl-text-primary)]">
                       {u.credits.toLocaleString("vi-VN")} CPT
                     </td>
-                    <td className="p-4.5 text-center font-mono font-bold text-emerald-500">
+                    <td className="p-4.5 text-center font-mono font-bold text-[var(--gl-accent)]">
                       -{u.carbonSaved} kg CO2
                     </td>
                     <td className="p-4.5">
                       <span className={`px-2 py-0.5 rounded text-[8px] font-bold tracking-wider font-mono uppercase ${
-                        u.role === "admin" 
-                          ? "bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-400 border border-rose-250 dark:border-rose-900/30" 
-                          : u.role === "store" 
-                            ? "bg-amber-100 dark:bg-amber-955 text-amber-800 dark:text-amber-400 border border-amber-250 dark:border-amber-900/30" 
-                            : "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 border border-emerald-250 dark:border-emerald-900/30"
+                        u.role === "admin"
+                          ? "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                          : u.role === "store"
+                            ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                            : "bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20"
                       }`}>
                         {u.role}
                       </span>
                     </td>
                     <td className="p-4.5 text-right">
                       <button 
+                        type="button"
                         onClick={() => setSelectedUser(u)}
-                        className="py-1 px-2.5 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 ml-auto border border-stone-250 dark:border-stone-800"
+                        className="py-1.5 px-3 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] text-[var(--gl-text-primary)] font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 ml-auto border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         <Eye className="h-3 w-3" /> Xem hồ sơ
                       </button>
@@ -1183,20 +1225,21 @@ export const AdminDashboardView: React.FC = () => {
 
       {/* 4. PRODUCT MANAGEMENT TAB */}
       {activeTab === "products" && (
-        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down">
+        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down">
           
           {/* Header row & Add product */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase">
+              <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase">
                 Danh Mục Mặt Hàng Niêm Yết Sàn
               </h3>
-              <p className="text-[10px] text-stone-400">Giám sát lượng hàng, định giá chênh lệch, chấm điểm EcoScore cho bao bì và nguồn gốc sản phẩm.</p>
+              <p className="text-[10px] text-[var(--gl-text-muted)]">Giám sát lượng hàng, định giá chênh lệch, chấm điểm EcoScore cho bao bì và nguồn gốc sản phẩm.</p>
             </div>
             
             <button
+              type="button"
               onClick={() => setShowAddProductModal(true)}
-              className="py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-emerald-500/10 uppercase self-start lg:self-auto"
+              className="py-2.5 px-4 min-h-[44px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-black font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs uppercase self-start lg:self-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
             >
               <Plus className="h-4 w-4" />
               Thêm Sản Phẩm Sinh Thái
@@ -1206,49 +1249,49 @@ export const AdminDashboardView: React.FC = () => {
           {/* Filters row */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)]" />
               <input
                 type="text"
                 placeholder="Tìm tên sản phẩm, công dụng..."
                 value={productSearch}
                 onChange={(e) => setProductSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono"
+                className="w-full pl-9 pr-4 py-2 min-h-[40px] text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
               />
             </div>
             <div className="flex gap-2">
               <div className="relative">
-                <Filter className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                <Filter className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)]" />
                 <select
                   value={productCategoryFilter}
                   onChange={(e) => setProductCategoryFilter(e.target.value)}
-                  className="pl-9 pr-8 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono cursor-pointer"
+                  className="pl-9 pr-8 py-2 min-h-[40px] text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono cursor-pointer"
                 >
-                  <option value="">Mọi danh mục</option>
-                  <option value="plants">Cây Cảnh (plants)</option>
-                  <option value="nutrients">Dinh Dưỡng (nutrients)</option>
-                  <option value="care">Chăm Sóc (care)</option>
-                  <option value="smarthome">Eco-IoT SmartHome</option>
+                  <option value="" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Mọi danh mục</option>
+                  <option value="plants" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Cây Cảnh (plants)</option>
+                  <option value="nutrients" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Dinh Dưỡng (nutrients)</option>
+                  <option value="care" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Chăm Sóc (care)</option>
+                  <option value="smarthome" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Eco-IoT SmartHome</option>
                 </select>
               </div>
               <div className="relative">
-                <SlidersHorizontal className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                <SlidersHorizontal className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)]" />
                 <select
                   value={productStockFilter}
                   onChange={(e) => setProductStockFilter(e.target.value)}
-                  className="pl-9 pr-8 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono cursor-pointer"
+                  className="pl-9 pr-8 py-2 min-h-[40px] text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono cursor-pointer"
                 >
-                  <option value="">Lượng kho</option>
-                  <option value="out">Đã hết hàng</option>
-                  <option value="low">Sắp hết hàng (&lt; 15)</option>
-                  <option value="good">Lượng kho dồi dào (&gt;= 15)</option>
+                  <option value="" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Lượng kho</option>
+                  <option value="out" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đã hết hàng</option>
+                  <option value="low" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Sắp hết hàng (&lt; 15)</option>
+                  <option value="good" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Lượng kho dồi dào (&gt;= 15)</option>
                 </select>
               </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
-            <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-              <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+          <div className="overflow-x-auto text-xs rounded-xl border border-[var(--gl-border)]">
+            <table className="w-full text-left text-[var(--gl-text-secondary)] border-collapse">
+              <thead className="bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] text-[var(--gl-text-muted)] uppercase font-mono text-[9px]">
                 <tr>
                   <th className="p-4.5">Sản Phẩm</th>
                   <th className="p-4.5">Danh Mục</th>
@@ -1258,7 +1301,7 @@ export const AdminDashboardView: React.FC = () => {
                   <th className="p-4.5 text-right">Xóa</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+              <tbody className="divide-y divide-[var(--gl-border)]">
                 {filteredProducts.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="p-8">
@@ -1274,49 +1317,51 @@ export const AdminDashboardView: React.FC = () => {
                     const isOutOfStock = p.stock === 0;
                     const isLowStock = p.stock > 0 && p.stock < 15;
                     return (
-                      <tr key={p.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
+                      <tr key={p.id} className="hover:bg-[var(--gl-bg-muted)]/50 transition-colors">
                         <td className="p-4.5">
                           <div className="flex items-center gap-3">
-                            <img src={getMediaUrl(p.image)} alt={p.name} className="w-9 h-9 object-cover rounded-lg border border-stone-200 dark:border-stone-800" />
+                            <img src={getMediaUrl(p.image)} alt={p.name} className="w-9 h-9 object-cover rounded-lg border border-[var(--gl-border)]" />
                             <div className="space-y-0.5">
-                              <span className="font-semibold text-stone-900 dark:text-stone-100 block">{p.name}</span>
-                              <span className="text-[10px] text-stone-400 block">⭐ {p.rating} | Đánh giá tốt</span>
+                              <span className="font-semibold text-[var(--gl-text-primary)] block">{p.name}</span>
+                              <span className="text-[10px] text-[var(--gl-text-muted)] block">⭐ {p.rating} | Đánh giá tốt</span>
                             </div>
                           </div>
                         </td>
                         <td className="p-4.5">
-                          <span className="inline-block px-2 py-0.5 rounded text-[8px] bg-stone-100 dark:bg-stone-900 text-stone-450 dark:text-stone-400 font-mono uppercase border border-stone-200 dark:border-stone-800">
+                          <span className="inline-block px-2 py-0.5 rounded text-[8px] bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] font-mono uppercase border border-[var(--gl-border)]">
                             {p.category}
                           </span>
                         </td>
-                        <td className="p-4.5 text-center font-mono font-bold text-emerald-600 dark:text-emerald-450">
+                        <td className="p-4.5 text-center font-mono font-bold text-[var(--gl-accent)]">
                           {p.price.toLocaleString("vi-VN")}₫
                         </td>
                         <td className="p-4.5 text-center font-mono">
                           <div className="flex items-center justify-center gap-1.5">
-                            <span className="font-bold text-stone-900 dark:text-emerald-400">{p.ecoScore}/100</span>
-                            <div className="w-12 h-1.5 rounded-full bg-stone-200 dark:bg-stone-900 overflow-hidden hidden sm:block">
-                              <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${p.ecoScore}%` }} />
+                            <span className="font-bold text-[var(--gl-text-primary)]">{p.ecoScore}/100</span>
+                            <div className="w-12 h-1.5 rounded-full bg-[var(--gl-bg-muted)] overflow-hidden hidden sm:block">
+                              <div className="h-full bg-[var(--gl-accent)] rounded-full" style={{ width: `${p.ecoScore}%` }} />
                             </div>
                           </div>
                         </td>
                         <td className="p-4.5 text-center font-mono">
                           <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
-                            isOutOfStock 
-                              ? "bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-250 dark:border-rose-900/30" 
+                            isOutOfStock
+                              ? "bg-rose-500/10 text-rose-500 border border-rose-500/20"
                               : isLowStock
-                                ? "bg-amber-105 dark:bg-amber-955/40 text-amber-700 dark:text-amber-400 border border-amber-250 dark:border-amber-900/30"
-                                : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-250 dark:border-emerald-900/30"
+                                ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                : "bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20"
                           }`}>
                             {isOutOfStock ? "Hết Hàng" : isLowStock ? `Hạn Chế (${p.stock})` : `Đủ hàng (${p.stock})`}
                           </span>
                         </td>
                         <td className="p-4.5 text-right">
                           <button 
-                            onClick={() => toast.error("Sản phẩm demo an toàn không được xóa trực tiếp tại đây.")}
-                            className="p-2 text-stone-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg cursor-pointer transition-colors"
+                            type="button"
+                            aria-label="Xóa sản phẩm"
+                            onClick={() => handleDeleteProduct(p.id)}
+                            className="p-2 min-w-[40px] min-h-[40px] text-[var(--gl-text-muted)] hover:text-[var(--gl-danger)] hover:bg-rose-500/10 rounded-lg cursor-pointer transition-colors inline-flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </td>
                       </tr>
@@ -1331,49 +1376,49 @@ export const AdminDashboardView: React.FC = () => {
 
       {/* 5. ORDER MANAGEMENT TAB */}
       {activeTab === "orders" && (
-        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down">
+        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down">
           
           {/* Header row */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase">
+              <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase">
                 Quản Lý Các Giao Dịch Đơn Hàng Sàn
               </h3>
-              <p className="text-[10px] text-stone-400">Xem hóa đơn thanh khoản, cập nhật lộ trình giao vận, và tính toán hệ số carbon giảm thiểu gián tiếp.</p>
+              <p className="text-[10px] text-[var(--gl-text-muted)]">Xem hóa đơn thanh khoản, cập nhật lộ trình giao vận, và tính toán hệ số carbon giảm thiểu gián tiếp.</p>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)]" />
                 <input
                   type="text"
                   placeholder="Mã đơn, tên khách hàng..."
                   value={orderSearch}
                   onChange={(e) => setOrderSearch(e.target.value)}
-                  className="w-full sm:w-64 pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono"
+                  className="w-full sm:w-64 pl-9 pr-4 py-2 min-h-[40px] text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
                 />
               </div>
               <div className="relative">
-                <Filter className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                <Filter className="absolute left-3 top-3 h-4 w-4 text-[var(--gl-text-muted)]" />
                 <select
                   value={orderStatusFilter}
                   onChange={(e) => setOrderStatusFilter(e.target.value)}
-                  className="w-full sm:w-48 pl-9 pr-4 py-2 text-xs rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-emerald-500 font-mono cursor-pointer"
+                  className="w-full sm:w-48 pl-9 pr-4 py-2 min-h-[40px] text-xs rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono cursor-pointer"
                 >
-                  <option value="">Tất cả trạng thái</option>
-                  <option value="pending">Chờ xử lý (pending)</option>
-                  <option value="processing">Đang đóng gói (processing)</option>
-                  <option value="shipped">Đang giao vận (shipped)</option>
-                  <option value="completed">Đã giao thành công</option>
-                  <option value="cancelled">Đã hủy đơn</option>
+                  <option value="" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Tất cả trạng thái</option>
+                  <option value="pending" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Chờ xử lý (pending)</option>
+                  <option value="processing" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đang đóng gói (processing)</option>
+                  <option value="shipped" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đang giao vận (shipped)</option>
+                  <option value="completed" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đã giao thành công</option>
+                  <option value="cancelled" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đã hủy đơn</option>
                 </select>
               </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
-            <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-              <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+          <div className="overflow-x-auto text-xs rounded-xl border border-[var(--gl-border)]">
+            <table className="w-full text-left text-[var(--gl-text-secondary)] border-collapse">
+              <thead className="bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] text-[var(--gl-text-muted)] uppercase font-mono text-[9px]">
                 <tr>
                   <th className="p-4.5">Mã Giao Dịch</th>
                   <th className="p-4.5">Tên Người Nhận</th>
@@ -1384,7 +1429,7 @@ export const AdminDashboardView: React.FC = () => {
                   <th className="p-4.5 text-right">Thẩm Định</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+              <tbody className="divide-y divide-[var(--gl-border)]">
                 {filteredOrders.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-8">
@@ -1397,12 +1442,12 @@ export const AdminDashboardView: React.FC = () => {
                   </tr>
                 ) : (
                   filteredOrders.map((o) => (
-                    <tr key={o.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
-                      <td className="p-4.5 font-mono font-bold text-stone-900 dark:text-stone-100">{o.id}</td>
+                    <tr key={o.id} className="hover:bg-[var(--gl-bg-muted)]/50 transition-colors">
+                      <td className="p-4.5 font-mono font-bold text-[var(--gl-text-primary)]">{o.id}</td>
                       <td className="p-4.5">{o.customerName}</td>
-                      <td className="p-4.5 font-mono text-stone-500">{o.date}</td>
+                      <td className="p-4.5 font-mono text-[var(--gl-text-muted)]">{o.date}</td>
                       <td className="p-4.5 text-center font-mono">{o.itemsCount} sản phẩm</td>
-                      <td className="p-4.5 text-center font-mono font-bold text-emerald-600 dark:text-emerald-450">
+                      <td className="p-4.5 text-center font-mono font-bold text-[var(--gl-accent)]">
                         {o.total.toLocaleString("vi-VN")}₫
                       </td>
                       <td className="p-4.5 text-center font-mono">
@@ -1412,8 +1457,9 @@ export const AdminDashboardView: React.FC = () => {
                       </td>
                       <td className="p-4.5 text-right">
                         <button 
+                          type="button"
                           onClick={() => setSelectedOrder(o)}
-                          className="py-1 px-2.5 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 ml-auto border border-stone-250 dark:border-stone-800"
+                          className="py-1.5 px-3 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] text-[var(--gl-text-primary)] font-semibold rounded-lg text-[10px] cursor-pointer transition-all flex items-center gap-1 ml-auto border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         >
                           <FileText className="h-3 w-3" /> Chi tiết đơn
                         </button>
@@ -1427,8 +1473,6 @@ export const AdminDashboardView: React.FC = () => {
         </div>
       )}
 
-
-
       {/* 7. BLOG MANAGEMENT TAB */}
       {activeTab === "blogs" && (
         <AdminBlogModerationSection products={products} />
@@ -1436,17 +1480,17 @@ export const AdminDashboardView: React.FC = () => {
 
       {/* 8. REVIEW MODERATION TAB */}
       {activeTab === "reviews" && (
-        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down">
+        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-5 shadow-xs animate-slide-down">
           <div>
-            <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase">
+            <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase">
               Kiểm Duyệt Đánh Giá Khách Hàng
             </h3>
-            <p className="text-[10px] text-stone-400">Giám sát và kiểm duyệt các đánh giá của người dùng đối với sản phẩm/nhà vườn.</p>
+            <p className="text-[10px] text-[var(--gl-text-muted)]">Giám sát và kiểm duyệt các đánh giá của người dùng đối với sản phẩm/nhà vườn.</p>
           </div>
 
-          <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
-            <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-              <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+          <div className="overflow-x-auto text-xs rounded-xl border border-[var(--gl-border)]">
+            <table className="w-full text-left text-[var(--gl-text-secondary)] border-collapse">
+              <thead className="bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] text-[var(--gl-text-muted)] uppercase font-mono text-[9px]">
                 <tr>
                   <th className="p-4.5">Người đánh giá</th>
                   <th className="p-4.5">Đối tượng</th>
@@ -1457,7 +1501,7 @@ export const AdminDashboardView: React.FC = () => {
                   <th className="p-4.5 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+              <tbody className="divide-y divide-[var(--gl-border)]">
                 {loadingReviews ? (
                   <tr>
                     <td colSpan={7} className="p-4">
@@ -1482,43 +1526,44 @@ export const AdminDashboardView: React.FC = () => {
                   </tr>
                 ) : (
                   dbReviews.map((r) => (
-                    <tr key={r.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
-                      <td className="p-4.5 font-semibold text-stone-900 dark:text-stone-100">
+                    <tr key={r.id} className="hover:bg-[var(--gl-bg-muted)]/50 transition-colors">
+                      <td className="p-4.5 font-semibold text-[var(--gl-text-primary)]">
                         {r.customerDisplayName || "Khách Hàng ẩn danh"}
                       </td>
                       <td className="p-4.5 font-mono text-[10px]">
                         {r.plantId ? (
-                          <span className="text-emerald-600 dark:text-emerald-400">Sản phẩm (ID: {r.plantId})</span>
+                          <span className="text-[var(--gl-accent)]">Sản phẩm (ID: {r.plantId})</span>
                         ) : r.storeId ? (
-                          <span className="text-teal-600 dark:text-teal-400">Nhà vườn (ID: {r.storeId})</span>
+                          <span className="text-teal-500">Nhà vườn (ID: {r.storeId})</span>
                         ) : (
-                          <span className="text-stone-400">Không rõ</span>
+                          <span className="text-[var(--gl-text-muted)]">Không rõ</span>
                         )}
                       </td>
                       <td className="p-4.5 text-center font-mono text-amber-500 font-bold">
                         {"★".repeat(r.rating || 5)}{"☆".repeat(5 - (r.rating || 5))}
                       </td>
                       <td className="p-4.5 max-w-xs truncate" title={r.comment}>
-                        {r.comment || <em className="text-stone-400">Không có nội dung</em>}
+                        {r.comment || <em className="text-[var(--gl-text-muted)]">Không có nội dung</em>}
                       </td>
-                      <td className="p-4.5 text-center font-mono text-[10px] text-stone-450 dark:text-stone-400">
+                      <td className="p-4.5 text-center font-mono text-[10px] text-[var(--gl-text-muted)]">
                         {r.createdAt ? new Date(r.createdAt).toLocaleString("vi-VN") : "N/A"}
                       </td>
                       <td className="p-4.5 text-center font-mono">
                         <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
-                          r.status === "VISIBLE" ? "bg-emerald-950 text-emerald-400 border border-emerald-500/20" : "bg-rose-950/60 text-rose-400 border border-rose-500/20"
+                          r.status === "VISIBLE" ? "bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
                         }`}>
                           {r.status === "VISIBLE" ? "Đang Hiện" : "Đã Ẩn"}
                         </span>
                       </td>
                       <td className="p-4.5 text-right">
                         <button
+                          type="button"
                           disabled={moderatingId === r.id}
                           onClick={() => handleModerateReview(r.id, r.status)}
-                          className={`py-1 px-3 rounded-lg text-[10px] font-semibold transition-all border cursor-pointer ${
+                          className={`py-1.5 px-3 min-h-[40px] rounded-lg text-[10px] font-semibold transition-all border cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
                             r.status === "VISIBLE"
-                              ? "bg-rose-950/20 hover:bg-rose-950/40 text-rose-450 border-rose-550/20"
-                              : "bg-emerald-950/20 hover:bg-emerald-950/40 text-emerald-450 border-emerald-550/20"
+                              ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border-rose-500/20"
+                              : "bg-[var(--gl-accent-soft)] hover:bg-[var(--gl-accent)]/20 text-[var(--gl-accent)] border-[var(--gl-accent)]/20"
                           } disabled:opacity-50`}
                         >
                           {moderatingId === r.id ? "Đang xử lý..." : r.status === "VISIBLE" ? "Ẩn Đánh Giá" : "Hiện Đánh Giá"}
@@ -1533,22 +1578,24 @@ export const AdminDashboardView: React.FC = () => {
 
           {/* Pagination Controls */}
           {reviewsTotalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 border-t border-stone-200 dark:border-stone-850">
-              <span className="text-[10px] text-stone-400">
+            <div className="flex items-center justify-between pt-4 border-t border-[var(--gl-border)]">
+              <span className="text-[10px] text-[var(--gl-text-muted)] font-mono">
                 Trang {reviewsPage + 1} / {reviewsTotalPages}
               </span>
               <div className="flex gap-2">
                 <button
+                  type="button"
                   disabled={reviewsPage === 0 || loadingReviews}
                   onClick={() => fetchReviews(reviewsPage - 1)}
-                  className="p-1 px-3 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-200 dark:disabled:hover:bg-stone-900 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-stone-250 dark:border-stone-800"
+                  className="py-1.5 px-3 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] disabled:opacity-40 text-[var(--gl-text-primary)] font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Trước
                 </button>
                 <button
+                  type="button"
                   disabled={reviewsPage >= reviewsTotalPages - 1 || loadingReviews}
                   onClick={() => fetchReviews(reviewsPage + 1)}
-                  className="p-1 px-3 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-200 dark:disabled:hover:bg-stone-900 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-stone-250 dark:border-stone-800"
+                  className="py-1.5 px-3 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] disabled:opacity-40 text-[var(--gl-text-primary)] font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Sau
                 </button>
@@ -1560,39 +1607,41 @@ export const AdminDashboardView: React.FC = () => {
 
       {/* 9. SECURITY LOGIN LOGS TAB */}
       {activeTab === "security-logs" && (
-        <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl space-y-6 shadow-xs animate-slide-down">
+        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-6 shadow-xs animate-slide-down">
           
           {/* Title Block */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h3 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-wider uppercase flex items-center gap-2">
+              <h3 className="font-display font-semibold text-[var(--gl-text-primary)] text-sm tracking-wider uppercase flex items-center gap-2">
                 <ShieldAlert className="h-5 w-5 text-amber-500" />
                 Nhật Ký Bảo Mật Hệ Thống
               </h3>
-              <p className="text-[10px] text-stone-400">Giám sát các hoạt động đăng nhập thành công và nỗ lực truy cập thất bại.</p>
+              <p className="text-[10px] text-[var(--gl-text-muted)]">Giám sát các hoạt động đăng nhập thành công và nỗ lực truy cập thất bại.</p>
             </div>
           </div>
 
           {/* Filter & Controls Panel */}
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-stone-100/50 dark:bg-stone-900/40 p-4 rounded-2xl border border-stone-250 dark:border-stone-800 text-xs">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-[var(--gl-bg-muted)] p-4 rounded-2xl border border-[var(--gl-border)] text-xs">
             {/* Mode Tabs */}
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={() => { setAuditFilterMode("all"); handleResetUserId(); }}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer border ${
+                className={`px-3 py-1.5 min-h-[40px] rounded-lg font-semibold transition-all cursor-pointer border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
                   auditFilterMode === "all" && appliedUserIdFilter === null
-                    ? "bg-emerald-950 text-emerald-450 border-emerald-500/25"
-                    : "text-stone-400 hover:text-stone-250 border-stone-700/30 bg-stone-200/50 dark:bg-stone-900"
+                    ? "bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border-[var(--gl-accent)]/20"
+                    : "text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] border-[var(--gl-border)] bg-[var(--gl-bg-surface)]"
                 }`}
               >
                 Tất cả đăng nhập
               </button>
               <button
+                type="button"
                 onClick={() => { setAuditFilterMode("failed"); handleResetUserId(); }}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer border ${
+                className={`px-3 py-1.5 min-h-[40px] rounded-lg font-semibold transition-all cursor-pointer border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
                   auditFilterMode === "failed" && appliedUserIdFilter === null
-                    ? "bg-rose-950/40 text-rose-455 border-rose-500/25"
-                    : "text-stone-400 hover:text-stone-250 border-stone-700/30 bg-stone-200/50 dark:bg-stone-900"
+                    ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                    : "text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] border-[var(--gl-border)] bg-[var(--gl-bg-surface)]"
                 }`}
               >
                 Nỗ lực thất bại
@@ -1606,11 +1655,11 @@ export const AdminDashboardView: React.FC = () => {
                 placeholder="Nhập mã User ID..."
                 value={auditUserIdFilter}
                 onChange={(e) => setAuditUserIdFilter(e.target.value)}
-                className="w-full md:w-48 bg-stone-200 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 text-stone-800 dark:text-stone-250 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-500/50 text-xs"
+                className="w-full md:w-48 min-h-[40px] bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] text-xs font-mono"
               />
               <button
                 type="submit"
-                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-lg cursor-pointer transition-all shrink-0"
+                className="px-3 py-1.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-black font-semibold rounded-lg cursor-pointer transition-all shrink-0 uppercase text-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 Lọc
               </button>
@@ -1618,7 +1667,7 @@ export const AdminDashboardView: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleResetUserId}
-                  className="px-2.5 py-1.5 bg-stone-700 hover:bg-stone-600 text-stone-250 rounded-lg cursor-pointer transition-all shrink-0"
+                  className="px-2.5 py-1.5 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] text-[var(--gl-text-muted)] rounded-lg cursor-pointer transition-all shrink-0 text-[10px] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Hủy
                 </button>
@@ -1627,9 +1676,9 @@ export const AdminDashboardView: React.FC = () => {
           </div>
 
           {/* Data Table */}
-          <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
-            <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-              <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+          <div className="overflow-x-auto text-xs rounded-xl border border-[var(--gl-border)]">
+            <table className="w-full text-left text-[var(--gl-text-secondary)] border-collapse">
+              <thead className="bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] text-[var(--gl-text-muted)] uppercase font-mono text-[9px]">
                 <tr>
                   <th className="p-4.5">Thời gian</th>
                   <th className="p-4.5">Tài khoản (Email)</th>
@@ -1641,7 +1690,7 @@ export const AdminDashboardView: React.FC = () => {
                   <th className="p-4.5">Thiết bị (User Agent)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+              <tbody className="divide-y divide-[var(--gl-border)]">
                 {auditsLoading ? (
                   <tr>
                     <td colSpan={8} className="p-4">
@@ -1666,39 +1715,39 @@ export const AdminDashboardView: React.FC = () => {
                   </tr>
                 ) : (
                   audits.map((a) => (
-                    <tr key={a.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
+                    <tr key={a.id} className="hover:bg-[var(--gl-bg-muted)]/50 transition-colors">
                       <td className="p-4.5 font-mono text-[10px]">
                         {a.timestamp ? new Date(a.timestamp).toLocaleString("vi-VN") : "N/A"}
                       </td>
-                      <td className="p-4.5 font-semibold text-stone-900 dark:text-stone-100">
+                      <td className="p-4.5 font-semibold text-[var(--gl-text-primary)]">
                         {a.email}
                       </td>
                       <td className="p-4.5 text-center font-mono text-[10px]">
-                        {a.userId !== null ? a.userId : <span className="text-stone-500">Khách</span>}
+                        {a.userId !== null ? a.userId : <span className="text-[var(--gl-text-muted)]">Khách</span>}
                       </td>
-                      <td className="p-4.5 text-center font-semibold text-stone-700 dark:text-stone-400 font-mono text-[10px]">
+                      <td className="p-4.5 text-center font-semibold text-[var(--gl-text-secondary)] font-mono text-[10px]">
                         Login
                       </td>
                       <td className="p-4.5 text-center font-mono">
                         <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
-                          a.success 
-                            ? "bg-emerald-950 text-emerald-450 border border-emerald-500/20" 
-                            : "bg-rose-950/60 text-rose-455 border border-rose-500/20"
+                          a.success
+                            ? "bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20"
+                            : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
                         }`}>
                           {a.success ? "Thành công" : "Thất bại"}
                         </span>
                       </td>
                       <td className="p-4.5">
                         {a.success ? (
-                          <span className="text-stone-500">-</span>
+                          <span className="text-[var(--gl-text-muted)]">-</span>
                         ) : (
-                          <span className="text-rose-500/80 font-medium">{getFailureReasonLabel(a.failureReason)}</span>
+                          <span className="text-rose-500 font-medium">{getFailureReasonLabel(a.failureReason)}</span>
                         )}
                       </td>
-                      <td className="p-4.5 font-mono text-[10px] text-stone-500 dark:text-stone-400">
+                      <td className="p-4.5 font-mono text-[10px] text-[var(--gl-text-muted)]">
                         {a.ipAddress || "N/A"}
                       </td>
-                      <td className="p-4.5 max-w-[200px] truncate text-stone-500 dark:text-stone-400" title={a.userAgent}>
+                      <td className="p-4.5 max-w-[200px] truncate text-[var(--gl-text-muted)]" title={a.userAgent}>
                         {a.userAgent || "N/A"}
                       </td>
                     </tr>
@@ -1710,22 +1759,24 @@ export const AdminDashboardView: React.FC = () => {
 
           {/* Pagination Controls */}
           {auditsTotalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 border-t border-stone-200 dark:border-stone-850">
-              <span className="text-[10px] text-stone-400">
+            <div className="flex items-center justify-between pt-4 border-t border-[var(--gl-border)]">
+              <span className="text-[10px] text-[var(--gl-text-muted)] font-mono">
                 Trang {auditsPage + 1} / {auditsTotalPages}
               </span>
               <div className="flex gap-2">
                 <button
+                  type="button"
                   disabled={auditsPage === 0 || auditsLoading}
                   onClick={() => fetchLoginAudits(auditsPage - 1)}
-                  className="p-1 px-3 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-200 dark:disabled:hover:bg-stone-900 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-stone-250 dark:border-stone-800"
+                  className="py-1.5 px-3 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] disabled:opacity-40 text-[var(--gl-text-primary)] font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Trước
                 </button>
                 <button
+                  type="button"
                   disabled={auditsPage >= auditsTotalPages - 1 || auditsLoading}
                   onClick={() => fetchLoginAudits(auditsPage + 1)}
-                  className="p-1 px-3 bg-stone-200 dark:bg-stone-900 hover:bg-stone-300 dark:hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-200 dark:disabled:hover:bg-stone-900 text-stone-750 dark:text-stone-300 font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-stone-250 dark:border-stone-800"
+                  className="py-1.5 px-3 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] disabled:opacity-40 text-[var(--gl-text-primary)] font-semibold rounded-lg text-[10px] cursor-pointer transition-all border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Sau
                 </button>
@@ -1745,22 +1796,24 @@ export const AdminDashboardView: React.FC = () => {
       {/* 1. Add Product Eco Modal */}
       {showAddProductModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-stone-950 border border-stone-850 w-full max-w-2xl rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl relative my-8 animate-slide-down">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-2xl rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl relative my-8 animate-slide-down max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain">
             
             <button 
+              type="button"
+              aria-label="Đóng"
               onClick={() => setShowAddProductModal(false)}
-              className="absolute right-4.5 top-4.5 p-2 rounded-full bg-stone-900 hover:bg-stone-850 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer"
+              className="absolute right-4.5 top-4.5 p-2 rounded-full bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] transition-colors cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
             >
               <X className="h-5 w-5" />
             </button>
 
             <div className="space-y-1.5">
-              <span className="text-[9px] font-mono text-emerald-500 font-bold uppercase tracking-widest block">LAUNCH ECOLOGICAL PRODUCT</span>
-              <h3 className="text-xl md:text-2xl font-display font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
-                <Sprout className="h-6 w-6 text-emerald-500" />
+              <span className="text-[9px] font-mono text-[var(--gl-accent)] font-bold uppercase tracking-widest block">LAUNCH ECOLOGICAL PRODUCT</span>
+              <h3 className="text-xl md:text-2xl font-display font-bold text-[var(--gl-text-primary)] flex items-center gap-2">
+                <Sprout className="h-6 w-6 text-[var(--gl-accent)]" />
                 Thêm Sản Phẩm Sinh Thái Mới
               </h3>
-              <p className="text-[11px] text-stone-400">Khởi tạo mã sản phẩm xanh mới lên sàn giao dịch nông nghiệp sinh học GreenLife.</p>
+              <p className="text-[11px] text-[var(--gl-text-muted)]">Khởi tạo mã sản phẩm xanh mới lên sàn giao dịch nông nghiệp sinh học GreenLife.</p>
             </div>
 
             <form onSubmit={handleAddProductSubmit} className="space-y-4 text-xs">
@@ -1768,61 +1821,61 @@ export const AdminDashboardView: React.FC = () => {
                 
                 {/* Product Name */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Tên sản phẩm sinh thái *</label>
+                  <label className="text-[var(--gl-text-muted)] block font-semibold">Tên sản phẩm sinh thái *</label>
                   <input
                     type="text"
                     required
                     placeholder="Ví dụ: Đất nung Bát Tràng tơi xốp"
                     value={newProduct.name}
                     onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-200 focus:outline-none focus:border-emerald-500 font-mono"
+                    className="w-full p-3 min-h-[40px] rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
                   />
                 </div>
 
                 {/* Category Selection */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Nhóm danh mục *</label>
+                  <label className="text-[var(--gl-text-muted)] block font-semibold">Nhóm danh mục *</label>
                   <select
                     value={newProduct.category}
                     onChange={(e) => setNewProduct(prev => ({ ...prev, category: e.target.value as any }))}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-200 focus:outline-none focus:border-emerald-500 font-mono cursor-pointer"
+                    className="w-full p-3 min-h-[40px] rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono cursor-pointer"
                   >
-                    <option value="plants">Cây Xanh Bản Địa (plants)</option>
-                    <option value="nutrients">Chất Dinh Dưỡng Hữu Cơ (nutrients)</option>
-                    <option value="care">Chăm Sóc & Sinh Học (care)</option>
-                    <option value="smarthome">Hệ Thống Smart-IoT (smarthome)</option>
+                    <option value="plants" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Cây Xanh Bản Địa (plants)</option>
+                    <option value="nutrients" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Chất Dinh Dưỡng Hữu Cơ (nutrients)</option>
+                    <option value="care" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Chăm Sóc & Sinh Học (care)</option>
+                    <option value="smarthome" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Hệ Thống Smart-IoT (smarthome)</option>
                   </select>
                 </div>
 
                 {/* Price */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Đơn giá bán niêm yết (VND) *</label>
+                  <label className="text-[var(--gl-text-muted)] block font-semibold">Đơn giá bán niêm yết (VND) *</label>
                   <input
                     type="number"
                     required
                     placeholder="Ví dụ: 150000"
                     value={newProduct.price}
                     onChange={(e) => setNewProduct(prev => ({ ...prev, price: e.target.value }))}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-200 focus:outline-none focus:border-emerald-500 font-mono"
+                    className="w-full p-3 min-h-[40px] rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
                   />
                 </div>
 
                 {/* Stock */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Số lượng nhập kho ban đầu *</label>
+                  <label className="text-[var(--gl-text-muted)] block font-semibold">Số lượng nhập kho ban đầu *</label>
                   <input
                     type="number"
                     required
                     placeholder="Ví dụ: 50"
                     value={newProduct.stock}
                     onChange={(e) => setNewProduct(prev => ({ ...prev, stock: e.target.value }))}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-200 focus:outline-none focus:border-emerald-500 font-mono"
+                    className="w-full p-3 min-h-[40px] rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
                   />
                 </div>
 
                 {/* EcoScore */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Chỉ số thân thiện EcoScore (1-100) *</label>
+                  <label className="text-[var(--gl-text-muted)] block font-semibold">Chỉ số thân thiện EcoScore (1-100) *</label>
                   <input
                     type="number"
                     required
@@ -1831,31 +1884,31 @@ export const AdminDashboardView: React.FC = () => {
                     placeholder="Ví dụ: 95"
                     value={newProduct.ecoScore}
                     onChange={(e) => setNewProduct(prev => ({ ...prev, ecoScore: e.target.value }))}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-200 focus:outline-none focus:border-emerald-500 font-mono"
+                    className="w-full p-3 min-h-[40px] rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono"
                   />
                 </div>
 
                 {/* Image URL */}
                 <div className="space-y-1">
-                  <label className="text-stone-400 block font-semibold">Đường dẫn hình ảnh minh họa (URL)</label>
+                  <label className="text-[var(--gl-text-muted)] block font-semibold">Đường dẫn hình ảnh minh họa (URL)</label>
                   <input
                     type="text"
                     value={newProduct.image}
                     onChange={(e) => setNewProduct(prev => ({ ...prev, image: e.target.value }))}
-                    className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-200 focus:outline-none focus:border-emerald-500 font-mono text-[10px]"
+                    className="w-full p-3 min-h-[40px] rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-mono text-[10px]"
                   />
                 </div>
               </div>
 
               {/* Description */}
               <div className="space-y-1">
-                <label className="text-stone-400 block font-semibold">Mô tả đặc tính sinh thái sản phẩm</label>
+                <label className="text-[var(--gl-text-muted)] block font-semibold">Mô tả đặc tính sinh thái sản phẩm</label>
                 <textarea
                   rows={3}
                   placeholder="Mô tả các tiêu chí đạt organic, khả năng tự phân hủy của bao bì vỏ ngoài..."
                   value={newProduct.description}
                   onChange={(e) => setNewProduct(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full p-3 rounded-xl bg-stone-900 border border-stone-800 text-stone-200 focus:outline-none focus:border-emerald-500 font-sans"
+                  className="w-full p-3 rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] font-sans"
                 />
               </div>
 
@@ -1863,13 +1916,13 @@ export const AdminDashboardView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddProductModal(false)}
-                  className="flex-1 py-3 bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-stone-100 font-bold rounded-xl cursor-pointer transition-colors border border-stone-800 uppercase"
+                  className="flex-1 py-3 min-h-[44px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] font-bold rounded-xl cursor-pointer transition-colors border border-[var(--gl-border)] uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Hủy Bỏ
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl cursor-pointer transition-all shadow-md shadow-emerald-500/10 uppercase border border-emerald-400"
+                  className="flex-1 py-3 min-h-[44px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-black font-bold rounded-xl cursor-pointer transition-all shadow-xs uppercase border border-[var(--gl-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Khởi Tạo Sản Phẩm
                 </button>
@@ -1882,73 +1935,75 @@ export const AdminDashboardView: React.FC = () => {
       {/* 2. User Detail Profile Card Modal */}
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-stone-950 border border-stone-850 w-full max-w-md rounded-3xl p-6 shadow-2xl relative animate-slide-down">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-md rounded-3xl p-6 shadow-2xl relative animate-slide-down max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain">
             
             <button 
+              type="button"
+              aria-label="Đóng"
               onClick={() => setSelectedUser(null)}
-              className="absolute right-4 top-4 p-1.5 rounded-full bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer"
+              className="absolute right-4 top-4 p-1.5 rounded-full bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] transition-colors cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
             >
               <X className="h-4.5 w-4.5" />
             </button>
 
             <div className="flex flex-col items-center text-center space-y-4 pt-2">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-2xl font-bold font-display shadow-inner">
+              <div className="w-16 h-16 rounded-full bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] flex items-center justify-center text-2xl font-bold font-display shadow-inner border border-[var(--gl-accent)]/20">
                 {selectedUser.name.charAt(0)}
               </div>
               
               <div className="space-y-1">
-                <h3 className="font-display font-bold text-stone-900 dark:text-stone-100 text-lg leading-tight">{selectedUser.name}</h3>
-                <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold font-mono tracking-wider bg-emerald-950 text-emerald-400 border border-emerald-900 uppercase">
+                <h3 className="font-display font-bold text-[var(--gl-text-primary)] text-lg leading-tight">{selectedUser.name}</h3>
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold font-mono tracking-wider bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20 uppercase">
                   {selectedUser.role}
                 </span>
               </div>
 
               {/* Bio block */}
-              <p className="text-[11px] text-stone-400 leading-relaxed max-w-xs italic">
+              <p className="text-[11px] text-[var(--gl-text-muted)] leading-relaxed max-w-xs italic">
                 &ldquo;Thành viên tích cực tham gia cổng trao đổi nông sinh học và tích trữ chỉ số carbon danh dự.&rdquo;
               </p>
 
               {/* Metrics scoring board */}
-              <div className="grid grid-cols-2 gap-4 w-full bg-stone-900/60 p-4 rounded-2xl border border-stone-850 text-left font-mono">
+              <div className="grid grid-cols-2 gap-4 w-full bg-[var(--gl-bg-muted)] p-4 rounded-2xl border border-[var(--gl-border)] text-left font-mono">
                 <div>
-                  <span className="text-[9px] text-stone-500 uppercase block">Ví Tín Chỉ Carbon</span>
-                  <span className="text-sm font-bold text-stone-100 block mt-0.5 flex items-center gap-1">
+                  <span className="text-[9px] text-[var(--gl-text-muted)] uppercase block">Ví Tín Chỉ Carbon</span>
+                  <span className="text-sm font-bold text-[var(--gl-text-primary)] block mt-0.5 flex items-center gap-1">
                     <Coins className="h-4 w-4 text-amber-500" />
                     {selectedUser.credits.toLocaleString()} CPT
                   </span>
                 </div>
                 <div>
-                  <span className="text-[9px] text-stone-500 uppercase block">Carbon Đã Khử</span>
-                  <span className="text-sm font-bold text-emerald-400 block mt-0.5 flex items-center gap-1">
+                  <span className="text-[9px] text-[var(--gl-text-muted)] uppercase block">Carbon Đã Khử</span>
+                  <span className="text-sm font-bold text-[var(--gl-accent)] block mt-0.5 flex items-center gap-1">
                     <Leaf className="h-4 w-4" />
                     -{selectedUser.carbonSaved} kg CO2
                   </span>
                 </div>
-                <div className="col-span-2 border-t border-stone-850/50 pt-2 mt-1">
-                  <span className="text-[9px] text-stone-500 uppercase block">Mã định danh liên kết</span>
-                  <span className="text-[10px] text-stone-300 block mt-0.5 font-mono truncate">{selectedUser.email}</span>
-                  <span className="text-[10px] text-stone-300 block font-mono">SDT: {selectedUser.phone}</span>
+                <div className="col-span-2 border-t border-[var(--gl-border)] pt-2 mt-1">
+                  <span className="text-[9px] text-[var(--gl-text-muted)] uppercase block">Mã định danh liên kết</span>
+                  <span className="text-[10px] text-[var(--gl-text-secondary)] block mt-0.5 font-mono truncate">{selectedUser.email}</span>
+                  <span className="text-[10px] text-[var(--gl-text-secondary)] block font-mono">SDT: {selectedUser.phone}</span>
                 </div>
               </div>
 
               <div className="flex gap-3 w-full pt-2">
                 <button
+                  type="button"
                   onClick={() => {
                     toast.success("Cấp thành công chứng thư danh dự sinh thái 500 CPT Credits tặng thành viên!");
                     setSelectedUser(null);
                   }}
-                  className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl text-[10px] uppercase font-mono tracking-wider transition-all cursor-pointer"
+                  className="flex-1 py-2.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-black font-semibold rounded-xl text-[10px] uppercase font-mono tracking-wider transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Tặng Carbon Credits
                 </button>
                 <button
+                  type="button"
                   disabled={selectedUser.status === "Pending" || selectedUser.status === "Disabled"}
                   onClick={async () => {
                     const userId = parseInt(selectedUser.id);
                     const isCurrentlyActive = selectedUser.status === "Active";
                     const isLocked = selectedUser.status === "Locked" || selectedUser.status === "Blocked";
-
-                    // Removed local mock guard
 
                     const actionWord = isCurrentlyActive ? "khóa" : "mở khóa";
                     try {
@@ -1964,10 +2019,10 @@ export const AdminDashboardView: React.FC = () => {
                     }
                     setSelectedUser(null);
                   }}
-                  className={`py-2.5 px-4 font-semibold rounded-xl text-[10px] uppercase font-mono tracking-wider transition-all border ${
+                  className={`py-2.5 px-4 min-h-[40px] font-semibold rounded-xl text-[10px] uppercase font-mono tracking-wider transition-all border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
                     (selectedUser.status === "Pending" || selectedUser.status === "Disabled")
-                      ? "bg-stone-900/50 text-stone-500 border-stone-850 cursor-not-allowed opacity-50"
-                      : "bg-rose-955/20 text-rose-500 hover:bg-rose-955/40 border-rose-900/30 cursor-pointer"
+                      ? "bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] border-[var(--gl-border)] cursor-not-allowed opacity-50"
+                      : "bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border-rose-500/20 cursor-pointer"
                   }`}
                 >
                   {selectedUser.status === "Active" 
@@ -1985,73 +2040,75 @@ export const AdminDashboardView: React.FC = () => {
       {/* 3. Detailed Order Invoice Drawer Overlay */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-stone-950 border border-stone-850 w-full max-w-lg rounded-3xl p-6 shadow-2xl relative animate-slide-down">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-lg rounded-3xl p-6 shadow-2xl relative animate-slide-down max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain">
             
             <button 
+              type="button"
+              aria-label="Đóng"
               onClick={() => setSelectedOrder(null)}
-              className="absolute right-4.5 top-4.5 p-1.5 rounded-full bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer"
+              className="absolute right-4.5 top-4.5 p-1.5 rounded-full bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] transition-colors cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
             >
               <X className="h-4.5 w-4.5" />
             </button>
 
-            <div className="space-y-1 pb-4 border-b border-stone-850">
-              <span className="text-[8px] font-mono text-emerald-500 font-bold uppercase tracking-widest">TRANSACTION INVOICE AUDIT</span>
-              <h3 className="text-base font-display font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
-                <FileText className="h-5 w-5 text-emerald-500" />
+            <div className="space-y-1 pb-4 border-b border-[var(--gl-border)]">
+              <span className="text-[8px] font-mono text-[var(--gl-accent)] font-bold uppercase tracking-widest">TRANSACTION INVOICE AUDIT</span>
+              <h3 className="text-base font-display font-bold text-[var(--gl-text-primary)] flex items-center gap-2">
+                <FileText className="h-5 w-5 text-[var(--gl-accent)]" />
                 Hóa Đơn Chi Tiết: {selectedOrder.id}
               </h3>
-              <p className="text-[10px] text-stone-400 font-mono">Khách hàng: {selectedOrder.customerName} | Ngày đặt: {selectedOrder.date}</p>
+              <p className="text-[10px] text-[var(--gl-text-muted)] font-mono">Khách hàng: {selectedOrder.customerName} | Ngày đặt: {selectedOrder.date}</p>
             </div>
 
             {/* List of items purchased */}
             <div className="my-5 space-y-3.5 max-h-52 overflow-y-auto pr-1">
-              <span className="text-[9px] text-stone-500 font-mono uppercase block tracking-wider">Danh mục giỏ hàng thanh khoản</span>
+              <span className="text-[9px] text-[var(--gl-text-muted)] font-mono uppercase block tracking-wider">Danh mục giỏ hàng thanh khoản</span>
               
               {loadingOrderDetails ? (
-                <div className="text-center text-xs text-stone-500 font-mono py-6 animate-pulse">Đang tải chi tiết đơn hàng...</div>
+                <div className="text-center text-xs text-[var(--gl-text-muted)] font-mono py-6 animate-pulse">Đang tải chi tiết đơn hàng...</div>
               ) : selectedOrderDetails && selectedOrderDetails.length > 0 ? (
                 selectedOrderDetails.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center gap-4 bg-stone-900/40 p-2.5 rounded-xl border border-stone-850 text-xs">
+                  <div key={idx} className="flex justify-between items-center gap-4 bg-[var(--gl-bg-muted)] p-2.5 rounded-xl border border-[var(--gl-border)] text-xs">
                     <div className="flex items-center gap-2.5">
                       <img src={getMediaUrl(item.img)} alt={item.name} className="w-8 h-8 object-cover rounded-md" />
                       <div>
-                        <span className="font-semibold text-stone-200 block max-w-xs truncate">{item.name}</span>
-                        <span className="text-[10px] text-stone-500 font-mono block">Số lượng: x{item.qty}</span>
+                        <span className="font-semibold text-[var(--gl-text-primary)] block max-w-xs truncate">{item.name}</span>
+                        <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block">Số lượng: x{item.qty}</span>
                       </div>
                     </div>
-                    <span className="font-mono font-bold text-stone-100">
+                    <span className="font-mono font-bold text-[var(--gl-text-primary)]">
                       {(item.price * item.qty).toLocaleString("vi-VN")}₫
                     </span>
                   </div>
                 ))
               ) : (
-                <div className="text-center text-xs text-stone-500 font-mono py-6">Không tìm thấy chi tiết đơn hàng.</div>
+                <div className="text-center text-xs text-[var(--gl-text-muted)] font-mono py-6">Không tìm thấy chi tiết đơn hàng.</div>
               )}
             </div>
 
             {/* Cost breakdown metrics & CO2 offset weight */}
-            <div className="bg-stone-900/80 p-4 rounded-2xl border border-stone-850 space-y-2 text-[11px] font-mono">
-              <div className="flex justify-between text-stone-400">
+            <div className="bg-[var(--gl-bg-muted)] p-4 rounded-2xl border border-[var(--gl-border)] space-y-2 text-[11px] font-mono">
+              <div className="flex justify-between text-[var(--gl-text-muted)]">
                 <span>Giá trị giỏ hàng:</span>
                 <span>{(selectedOrder.total - 30000).toLocaleString("vi-VN")}₫</span>
               </div>
-              <div className="flex justify-between text-stone-400">
+              <div className="flex justify-between text-[var(--gl-text-muted)]">
                 <span>Bao bì phân hủy & Ship:</span>
                 <span>30,000₫</span>
               </div>
-              <div className="border-t border-stone-850/50 pt-2 flex justify-between font-bold text-stone-100">
+              <div className="border-t border-[var(--gl-border)] pt-2 flex justify-between font-bold text-[var(--gl-text-primary)]">
                 <span>Tổng chi trả thực:</span>
-                <span className="text-emerald-450">{selectedOrder.total.toLocaleString("vi-VN")}₫</span>
+                <span className="text-[var(--gl-accent)]">{selectedOrder.total.toLocaleString("vi-VN")}₫</span>
               </div>
-              <div className="bg-emerald-950/20 border border-emerald-900/30 p-2.5 rounded-xl flex items-center justify-between text-[10px] text-emerald-400 mt-2">
+              <div className="bg-[var(--gl-accent-soft)] border border-[var(--gl-accent)]/20 p-2.5 rounded-xl flex items-center justify-between text-[10px] text-[var(--gl-accent)] mt-2">
                 <span className="flex items-center gap-1.5"><Leaf className="h-3.5 w-3.5 animate-pulse" /> Giảm CO2 tương đương:</span>
                 <span className="font-bold">-{selectedOrder.itemsCount * 12} kg CO2</span>
               </div>
             </div>
 
             {/* Action Area: Update transaction routing path (Read Only) */}
-            <div className="mt-6 pt-4 border-t border-stone-850 flex flex-col gap-3">
-              <span className="text-[9px] text-stone-500 font-mono uppercase block">Trạng thái lộ trình giao vận (Chỉ đọc)</span>
+            <div className="mt-6 pt-4 border-t border-[var(--gl-border)] flex flex-col gap-3">
+              <span className="text-[9px] text-[var(--gl-text-muted)] font-mono uppercase block">Trạng thái lộ trình giao vận (Chỉ đọc)</span>
               
               <div className="flex flex-wrap gap-2">
                 {[
@@ -2064,11 +2121,12 @@ export const AdminDashboardView: React.FC = () => {
                   return (
                     <button
                       key={st.key}
+                      type="button"
                       disabled
-                      className={`py-1.5 px-3 rounded-lg text-[9px] font-mono uppercase tracking-wider font-semibold cursor-not-allowed opacity-50 transition-all ${
-                        isCurrent 
-                          ? "bg-emerald-500/20 text-emerald-450 border border-emerald-500/30" 
-                          : "bg-stone-900 text-stone-550 border border-stone-850"
+                      className={`py-1.5 px-3 min-h-[40px] rounded-lg text-[9px] font-mono uppercase tracking-wider font-semibold cursor-not-allowed opacity-50 transition-all ${
+                        isCurrent
+                          ? "bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/30"
+                          : "bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] border border-[var(--gl-border)]"
                       }`}
                     >
                       {st.label}
@@ -2084,15 +2142,17 @@ export const AdminDashboardView: React.FC = () => {
       {/* Rejection Modal for Store Profile */}
       {rejectStoreOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative text-left">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative text-left max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain">
             <button
+              type="button"
+              aria-label="Đóng"
               onClick={() => {
                 setRejectStoreOpen(false);
                 setRejectStoreId(null);
                 setRejectStoreReason("");
                 setRejectStoreError("");
               }}
-              className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-750 dark:hover:text-stone-250 transition-all cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] transition-all cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -2101,15 +2161,15 @@ export const AdminDashboardView: React.FC = () => {
               <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-500">
                 <AlertCircle className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-bold text-stone-900 dark:text-stone-100 font-display">
+              <h3 className="text-base font-bold text-[var(--gl-text-primary)] font-display">
                 Từ chối hồ sơ cửa hàng
               </h3>
             </div>
 
-            <div className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed font-sans space-y-3">
+            <div className="text-xs text-[var(--gl-text-secondary)] leading-relaxed font-sans space-y-3">
               <p>Vui lòng nhập lý do từ chối để cửa hàng có thể theo dõi và cập nhật lại hồ sơ.</p>
               <div className="space-y-1">
-                <label className="text-[10px] font-semibold text-stone-500 dark:text-stone-450 block uppercase tracking-wider">Lý do từ chối *</label>
+                <label className="text-[10px] font-semibold text-[var(--gl-text-muted)] block uppercase tracking-wider">Lý do từ chối *</label>
                 <textarea
                   required
                   rows={4}
@@ -2121,7 +2181,7 @@ export const AdminDashboardView: React.FC = () => {
                     }
                   }}
                   placeholder="Ví dụ: Hồ sơ chưa đáp ứng tiêu chuẩn sinh thái hoặc thiếu thông tin xác minh."
-                  className="w-full p-3 bg-stone-50 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl text-stone-950 dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-xs animate-none"
+                  className="w-full p-3 bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] rounded-xl text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] transition-all text-xs"
                 />
                 {rejectStoreError && (
                   <span className="text-rose-500 text-[10px] block font-semibold">{rejectStoreError}</span>
@@ -2138,14 +2198,14 @@ export const AdminDashboardView: React.FC = () => {
                   setRejectStoreReason("");
                   setRejectStoreError("");
                 }}
-                className="flex-1 py-2.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-750 text-stone-700 dark:text-stone-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+                className="flex-1 py-2.5 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] rounded-xl text-xs font-semibold cursor-pointer transition-all border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 Hủy
               </button>
               <button
                 type="button"
                 onClick={handleRejectStoreConfirmed}
-                className="flex-1 py-2.5 text-white bg-rose-600 hover:bg-rose-700 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm"
+                className="flex-1 py-2.5 min-h-[40px] text-white bg-rose-600 hover:bg-rose-700 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 Xác nhận từ chối
               </button>
@@ -2226,29 +2286,30 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
       case "PENDING_REVIEW":
         return <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-bold rounded font-mono uppercase">Chờ Duyệt</span>;
       case "CHANGES_REQUESTED":
-        return <span className="px-2 py-0.5 bg-blue-500/10 text-blue-450 border border-blue-500/20 text-[10px] font-bold rounded font-mono uppercase">Yêu Cầu Sửa</span>;
+        return <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 border border-blue-500/20 text-[10px] font-bold rounded font-mono uppercase">Yêu Cầu Sửa</span>;
       case "REJECTED":
         return <span className="px-2 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[10px] font-bold rounded font-mono uppercase">Từ Chối</span>;
       default:
-        return <span className="px-2 py-0.5 bg-stone-500/10 text-stone-400 border border-stone-500/20 text-[10px] font-bold rounded font-mono uppercase">{status}</span>;
+        return <span className="px-2 py-0.5 bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] border border-[var(--gl-border)] text-[10px] font-bold rounded font-mono uppercase">{status}</span>;
     }
   };
 
   return (
-    <div className="bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 sm:p-8 rounded-3xl space-y-6 shadow-xs animate-slide-down">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-stone-200 dark:border-stone-850 pb-5">
+    <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 sm:p-8 rounded-3xl space-y-6 shadow-xs animate-slide-down">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-[var(--gl-border)] pb-5">
         <div>
-          <h2 className="font-display font-semibold text-stone-900 dark:text-stone-100 text-lg uppercase tracking-wide flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-emerald-500" />
+          <h2 className="font-display font-semibold text-[var(--gl-text-primary)] text-lg uppercase tracking-wide flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-[var(--gl-accent)]" />
             Kiểm Duyệt Cẩm Nang Xanh
           </h2>
-          <p className="text-xs text-stone-400 mt-1">
+          <p className="text-xs text-[var(--gl-text-muted)] mt-1">
             Xét duyệt các bài viết hướng dẫn, cẩm nang sinh thái từ Khách hàng và Chủ vườn trước khi xuất bản chính thức.
           </p>
         </div>
         <button
+          type="button"
           onClick={fetchRevisions}
-          className="px-4 py-2 bg-stone-100 dark:bg-stone-900 hover:bg-stone-200 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 rounded-xl text-xs font-bold uppercase transition-all tracking-wider border border-stone-200 dark:border-stone-800 flex items-center gap-1.5 cursor-pointer"
+          className="px-4 py-2 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-border)] text-[var(--gl-text-primary)] rounded-xl text-xs font-bold uppercase transition-all tracking-wider border border-[var(--gl-border)] flex items-center gap-1.5 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
         >
           <Clock className="w-4 h-4" /> Làm Mới
         </button>
@@ -2257,24 +2318,25 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
       {selectedRevision ? (
         <div className="space-y-6">
           <button
+            type="button"
             onClick={() => {
               setSelectedRevision(null);
               setComment("");
             }}
-            className="flex items-center gap-1 text-xs text-stone-500 hover:text-emerald-500 font-semibold cursor-pointer transition-colors"
+            className="flex items-center gap-1 min-h-[40px] text-xs text-[var(--gl-text-muted)] hover:text-[var(--gl-accent)] font-semibold cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
           >
             <ChevronLeft className="w-4 h-4" /> Quay lại danh sách
           </button>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-8 space-y-6">
-              <div className="bg-stone-100 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-850 p-5 rounded-2xl space-y-3">
+              <div className="bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] p-5 rounded-2xl space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="space-y-1">
-                    <span className="text-[10px] text-stone-400 font-mono block">
-                      Tác giả: <strong className="text-stone-300">{selectedRevision.authorName}</strong> ({selectedRevision.authorRole === "STORE_OWNER" ? "Chủ Vườn" : "Khách Hàng"})
+                    <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block">
+                      Tác giả: <strong className="text-[var(--gl-text-primary)]">{selectedRevision.authorName}</strong> ({selectedRevision.authorRole === "STORE_OWNER" ? "Chủ Vườn" : "Khách Hàng"})
                     </span>
-                    <span className="text-[10px] text-stone-500 font-mono block">
+                    <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block">
                       Thời gian gửi: {selectedRevision.submittedAt ? new Date(selectedRevision.submittedAt).toLocaleString("vi-VN") : "N/A"}
                     </span>
                   </div>
@@ -2286,76 +2348,76 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
 
               {selectedRevision.previousPublished ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-stone-100 dark:bg-stone-900/30 border border-stone-200 dark:border-stone-850/60 p-5 rounded-2xl space-y-4 opacity-75">
-                    <span className="px-2 py-0.5 bg-stone-200 dark:bg-stone-800 text-stone-400 text-[9px] font-bold rounded font-mono uppercase tracking-wider">Phiên Bản Hiện Tại</span>
+                  <div className="bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] p-5 rounded-2xl space-y-4 opacity-75">
+                    <span className="px-2 py-0.5 bg-[var(--gl-bg-surface)] text-[var(--gl-text-muted)] text-[9px] font-bold rounded font-mono uppercase tracking-wider">Phiên Bản Hiện Tại</span>
                     <div className="space-y-2">
-                      <h4 className="font-bold text-stone-900 dark:text-stone-205 text-sm">{selectedRevision.previousPublished.title}</h4>
-                      <p className="text-xs text-stone-450 dark:text-stone-400 italic">Summary: {selectedRevision.previousPublished.summary}</p>
+                      <h4 className="font-bold text-[var(--gl-text-primary)] text-sm">{selectedRevision.previousPublished.title}</h4>
+                      <p className="text-xs text-[var(--gl-text-muted)] italic">Summary: {selectedRevision.previousPublished.summary}</p>
                       {selectedRevision.previousPublished.image && (
                         <img 
                           src={selectedRevision.previousPublished.image} 
                           alt="Published thumbnail" 
-                          className="w-full h-32 object-cover rounded-xl border border-stone-200 dark:border-stone-800"
+                          className="w-full h-32 object-cover rounded-xl border border-[var(--gl-border)]"
                         />
                       )}
                       <div 
-                        className="text-xs text-stone-500 leading-relaxed font-sans prose prose-sm dark:prose-invert break-words max-h-96 overflow-y-auto pr-1"
+                        className="text-xs text-[var(--gl-text-secondary)] leading-relaxed font-sans prose prose-sm dark:prose-invert break-words max-h-96 overflow-y-auto pr-1"
                         dangerouslySetInnerHTML={{ __html: selectedRevision.previousPublished.content }}
                       />
                     </div>
                   </div>
 
-                  <div className="bg-stone-100 dark:bg-stone-900/50 border border-stone-200 dark:border-emerald-500/20 p-5 rounded-2xl space-y-4 shadow-sm ring-1 ring-emerald-500/10">
-                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-455 text-[9px] font-bold rounded font-mono uppercase tracking-wider">Bản Đang Đề Xuất Duyệt</span>
+                  <div className="bg-[var(--gl-bg-muted)] border border-[var(--gl-accent)]/20 p-5 rounded-2xl space-y-4 shadow-xs ring-1 ring-[var(--gl-accent)]/10">
+                    <span className="px-2 py-0.5 bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] text-[9px] font-bold rounded font-mono uppercase tracking-wider">Bản Đang Đề Xuất Duyệt</span>
                     <div className="space-y-2">
-                      <h4 className="font-bold text-stone-900 dark:text-stone-100 text-sm">{selectedRevision.title}</h4>
-                      <p className="text-xs text-stone-700 dark:text-stone-300 italic">Summary: {selectedRevision.summary}</p>
+                      <h4 className="font-bold text-[var(--gl-text-primary)] text-sm">{selectedRevision.title}</h4>
+                      <p className="text-xs text-[var(--gl-text-secondary)] italic">Summary: {selectedRevision.summary}</p>
                       {selectedRevision.image && (
                         <img 
                           src={selectedRevision.image} 
                           alt="Submission thumbnail" 
-                          className="w-full h-32 object-cover rounded-xl border border-stone-200 dark:border-stone-850"
+                          className="w-full h-32 object-cover rounded-xl border border-[var(--gl-border)]"
                         />
                       )}
                       <div 
-                        className="text-xs text-stone-800 dark:text-stone-200 leading-relaxed font-sans prose prose-sm dark:prose-invert break-words max-h-96 overflow-y-auto pr-1"
+                        className="text-xs text-[var(--gl-text-primary)] leading-relaxed font-sans prose prose-sm dark:prose-invert break-words max-h-96 overflow-y-auto pr-1"
                         dangerouslySetInnerHTML={{ __html: selectedRevision.content }}
                       />
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="bg-stone-100 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-850 p-6 rounded-2xl space-y-5">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-950/30 text-emerald-400 border border-emerald-500/15 rounded-xl text-[10px] font-mono font-semibold uppercase">
+                <div className="bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] p-6 rounded-2xl space-y-5">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20 rounded-xl text-[10px] font-mono font-semibold uppercase">
                     <Leaf className="w-3.5 h-3.5" /> Bài viết gieo mầm mới (Không có phiên bản xuất bản trước đó)
                   </div>
 
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <span className="text-[10px] text-stone-500 font-mono block uppercase">Tiêu đề bài viết</span>
-                      <h3 className="font-display font-bold text-stone-900 dark:text-stone-100 text-base">{selectedRevision.title}</h3>
+                      <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block uppercase">Tiêu đề bài viết</span>
+                      <h3 className="font-display font-bold text-[var(--gl-text-primary)] text-base">{selectedRevision.title}</h3>
                     </div>
 
                     <div className="space-y-1">
-                      <span className="text-[10px] text-stone-500 font-mono block uppercase">Tóm tắt (Summary)</span>
-                      <p className="text-xs text-stone-700 dark:text-stone-300 italic leading-relaxed">{selectedRevision.summary}</p>
+                      <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block uppercase">Tóm tắt (Summary)</span>
+                      <p className="text-xs text-[var(--gl-text-secondary)] italic leading-relaxed">{selectedRevision.summary}</p>
                     </div>
 
                     {selectedRevision.image && (
                       <div className="space-y-1">
-                        <span className="text-[10px] text-stone-500 font-mono block uppercase">Ảnh Thumbnail</span>
+                        <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block uppercase">Ảnh Thumbnail</span>
                         <img 
                           src={selectedRevision.image} 
                           alt="Article thumbnail" 
-                          className="max-h-64 object-cover rounded-xl border border-stone-250 dark:border-stone-800"
+                          className="max-h-64 object-cover rounded-xl border border-[var(--gl-border)]"
                         />
                       </div>
                     )}
 
-                    <div className="space-y-2 pt-4 border-t border-stone-200 dark:border-stone-800">
-                      <span className="text-[10px] text-stone-500 font-mono block uppercase">Nội dung chi tiết</span>
+                    <div className="space-y-2 pt-4 border-t border-[var(--gl-border)]">
+                      <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block uppercase">Nội dung chi tiết</span>
                       <div 
-                        className="text-xs text-stone-800 dark:text-stone-200 leading-relaxed font-sans prose prose-sm dark:prose-invert break-words max-h-96 overflow-y-auto pr-2"
+                        className="text-xs text-[var(--gl-text-primary)] leading-relaxed font-sans prose prose-sm dark:prose-invert break-words max-h-96 overflow-y-auto pr-2"
                         dangerouslySetInnerHTML={{ __html: selectedRevision.content }}
                       />
                     </div>
@@ -2365,9 +2427,9 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
             </div>
 
             <div className="lg:col-span-4 space-y-6">
-              <div className="bg-stone-100 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-850 p-4 rounded-2xl space-y-3">
-                <span className="text-[10px] text-stone-500 font-mono block uppercase font-semibold flex items-center gap-1">
-                  <Tag className="w-3.5 h-3.5 text-emerald-500" /> Sản phẩm gắn tag ({selectedRevision.taggedProductIds?.length || 0})
+              <div className="bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] p-4 rounded-2xl space-y-3">
+                <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block uppercase font-semibold flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5 text-[var(--gl-accent)]" /> Sản phẩm gắn tag ({selectedRevision.taggedProductIds?.length || 0})
                 </span>
                 {selectedRevision.taggedProductIds && selectedRevision.taggedProductIds.length > 0 ? (
                   <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
@@ -2375,39 +2437,39 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
                       const prod = products.find(p => p.id === pId);
                       if (!prod) return null;
                       return (
-                        <div key={pId} className="flex items-center gap-2 p-2 bg-stone-200/50 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl">
+                        <div key={pId} className="flex items-center gap-2 p-2 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-xl">
                           <img src={getMediaUrl(prod.image)} alt={prod.name} className="w-8 h-8 object-cover rounded" />
                           <div className="min-w-0 flex-1">
-                            <span className="font-bold text-[10px] block truncate text-stone-800 dark:text-stone-200">{prod.name}</span>
-                            <span className="text-[9px] text-stone-500 font-mono">{prod.price.toLocaleString("vi-VN")}₫</span>
+                            <span className="font-bold text-[10px] block truncate text-[var(--gl-text-primary)]">{prod.name}</span>
+                            <span className="text-[9px] text-[var(--gl-text-muted)] font-mono">{prod.price.toLocaleString("vi-VN")}₫</span>
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <p className="text-[10px] text-stone-500 italic">Không gắn kèm sản phẩm nào.</p>
+                  <p className="text-[10px] text-[var(--gl-text-muted)] italic">Không gắn kèm sản phẩm nào.</p>
                 )}
               </div>
 
-              <div className="bg-stone-100 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-850 p-4 rounded-2xl space-y-3">
-                <span className="text-[10px] text-stone-500 font-mono block uppercase font-semibold flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-emerald-500" /> Lịch sử kiểm duyệt
+              <div className="bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] p-4 rounded-2xl space-y-3">
+                <span className="text-[10px] text-[var(--gl-text-muted)] font-mono block uppercase font-semibold flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-[var(--gl-accent)]" /> Lịch sử kiểm duyệt
                 </span>
                 {selectedRevision.moderationHistory && selectedRevision.moderationHistory.length > 0 ? (
-                  <div className="space-y-3 pl-2 border-l border-stone-300 dark:border-stone-800 max-h-48 overflow-y-auto pr-1">
+                  <div className="space-y-3 pl-2 border-l border-[var(--gl-border)] max-h-48 overflow-y-auto pr-1">
                     {selectedRevision.moderationHistory.map((hist: any, index: number) => (
                       <div key={hist.id || index} className="space-y-1 relative pl-3.5">
-                        <div className="absolute top-1 left-[-4.5px] w-2 h-2 rounded-full bg-emerald-500" />
-                        <div className="flex justify-between items-center text-[9px] text-stone-400 font-mono">
+                        <div className="absolute top-1 left-[-4.5px] w-2 h-2 rounded-full bg-[var(--gl-accent)]" />
+                        <div className="flex justify-between items-center text-[9px] text-[var(--gl-text-muted)] font-mono">
                           <span>{hist.moderatorName || "Admin"}</span>
                           <span>{hist.moderatedAt ? new Date(hist.moderatedAt).toLocaleDateString("vi-VN") : "N/A"}</span>
                         </div>
-                        <p className="text-[10px] text-stone-300 font-bold uppercase tracking-tight">
+                        <p className="text-[10px] text-[var(--gl-text-primary)] font-bold uppercase tracking-tight">
                           {hist.action === "APPROVE" ? "Đã duyệt" : hist.action === "REQUEST_CHANGES" ? "Yêu cầu sửa" : hist.action === "REJECT" ? "Từ chối" : hist.action}
                         </p>
                         {hist.comment && (
-                          <p className="text-[10px] text-stone-450 italic bg-stone-200/50 dark:bg-stone-950 p-1.5 rounded-lg border border-stone-250 dark:border-stone-850/60 leading-normal">
+                          <p className="text-[10px] text-[var(--gl-text-muted)] italic bg-[var(--gl-bg-surface)] p-1.5 rounded-lg border border-[var(--gl-border)] leading-normal">
                             "{hist.comment}"
                           </p>
                         )}
@@ -2415,13 +2477,13 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[10px] text-stone-500 italic">Chưa có lịch sử kiểm duyệt nào.</p>
+                  <p className="text-[10px] text-[var(--gl-text-muted)] italic">Chưa có lịch sử kiểm duyệt nào.</p>
                 )}
               </div>
 
-              <div className="bg-stone-100 dark:bg-stone-900/50 p-4 border border-stone-200 dark:border-stone-850 rounded-2xl space-y-4">
+              <div className="bg-[var(--gl-bg-muted)] p-4 border border-[var(--gl-border)] rounded-2xl space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-stone-450 dark:text-stone-555 font-mono block uppercase font-bold">
+                  <label className="text-[10px] text-[var(--gl-text-muted)] font-mono block uppercase font-bold">
                     Ý kiến phản hồi / Ghi chú từ chối *
                   </label>
                   <textarea
@@ -2429,40 +2491,44 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     rows={4}
-                    className="w-full text-xs p-3 bg-stone-200/50 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent text-stone-850 dark:text-stone-200 h-28 resize-none leading-relaxed"
+                    className="w-full text-xs p-3 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] rounded-xl focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] h-28 resize-none leading-relaxed"
                   />
                 </div>
 
-                <div className="space-y-2 pt-2 border-t border-stone-200 dark:border-stone-850">
+                <div className="space-y-2 pt-2 border-t border-[var(--gl-border)]">
                   <button
+                    type="button"
                     onClick={() => handleAction("approve")}
                     disabled={submitting}
-                    className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black text-xs font-bold uppercase rounded-xl cursor-pointer transition-all shadow-md shadow-emerald-500/10 flex items-center justify-center gap-1.5 tracking-wider"
+                    className="w-full py-2.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] disabled:opacity-50 text-black text-xs font-bold uppercase rounded-xl cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                   >
                     {submitting ? <Clock className="animate-spin w-4.5 h-4.5" /> : <CheckCircle2 className="w-4.5 h-4.5" />} Duyệt & Xuất Bản
                   </button>
 
                   <div className="grid grid-cols-2 gap-2">
                     <button
+                      type="button"
                       onClick={() => handleAction("request-changes")}
                       disabled={submitting}
-                      className="py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1"
+                      className="py-2.5 min-h-[40px] bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                     >
                       Yêu Cầu Sửa
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleAction("reject")}
                       disabled={submitting}
-                      className="py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1"
+                      className="py-2.5 min-h-[40px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                     >
                       Từ Chối
                     </button>
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => handleAction("archive")}
                     disabled={submitting}
-                    className="w-full py-2 bg-stone-800 hover:bg-stone-750 disabled:opacity-50 text-stone-400 hover:text-stone-200 text-[10px] font-bold uppercase rounded-xl cursor-pointer transition-all border border-stone-700/60"
+                    className="w-full py-2 min-h-[40px] bg-[var(--gl-bg-surface)] hover:bg-[var(--gl-border)] disabled:opacity-50 text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] text-[10px] font-bold uppercase rounded-xl cursor-pointer transition-all border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                   >
                     Lưu Trữ Bài Viết
                   </button>
@@ -2482,9 +2548,9 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
               description="Hệ thống hiện tại sạch sẽ, không có bài viết nào đang nằm trong hàng đợi kiểm duyệt."
             />
           ) : (
-            <div className="overflow-x-auto text-xs rounded-xl border border-stone-200 dark:border-stone-850">
-              <table className="w-full text-left text-stone-650 dark:text-stone-300 border-collapse">
-                <thead className="bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 text-stone-500 uppercase font-mono text-[9px]">
+            <div className="overflow-x-auto text-xs rounded-xl border border-[var(--gl-border)]">
+              <table className="w-full text-left text-[var(--gl-text-secondary)] border-collapse">
+                <thead className="bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] text-[var(--gl-text-muted)] uppercase font-mono text-[9px]">
                   <tr>
                     <th className="p-4.5">Tiêu Đề Đề Xuất</th>
                     <th className="p-4.5">Chuyên Mục</th>
@@ -2494,7 +2560,7 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
                     <th className="p-4.5 text-right">Hành Động</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-200 dark:divide-stone-850">
+                <tbody className="divide-y divide-[var(--gl-border)]">
                   {revisions.map((rev) => {
                     const categoryNames = {
                       "plant-care": "Y Học Bệnh Cây",
@@ -2503,17 +2569,17 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
                     };
 
                     return (
-                      <tr key={rev.id} className="hover:bg-stone-100/50 dark:hover:bg-stone-900/40 transition-colors">
-                        <td className="p-4.5 font-bold text-stone-900 dark:text-stone-100 max-w-sm truncate" title={rev.title}>
+                      <tr key={rev.id} className="hover:bg-[var(--gl-bg-muted)]/50 transition-colors">
+                        <td className="p-4.5 font-bold text-[var(--gl-text-primary)] max-w-sm truncate" title={rev.title}>
                           {rev.title}
                         </td>
-                        <td className="p-4.5 font-semibold text-[10px] text-stone-500">
+                        <td className="p-4.5 font-semibold text-[10px] text-[var(--gl-text-muted)]">
                           {categoryNames[rev.category] || rev.category}
                         </td>
                         <td className="p-4.5">
                           <div className="space-y-0.5">
-                            <span className="block font-semibold text-stone-800 dark:text-stone-200">{rev.authorName}</span>
-                            <span className="block text-[8px] font-mono uppercase tracking-wider text-stone-450">{rev.authorRole === "STORE_OWNER" ? "Chủ Vườn" : "Khách Hàng"}</span>
+                            <span className="block font-semibold text-[var(--gl-text-primary)]">{rev.authorName}</span>
+                            <span className="block text-[8px] font-mono uppercase tracking-wider text-[var(--gl-text-muted)]">{rev.authorRole === "STORE_OWNER" ? "Chủ Vườn" : "Khách Hàng"}</span>
                           </div>
                         </td>
                         <td className="p-4.5 text-center font-mono text-[10px]">
@@ -2524,8 +2590,9 @@ const AdminBlogModerationSection: React.FC<AdminBlogModerationSectionProps> = ({
                         </td>
                         <td className="p-4.5 text-right">
                           <button
+                            type="button"
                             onClick={() => setSelectedRevision(rev)}
-                            className="py-1 px-3 bg-emerald-500 hover:bg-emerald-450 text-black font-bold rounded-lg text-[10px] uppercase cursor-pointer transition-all inline-flex items-center gap-1.5 shadow-sm shadow-emerald-500/10"
+                            className="py-1.5 px-3 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-black font-bold rounded-lg text-[10px] uppercase cursor-pointer transition-all inline-flex items-center gap-1.5 shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                           >
                             Thẩm Định <ArrowUpRight className="w-3 h-3" />
                           </button>

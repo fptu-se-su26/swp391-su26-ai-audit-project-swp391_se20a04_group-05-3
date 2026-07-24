@@ -9,6 +9,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@fontsource/inter": "5.3.0",
     "@react-oauth/google": "^0.13.5",
     "d3": "^7.9.0",
     "dompurify": "^3.4.11",

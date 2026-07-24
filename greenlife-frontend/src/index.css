@@ -1,10 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "@fontsource/inter/300.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
 
   /* Dynamically map Tailwind colors to CSS custom properties */
   --color-stone-100: var(--stone-100);
@@ -24,6 +28,15 @@
 }
 
 :root {
+  /* ── CHATBOT SEMANTIC TOKENS — LIGHT MODE ───────────────────────────────── */
+  --gl-chat-primary:        #059669;
+  --gl-chat-primary-bright: #22c55e;
+  --gl-chat-header-start:   #059669;
+  --gl-chat-header-end:     #16a34a;
+  --gl-chat-soft:           #ecfdf5;
+  --gl-chat-border:         rgba(16, 185, 129, 0.30);
+  --gl-chat-glow:           rgba(34, 197, 94, 0.28);
+
   /* ECO LIGHT MODE (Default theme - white, soft beige, light/emerald/forest green) */
   --stone-900: #faf8f5;        /* Body bg (soft warm beige/sand) */
   --stone-950: #ffffff;        /* Panel bg (pure white) */
@@ -43,9 +56,53 @@
   
   --emerald-950: #e8f5e9;      /* Light green background tint for badges/alerts */
   --emerald-900: #c8e6c9;      /* Border tint for alerts */
+
+  /* ── SEMANTIC GL TOKENS — LIGHT MODE ───────────────────────────────────── */
+  /* Page & surface */
+  --gl-bg-page:        #f4f9f6;   /* xanh kem rất nhẹ (không phải trắng hoàn toàn) */
+  --gl-bg-surface:     #ffffff;   /* trắng: card, panel */
+  --gl-bg-elevated:    #edf7f1;   /* xanh bạc hà rất nhạt: elevated surface */
+  --gl-bg-muted:       #f0f7f3;   /* muted surface: hover rows, alt bg */
+
+  /* Header & footer */
+  --gl-bg-header:      #f8fffe;   /* trắng pha xanh nhẹ */
+  --gl-bg-footer:      #e0eee6;   /* xanh bạc hà nhạt, đậm hơn body 1 cấp */
+
+  /* Text */
+  --gl-text-primary:   #0f1e16;   /* xanh đen sâu */
+  --gl-text-secondary: #3a5545;   /* xanh rừng vừa */
+  --gl-text-muted:     #617a6b;   /* xanh xám nhạt */
+
+  /* Border */
+  --gl-border:         #c8dfd2;   /* đường viền xanh nhạt */
+  --gl-border-subtle:  #ddeee5;   /* đường viền rất mỏng */
+
+  /* Accent — emerald */
+  --gl-accent:         #059669;   /* emerald-600 */
+  --gl-accent-hover:   #047857;   /* emerald-700 */
+  --gl-accent-soft:    rgba(5, 150, 105, 0.10);   /* emerald soft bg */
+  --gl-focus-ring:     rgba(5, 150, 105, 0.40);   /* focus ring */
+
+  /* State */
+  --gl-danger:         #ef4444;
+  --gl-disabled:       #a8b8b0;
+
+  /* Header scroll transition */
+  --gl-header-blur:    16px;
+  --gl-header-height:  64px;   /* Row 1 height */
+  --gl-ribbon-height:  30px;   /* Row 2 eco-ribbon */
 }
 
 .dark {
+  /* ── CHATBOT SEMANTIC TOKENS — DARK MODE ────────────────────────────────── */
+  --gl-chat-primary:        #10b981;
+  --gl-chat-primary-bright: #4ade80;
+  --gl-chat-header-start:   #047857;
+  --gl-chat-header-end:     #16a34a;
+  --gl-chat-soft:           rgba(6, 78, 59, 0.24);
+  --gl-chat-border:         rgba(52, 211, 153, 0.32);
+  --gl-chat-glow:           rgba(34, 197, 94, 0.22);
+
   /* ELEGANT DARK FOREST MODE */
   --stone-900: #0a0d0c;        /* Body bg (elegant very dark forest gray) */
   --stone-950: #101412;        /* Panel bg (dark forest black) */
@@ -59,28 +116,58 @@
   --stone-400: #94a3b8;        /* Soft descriptions */
   --stone-300: #cbd5e1;        /* Muted headers */
   --stone-200: #e2e8f0;        /* Bold headers */
-  --stone-100: #f8fafc;        /* Body text (off-white) */
+  --stone-100: #f0f9f4;        /* Body text (white tinted green, not pure white) */
   
   --neutral-950: #0b0f0d;      /* Dark slate green-black for hero banner */
   
   --emerald-950: #042f20;      /* Dark green bg tint for badges */
   --emerald-900: #065f46;      /* Dark green border tint */
+
+  /* ── SEMANTIC GL TOKENS — DARK MODE ────────────────────────────────────── */
+  /* Page & surface */
+  --gl-bg-page:        #07100c;   /* xanh đen sâu */
+  --gl-bg-surface:     #0e1a14;   /* xanh rừng rất đậm */
+  --gl-bg-elevated:    #162217;   /* sáng hơn body một cấp */
+  --gl-bg-muted:       #1a2a1e;   /* muted surface */
+
+  /* Header & footer */
+  --gl-bg-header:      rgba(14, 24, 18, 0.88);   /* xanh rừng bán trong suốt */
+  --gl-bg-footer:      #0d1f17;   /* forest green sáng hơn body rõ ràng */
+
+  /* Text */
+  --gl-text-primary:   #e8f5ee;   /* trắng pha xanh */
+  --gl-text-secondary: #90b8a0;   /* xanh xám sáng */
+  --gl-text-muted:     #5a7a65;   /* muted muted */
+
+  /* Border */
+  --gl-border:         #2a4035;   /* visible on dark */
+  --gl-border-subtle:  #1e3028;   /* subtle dark border */
+
+  /* Accent — emerald sáng nhưng không neon */
+  --gl-accent:         #34d399;   /* emerald-400 — bright but not neon */
+  --gl-accent-hover:   #10b981;   /* emerald-500 */
+  --gl-accent-soft:    rgba(52, 211, 153, 0.12);
+  --gl-focus-ring:     rgba(52, 211, 153, 0.45);
+
+  /* State */
+  --gl-danger:         #f87171;
+  --gl-disabled:       #3d5244;
 }
 
 /* Custom scrollbar and style adjustments */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.18);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.35);
 }
 
 /* Map marker & pulsing animations */
@@ -103,13 +190,22 @@
   animation: map-pin-pulse 2s infinite;
 }
 
+html, body {
+  font-family: "Inter", sans-serif;
+  font-size: 15px;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  font-size: 14px;
+}
+
 body {
-  background-color: var(--stone-900);
-  color: var(--stone-100);
+  background-color: var(--gl-bg-page);
+  color: var(--gl-text-primary);
   background-image: radial-gradient(circle at 15% 15%, rgba(16, 185, 129, 0.035) 0%, transparent 40%),
                     radial-gradient(circle at 85% 75%, rgba(16, 185, 129, 0.02) 0%, transparent 40%);
   background-attachment: fixed;
-  font-family: var(--font-sans);
   transition: background-color 0.4s ease, color 0.4s ease;
 }
 
@@ -130,13 +226,7 @@ body {
   animation: leaf-float 3s ease-in-out infinite;
 }
 
-.logo-container:hover .logo-icon {
-  animation: leaf-float 1.2s ease-in-out infinite;
-}
-
-.logo-container:hover {
-  animation: logo-glow 2s infinite;
-}
+/* leaf-only: the .gl-brand-leaf class handles the sway; no box-shadow on wrapper */
 
 /* Nav Item Hover & Active Micro-animations */
 .nav-item-animated {
@@ -145,7 +235,7 @@ body {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.nav-item-animated::before {
+.gl-nav-scroll .nav-item-animated::before {
   content: '';
   position: absolute;
   bottom: 0;
@@ -157,11 +247,11 @@ body {
   transform: translateX(-50%);
 }
 
-.nav-item-animated:hover::before {
+.gl-nav-scroll .nav-item-animated:hover::before {
   width: 80%;
 }
 
-.nav-item-animated.active::before {
+.gl-nav-scroll .nav-item-animated.active::before {
   width: 100%;
   background: linear-gradient(90deg, #10b981, #34d399, #10b981);
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
@@ -211,17 +301,17 @@ body {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, 
-    rgba(16, 185, 129, 0) 0%, 
-    rgba(16, 185, 129, 0.3) 50%, 
+  background: linear-gradient(90deg,
+    rgba(16, 185, 129, 0) 0%,
+    rgba(16, 185, 129, 0.25) 50%,
     rgba(16, 185, 129, 0) 100%
   );
   animation: header-pulse 4s ease-in-out infinite;
 }
 
 @keyframes header-pulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
 }
 
 /* Mobile Slide In Animation */
@@ -275,13 +365,13 @@ body {
   background: linear-gradient(
     120deg,
     rgba(16, 185, 129, 0.03) 30%,
-    rgba(16, 185, 129, 0.22) 42%,
-    rgba(52, 211, 153, 0.32) 50%,
-    rgba(16, 185, 129, 0.22) 58%,
+    rgba(16, 185, 129, 0.12) 42%,
+    rgba(52, 211, 153, 0.20) 50%,
+    rgba(16, 185, 129, 0.12) 58%,
     rgba(16, 185, 129, 0.03) 70%
   );
   background-size: 200% 100%;
-  animation: shimmer-sweep 6s infinite linear;
+  animation: shimmer-sweep 8s infinite linear;
 }
 
 /* --- Centered GREEN LIFE Text Premium Effects --- */
@@ -345,40 +435,13 @@ body {
   animation: text-shimmer 6s linear infinite;
 }
 
-/* Interaction when hovering over the parent .logo-container */
+/* Logo text hover: color transition only — no box-shadow, no scale, no filter on wrapper */
 .logo-container:hover .brand-logo-text {
-  letter-spacing: -0.02em;
-  filter: drop-shadow(0 0 6px rgba(250, 248, 245, 0.1));
+  /* intentionally empty: leaf animation handles the motion */
 }
 
 .logo-container:hover .brand-logo-text-highlight {
-  transform: scale(1.08) translateY(-1px) rotate(-1.5deg);
-  filter: drop-shadow(0 0 14px rgba(16, 185, 129, 0.7));
-  background: linear-gradient(
-    120deg,
-    #34d399 0%,
-    #d1fae5 50%,
-    #059669 100%
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* A premium under-line sweep effect on hover for the logo brand text */
-.logo-container .brand-logo-text::after {
-  content: '';
-  position: absolute;
-  bottom: -4px;
-  left: 0;
-  width: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #10b981, #34d399, transparent);
-  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  border-radius: 2px;
-}
-
-.logo-container:hover .brand-logo-text::after {
-  width: 100%;
+  /* intentionally empty: keep shimmer only, no scale/filter/transform */
 }
 
 /* Cart Zoom/Shake Animation */
@@ -426,3 +489,444 @@ body {
   animation: fly-to-cart 0.62s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
+/* ── HEADER SCROLL STATE ─────────────────────────────────────────────────── */
+
+/* Default: resting state — crisp border, clear background */
+.gl-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  width: 100%;
+  z-index: 50;
+  transition:
+    background-color 220ms ease,
+    box-shadow 220ms ease,
+    border-color 220ms ease,
+    backdrop-filter 220ms ease,
+    -webkit-backdrop-filter 220ms ease;
+}
+
+/* Scrolled: transparent blurred backdrop */
+.gl-header-scrolled {
+  background-color: rgba(248, 253, 250, 0.82) !important;
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 0 var(--gl-border-subtle);
+  border-bottom-color: transparent !important;
+}
+
+.dark .gl-header-scrolled {
+  background-color: rgba(5, 20, 14, 0.82) !important;
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), 0 1px 0 var(--gl-border-subtle);
+  border-bottom-color: transparent !important;
+}
+
+/* ── GLOBAL FLUID SHELL UTILITY ─────────────────────────────────────────── */
+.gl-page-shell {
+  width: min(100% - 2rem, 1440px);
+  margin-inline: auto;
+}
+
+@media (min-width: 640px) {
+  .gl-page-shell {
+    width: min(100% - 3rem, 1440px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .gl-page-shell {
+    width: min(100% - 4rem, 1440px);
+  }
+}
+
+@media (min-width: 1536px) {
+  .gl-page-shell {
+    width: min(100% - 6rem, 1440px);
+  }
+}
+
+/* Header navigation horizontal scroll container with scrollbar hidden */
+.gl-nav-scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+.gl-nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── CHATBOT FLOATING POPOVER DIMENSIONS ─────────────────────────────────── */
+
+.gl-chatbot-window {
+  position: fixed !important;
+  z-index: 50 !important;
+  width: min(350px, calc(100vw - 24px)) !important;
+  height: min(500px, calc(100dvh - 180px)) !important;
+  bottom: 84px !important;
+  border-radius: 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+@media (min-width: 768px) {
+  .gl-chatbot-window {
+    width: 390px !important;
+    height: 540px !important;
+    max-height: calc(100dvh - 120px) !important;
+    bottom: 92px !important;
+    border-radius: 20px !important;
+  }
+}
+
+/* ── LOGO LEAF ANIMATION ─────────────────────────────────────────────────── */
+
+@keyframes gl-leaf-sway {
+  0%, 100% {
+    transform: rotate(-3deg) translateY(0);
+  }
+  50% {
+    transform: rotate(4deg) translateY(-1px);
+  }
+}
+
+.gl-brand-leaf {
+  transform-origin: 50% 85%;
+  animation: gl-leaf-sway 3.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+.logo-container:hover .gl-brand-leaf {
+  animation-duration: 1.8s;
+}
+
+/* ── CHATBOT LAUNCHER ─────────────────────────────────────────────────────── */
+
+.gl-chat-launcher {
+  position: fixed;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  isolation: isolate;
+  overflow: visible;
+  background: linear-gradient(135deg, #34d399 0%, #22c55e 48%, #10b981 100%);
+  box-shadow:
+    0 12px 30px rgba(16, 185, 129, 0.38),
+    0 0 0 4px rgba(167, 243, 208, 0.34);
+  transition:
+    left 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 80ms linear,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+  z-index: 60;
+}
+
+.gl-chat-launcher:hover {
+  transform: translateY(-3px) scale(1.035);
+  filter: brightness(1.06) saturate(1.08);
+  box-shadow:
+    0 16px 36px rgba(16, 185, 129, 0.46),
+    0 0 0 5px rgba(167, 243, 208, 0.40);
+}
+
+.gl-chat-launcher:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.gl-chat-launcher.is-dragging {
+  cursor: grabbing;
+  transition: none !important;
+  transform: scale(1.06);
+  filter: brightness(1.08) saturate(1.08);
+  box-shadow:
+    0 18px 42px rgba(16, 185, 129, 0.46),
+    0 0 0 6px rgba(167, 243, 208, 0.34);
+}
+
+/* ── DUAL RING PULSE ─────────────────────────────────────────────────────── */
+
+@keyframes gl-chat-ring-pulse {
+  0% {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.72;
+  }
+  70% {
+    transform: scale(1.28);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.28);
+    opacity: 0;
+  }
+}
+
+.gl-chat-launcher::before,
+.gl-chat-launcher::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  z-index: -1;
+  border-radius: 9999px;
+  border: 2px solid rgba(52, 211, 153, 0.58);
+  pointer-events: none;
+}
+
+.gl-chat-launcher::before {
+  animation: gl-chat-ring-pulse 2.8s ease-out infinite;
+}
+
+.gl-chat-launcher::after {
+  animation: gl-chat-ring-pulse 2.8s ease-out 1.15s infinite;
+  border-color: rgba(134, 239, 172, 0.48);
+}
+
+/* ── LAUNCHER ICON FLOAT ─────────────────────────────────────────────────── */
+
+@keyframes gl-chat-icon-float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  40% {
+    transform: translateY(-2px) rotate(-4deg);
+  }
+  65% {
+    transform: translateY(0) rotate(3deg);
+  }
+}
+
+.gl-chat-launcher-icon {
+  animation: gl-chat-icon-float 3.2s ease-in-out infinite;
+  transform-origin: 50% 75%;
+}
+
+/* ── CHATBOT MESSAGE ENTER ANIMATION ─────────────────────────────────────── */
+
+@keyframes gl-chat-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gl-chat-message-enter {
+  animation: gl-chat-message-in 0.2s ease-out forwards;
+}
+
+/* ── PREFERS-REDUCED-MOTION ──────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-leaf-float,
+  .logo-container:hover,
+  .logo-container:hover .logo-icon,
+  .brand-text-shimmer,
+  .brand-logo-shimmer,
+  .shimmer-ribbon,
+  .nav-active-dot,
+  .cart-glow-pulse,
+  .header-glow::after,
+  .fly-to-cart-dot,
+  .animate-map-pulse,
+  .gl-brand-leaf,
+  .gl-chat-launcher::before,
+  .gl-chat-launcher::after,
+  .gl-chat-launcher-icon,
+  .gl-chatbot-window,
+  .gl-chat-message-enter {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    transform: none !important;
+  }
+
+  /* Preserve snap transition for position — just make it instant */
+  .gl-chat-launcher {
+    transition:
+      left 0.01ms linear,
+      top 0.01ms linear !important;
+    cursor: grab;
+  }
+
+  .gl-header,
+  .gl-header-scrolled,
+  .btn-animated,
+  .nav-item-animated,
+  .nav-item-animated::before,
+  .brand-logo-text,
+  .brand-logo-text-highlight,
+  .logo-container .brand-logo-text::after {
+    transition: none !important;
+  }
+}
+
+/* ── GL-BORDER-BEAM ───────────────────────────────────────────────────────────
+   Always-running emerald beam that orbits the card border.
+   Uses background-clip: padding-box/border-box so it works even when
+   the host has overflow:hidden — no pseudo-elements required.
+
+   Usage: class="gl-border-beam"
+   The host MUST have an explicit border (can be transparent) and a
+   background set (at least via a bg-* class or CSS property).
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@keyframes gl-beam-spin {
+  from { --gl-beam-angle: 0deg; }
+  to   { --gl-beam-angle: 360deg; }
+}
+
+/* Register the custom property so Chrome/Edge can interpolate it smoothly */
+@property --gl-beam-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.gl-border-beam {
+  /* 1px transparent border that will receive the beam gradient */
+  border: 1px solid transparent !important;
+  /* padding-box layer = card background (preserves existing bg).
+     border-box layer  = the rotating beam conic-gradient.
+     background-origin: border-box makes the conic fill the whole border area. */
+  background-image:
+    /* inner fill — inherit the card surface color */
+    linear-gradient(var(--gl-bg-surface), var(--gl-bg-surface)),
+    /* outer beam — short bright arc in emerald, rest transparent */
+    conic-gradient(
+      from var(--gl-beam-angle),
+      transparent 0deg,
+      transparent 276deg,
+      color-mix(in srgb, var(--gl-accent) 45%, transparent) 312deg,
+      var(--gl-accent) 342deg,
+      color-mix(in srgb, var(--gl-accent) 45%, transparent) 356deg,
+      transparent 360deg
+    );
+  background-origin: padding-box, border-box;
+  background-clip: padding-box, border-box;
+  animation: gl-beam-spin 4s linear infinite;
+  animation-play-state: running;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  will-change: --gl-beam-angle;
+}
+
+/* Hover / focus-within: pause beam, swap to solid emerald border */
+.gl-border-beam:hover,
+.gl-border-beam:focus-within {
+  animation-play-state: paused;
+  border-color: var(--gl-accent) !important;
+  background-image:
+    linear-gradient(var(--gl-bg-surface), var(--gl-bg-surface)),
+    linear-gradient(var(--gl-accent), var(--gl-accent));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--gl-accent) 20%, transparent),
+    0 4px 20px color-mix(in srgb, var(--gl-accent) 10%, transparent);
+}
+
+/* Reduced motion: freeze beam, show static faint emerald border */
+@media (prefers-reduced-motion: reduce) {
+  .gl-border-beam {
+    animation: none;
+    background-image:
+      linear-gradient(var(--gl-bg-surface), var(--gl-bg-surface)),
+      linear-gradient(
+        color-mix(in srgb, var(--gl-accent) 35%, var(--gl-border)),
+        color-mix(in srgb, var(--gl-accent) 35%, var(--gl-border))
+      );
+  }
+}
+
+/* ── GL-SCAN-SWEEP ────────────────────────────────────────────────────────────
+   AI scanner sweep line — used only while isScanning is true in AIDiagnosisView.
+   Render as an absolutely-positioned overlay inside a relative/overflow-hidden
+   container. It is aria-hidden and pointer-events-none.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@keyframes gl-scan-sweep {
+  0%   { transform: translateY(-4px); opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { transform: translateY(calc(100% + 4px)); opacity: 0; }
+}
+
+.gl-scan-line {
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 2px;
+  /* The scan line itself */
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, var(--gl-accent) 30%, transparent) 10%,
+    var(--gl-accent) 40%,
+    #ffffff 50%,
+    var(--gl-accent) 60%,
+    color-mix(in srgb, var(--gl-accent) 30%, transparent) 90%,
+    transparent 100%
+  );
+  /* Soft glow */
+  box-shadow:
+    0 0 8px 2px color-mix(in srgb, var(--gl-accent) 55%, transparent),
+    0 0 20px 4px color-mix(in srgb, var(--gl-accent) 20%, transparent);
+  animation: gl-scan-sweep 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  pointer-events: none;
+  will-change: transform;
+  z-index: 10;
+}
+
+.gl-scan-overlay {
+  position: absolute;
+  inset: 0;
+  /* Very subtle grid tint — does NOT darken the image */
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      color-mix(in srgb, var(--gl-accent) 4%, transparent) 3px,
+      color-mix(in srgb, var(--gl-accent) 4%, transparent) 4px
+    );
+  pointer-events: none;
+  z-index: 9;
+}
+
+.gl-scan-corners::before,
+.gl-scan-corners::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: var(--gl-accent);
+  border-style: solid;
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 11;
+}
+.gl-scan-corners::before {
+  top: 8px;
+  left: 8px;
+  border-width: 2px 0 0 2px;
+  border-radius: 3px 0 0 0;
+}
+.gl-scan-corners::after {
+  bottom: 8px;
+  right: 8px;
+  border-width: 0 2px 2px 0;
+  border-radius: 0 0 3px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-scan-line,
+  .gl-scan-overlay,
+  .gl-scan-corners::before,
+  .gl-scan-corners::after {
+    display: none;
+  }
+}

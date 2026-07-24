@@ -3,7 +3,6 @@ import { logger } from "../../utils/logger";
 import { sanitizeHtml } from "../../utils/sanitizer";
 import { ArrowLeft, BookOpen, Clock, Eye, Tag, BrainCircuit, ArrowRight, User } from "lucide-react";
 import { BlogPost, Product } from "../../types";
-import { ExpertCalloutBanner } from "./ExpertDirectoryView";
 import { useAppContext } from "../../context/AppContext";
 import { ArticleService } from "../../services/articleService";
 
@@ -60,17 +59,18 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
   };
 
   return (
-    <div className="bg-white border border-stone-250 rounded-[32px] p-6 sm:p-10 shadow-xs text-stone-800 max-w-4xl mx-auto space-y-8 animate-fadeIn">
+    <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-[32px] p-6 sm:p-10 shadow-xs text-[var(--gl-text-primary)] max-w-4xl mx-auto space-y-8 animate-fadeIn">
       {/* Back button & Category */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-100 pb-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--gl-border)] pb-5">
         <button
+          type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer font-mono uppercase tracking-wider bg-emerald-50 px-3 py-2 rounded-xl transition-all"
+          className="flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 text-xs font-bold text-[var(--gl-accent)] hover:underline cursor-pointer font-mono uppercase tracking-wider bg-[var(--gl-accent-soft)] rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
         >
           <ArrowLeft className="h-4 w-4" /> Quay lại cẩm nang
         </button>
 
-        <span className="inline-flex gap-2 items-center px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 font-mono text-[10px] font-bold uppercase tracking-wide">
+        <span className="inline-flex gap-2 items-center px-3.5 py-1.5 rounded-full bg-[var(--gl-accent-soft)] border border-[var(--gl-accent)]/20 text-[var(--gl-accent)] font-mono text-[10px] font-bold uppercase tracking-wide">
           <BookOpen className="h-3.5 w-3.5" />
           {categoryLabelMap[localArticle.category] || localArticle.category}
         </span>
@@ -78,14 +78,14 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
 
       {/* Title & Metadata */}
       <div className="space-y-4">
-        <h1 className="text-2xl sm:text-3xl font-display font-bold text-stone-900 tracking-tight leading-snug">
+        <h1 className="text-2xl sm:text-3xl font-display font-bold text-[var(--gl-text-primary)] tracking-tight leading-snug break-words">
           {localArticle.title}
         </h1>
         
-        <div className="flex flex-wrap gap-4 text-xs font-mono text-stone-400 font-medium">
+        <div className="flex flex-wrap gap-4 text-xs font-mono text-[var(--gl-text-muted)] font-medium">
           <span className="flex items-center gap-1">
-            <User className="w-3.5 h-3.5 text-stone-400" />
-            Tác giả: <strong className="text-stone-700 font-bold ml-0.5">{localArticle.author}</strong>
+            <User className="w-3.5 h-3.5 text-[var(--gl-text-muted)]" />
+            Tác giả: <strong className="text-[var(--gl-text-primary)] font-bold ml-0.5">{localArticle.author}</strong>
           </span>
           <span>•</span>
           <span>Ngày đăng: {localArticle.date}</span>
@@ -93,13 +93,13 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
           <span>Thời gian đọc: {localArticle.readTime}</span>
           <span>•</span>
           <span className="flex items-center gap-1">
-            <Eye className="w-3.5 h-3.5" /> {localArticle.views || 0} lượt xem
+            <Eye className="w-3.5 h-3.5 text-[var(--gl-text-muted)]" /> {localArticle.views || 0} lượt xem
           </span>
         </div>
       </div>
 
       {/* Featured Image */}
-      <div className="aspect-video bg-stone-50 rounded-2xl overflow-hidden border border-stone-200 shadow-sm">
+      <div className="aspect-video bg-[var(--gl-bg-muted)] rounded-2xl overflow-hidden border border-[var(--gl-border)] shadow-sm">
         <img
           src={localArticle.image}
           alt={localArticle.title}
@@ -109,19 +109,19 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
       </div>
 
       {/* Article Content */}
-      <div className="prose prose-stone max-w-none text-stone-600 text-sm sm:text-base leading-relaxed space-y-5">
-        <p className="font-semibold text-stone-800 bg-stone-50 p-5 border-l-4 border-emerald-600 rounded-r-2xl leading-relaxed shadow-xs">
+      <div className="prose max-w-none text-[var(--gl-text-secondary)] text-sm sm:text-base leading-relaxed space-y-5">
+        <p className="font-semibold text-[var(--gl-text-primary)] bg-[var(--gl-bg-muted)] p-5 border-l-4 border-[var(--gl-accent)] rounded-r-2xl leading-relaxed shadow-xs break-words">
           {localArticle.summary}
         </p>
         
-        <div className="space-y-4 font-sans text-stone-650">
+        <div className="space-y-4 font-sans text-[var(--gl-text-secondary)] break-words">
           {localArticle.content.split("\n\n").map((part, index) => {
             // Clean up basic HTML tags or parse them directly
             return (
-              <p 
-                key={index} 
-                className="leading-relaxed" 
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} 
+              <p
+                key={index}
+                className="leading-relaxed break-words"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }}
               />
             );
           })}
@@ -130,9 +130,9 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
 
       {/* Tagged Products Section */}
       {localArticle.taggedProductIds && localArticle.taggedProductIds.length > 0 && (
-        <div className="space-y-4 pt-6 border-t border-stone-100">
-          <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-2 bg-emerald-50 px-3.5 py-1.5 rounded-lg border border-emerald-100/50 inline-block">
-            <Tag className="w-4 h-4 animate-pulse text-emerald-600" /> Sản phẩm khuyên dùng trong bài viết:
+        <div className="space-y-4 pt-6 border-t border-[var(--gl-border)]">
+          <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--gl-accent)] flex items-center gap-2 bg-[var(--gl-accent-soft)] px-3.5 py-1.5 rounded-lg border border-[var(--gl-accent)]/20 inline-block">
+            <Tag className="w-4 h-4 animate-pulse text-[var(--gl-accent)]" /> Sản phẩm khuyên dùng trong bài viết:
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {localArticle.taggedProductIds.map((pId) => {
@@ -142,24 +142,24 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
                 <div
                   key={pId}
                   onClick={() => onSelectProduct(prod)}
-                  className="flex items-center justify-between p-4 bg-stone-50 hover:bg-white border border-stone-200 hover:border-emerald-500/30 rounded-2xl cursor-pointer transition-all group/item shadow-xs hover:shadow-md"
+                  className="flex items-center justify-between p-4 bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] hover:border-[var(--gl-accent)]/30 rounded-2xl cursor-pointer transition-all group/item shadow-xs hover:shadow-md"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <img 
                       src={prod.image} 
                       alt={prod.name} 
-                      className="w-12 h-12 object-cover rounded-xl border border-stone-200" 
+                      className="w-12 h-12 object-cover rounded-xl border border-[var(--gl-border)] shrink-0"
                     />
                     <div className="min-w-0">
-                      <span className="font-bold text-xs text-stone-900 block truncate group-hover/item:text-emerald-700">
+                      <span className="font-bold text-xs text-[var(--gl-text-primary)] block truncate group-hover/item:text-[var(--gl-accent)]">
                         {prod.name}
                       </span>
-                      <span className="text-[10px] text-emerald-650 font-mono mt-1 block font-bold">
+                      <span className="text-[10px] text-[var(--gl-accent)] font-mono mt-1 block font-bold">
                         {prod.price.toLocaleString("vi-VN")}₫
                       </span>
                     </div>
                   </div>
-                  <span className="text-[10px] text-emerald-750 font-mono font-bold shrink-0 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 group-hover/item:bg-emerald-600 group-hover/item:text-white group-hover/item:border-emerald-600 transition-all uppercase tracking-wider">
+                  <span className="text-[10px] text-[var(--gl-accent)] font-mono font-bold shrink-0 bg-[var(--gl-accent-soft)] px-3 py-1.5 rounded-lg border border-[var(--gl-accent)]/20 group-hover/item:bg-[var(--gl-accent)] group-hover/item:text-white dark:group-hover/item:text-emerald-950 transition-all uppercase tracking-wider">
                     Mua ngay
                   </span>
                 </div>
@@ -171,36 +171,33 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
 
       {/* Special Eco-AI Diagnosis Banner */}
       {isPlantCare && (
-        <div className="p-6 bg-linear-to-r from-emerald-50 to-teal-50/50 border border-emerald-200 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-5 shadow-xs">
+        <div className="p-6 bg-[var(--gl-accent-soft)]/40 border border-[var(--gl-accent)]/20 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-5 shadow-xs">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-white rounded-2xl border border-emerald-200 text-emerald-600 shadow-sm">
-              <BrainCircuit className="w-7 h-7 animate-pulse text-emerald-600" />
+            <div className="p-3 bg-[var(--gl-bg-muted)] rounded-2xl border border-[var(--gl-border)] text-[var(--gl-accent)] shadow-sm">
+              <BrainCircuit className="w-7 h-7 animate-pulse text-[var(--gl-accent)]" />
             </div>
             <div>
-              <h4 className="font-bold text-stone-900 text-sm sm:text-base">AI Plant Doctor Chẩn Đoán Cây Bệnh</h4>
-              <p className="text-xs text-stone-500 mt-1">Cây cảnh nhà bạn cũng đang có triệu chứng bệnh này? Bấm vào đây để AI Plant Doctor chẩn đoán tức thì!</p>
+              <h4 className="font-bold text-[var(--gl-text-primary)] text-sm sm:text-base">AI Plant Doctor Chẩn Đoán Cây Bệnh</h4>
+              <p className="text-xs text-[var(--gl-text-secondary)] mt-1">Cây cảnh nhà bạn cũng đang có triệu chứng bệnh này? Bấm vào đây để AI Plant Doctor chẩn đoán tức thì!</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onDirectDiagnosis}
-            className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl cursor-pointer transition-all flex items-center gap-2 uppercase font-mono tracking-wider shrink-0 shadow-md shadow-emerald-750/10"
+            className="px-5 py-3 min-h-[44px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 text-xs font-bold rounded-2xl cursor-pointer transition-all flex items-center gap-2 uppercase font-mono tracking-wider shrink-0 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
           >
             Chẩn Đoán Ngay <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Expert Callout Banner */}
-      <div className="pt-6 border-t border-stone-100">
-        <ExpertCalloutBanner onNavigateToDirectory={() => setCurrentPage("booking")} />
-      </div>
-
-      {/* Footer footer spacing */}
-      <div className="flex items-center justify-between border-t border-stone-100 pt-6">
-        <span className="text-[10px] text-stone-400 font-mono italic">Kiến thức vì cuộc sống xanh tươi • GreenLife</span>
+      {/* Footer spacing */}
+      <div className="flex items-center justify-between border-t border-[var(--gl-border)] pt-6">
+        <span className="text-[10px] text-[var(--gl-text-muted)] font-mono italic">Kiến thức vì cuộc sống xanh tươi • GreenLife</span>
         <button
+          type="button"
           onClick={onBack}
-          className="px-5 py-2.5 bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-600 hover:text-stone-800 rounded-xl text-xs font-bold cursor-pointer transition-all"
+          className="px-5 py-2.5 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] rounded-xl text-xs font-bold cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
         >
           Đóng bài đọc
         </button>
