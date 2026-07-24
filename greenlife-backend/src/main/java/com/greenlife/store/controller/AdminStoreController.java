@@ -1,5 +1,6 @@
 package com.greenlife.store.controller;
 
+import com.greenlife.store.dto.AdminStoreReviewResponse;
 import com.greenlife.store.dto.ApproveStoreRequest;
 import com.greenlife.store.dto.RejectStoreRequest;
 import com.greenlife.store.dto.StoreApprovalAuditResponse;
@@ -24,13 +25,13 @@ public class AdminStoreController {
     private final StoreService storeService;
 
     @GetMapping("/pending")
-    public ResponseEntity<List<StoreResponse>> getPendingStores() {
-        return ResponseEntity.ok(storeService.getPendingStores());
+    public ResponseEntity<List<AdminStoreReviewResponse>> getPendingStores() {
+        return ResponseEntity.ok(storeService.getPendingStoresForAdmin());
     }
 
     @GetMapping("/approved")
-    public ResponseEntity<List<StoreResponse>> getApprovedStores() {
-        return ResponseEntity.ok(storeService.getApprovedStores());
+    public ResponseEntity<List<AdminStoreReviewResponse>> getApprovedStores() {
+        return ResponseEntity.ok(storeService.getApprovedStoresForAdmin());
     }
 
     /**

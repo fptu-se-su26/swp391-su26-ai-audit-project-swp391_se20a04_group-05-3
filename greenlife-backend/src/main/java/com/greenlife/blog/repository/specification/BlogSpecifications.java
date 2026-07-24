@@ -31,7 +31,15 @@ public class BlogSpecifications {
 
     @SuppressWarnings("null")
     public static Specification<Blog> hasStatus(BlogStatus status) {
-        return (root, query, cb) -> status == null ? null : cb.equal(root.get("status"), status);
+        return (root, query, cb) -> {
+            if (status == null) {
+                return null;
+            }
+            if (status == BlogStatus.PENDING_REVIEW) {
+                return cb.equal(root.get("currentRevision").get("status"), BlogStatus.PENDING_REVIEW);
+            }
+            return cb.equal(root.get("status"), status);
+        };
     }
 
     @SuppressWarnings("null")

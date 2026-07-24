@@ -62,6 +62,9 @@ public class CustomerAddressService {
                 .ward(request.getWard())
                 .district(request.getDistrict())
                 .city(request.getCity())
+                .provinceCode(request.getProvinceCode())
+                .communeCode(request.getCommuneCode())
+                .communeName(request.getCommuneName())
                 .isDefault(shouldBeDefault)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -103,6 +106,9 @@ public class CustomerAddressService {
         address.setWard(request.getWard());
         address.setDistrict(request.getDistrict());
         address.setCity(request.getCity());
+        address.setProvinceCode(request.getProvinceCode());
+        address.setCommuneCode(request.getCommuneCode());
+        address.setCommuneName(request.getCommuneName());
         address.setIsDefault(requestedDefaultStatus);
         address.setUpdatedAt(LocalDateTime.now());
 
@@ -176,6 +182,9 @@ public class CustomerAddressService {
                 .ward(address.getWard())
                 .district(address.getDistrict())
                 .city(address.getCity())
+                .provinceCode(address.getProvinceCode())
+                .communeCode(address.getCommuneCode())
+                .communeName(address.getCommuneName())
                 .isDefault(address.getIsDefault())
                 .createdAt(address.getCreatedAt())
                 .updatedAt(address.getUpdatedAt())

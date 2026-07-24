@@ -19,6 +19,9 @@ public class AddressResponse {
     private String ward;
     private String district;
     private String city;
+    private String provinceCode;
+    private String communeCode;
+    private String communeName;
     private Boolean isDefault;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

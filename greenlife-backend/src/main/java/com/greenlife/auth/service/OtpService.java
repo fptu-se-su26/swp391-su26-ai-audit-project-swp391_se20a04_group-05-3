@@ -205,4 +205,128 @@ public class OtpService {
         userOtpRepository.deleteByUserAndPurpose(user, OtpPurpose.PASSWORD_RESET);
         userOtpRepository.flush();
     }
+
+    public static String normalizePartnerEmail(String email) {
+        if (email == null) {
+            return "";
+        }
+        return email.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    @Transactional
+    public String createSellerRegistrationOtp(User user, String targetEmail) {
+        String normEmail = normalizePartnerEmail(targetEmail);
+        LocalDateTime now = LocalDateTime.now();
+
+        // Enforce 10-minute resend limit (max 3 resends)
+        LocalDateTime tenMinutesAgo = now.minusMinutes(10);
+        long count = userOtpRepository.countByUserAndPurposeAndCreatedAtAfter(user, OtpPurpose.SELLER_REGISTRATION, tenMinutesAgo);
+        if (count >= 3) {
+            throw new CustomException("Bạn đã yêu cầu gửi mã OTP quá nhiều lần. Vui lòng thử lại sau 10 phút.", org.springframework.http.HttpStatus.TOO_MANY_REQUESTS);
+        }
+
+        // Lock & fetch existing SELLER_REGISTRATION OTPs for user
+        java.util.List<UserOtp> existingOtps = userOtpRepository.findByUserAndPurposeForUpdate(user, OtpPurpose.SELLER_REGISTRATION);
+        if (existingOtps != null && !existingOtps.isEmpty()) {
+            UserOtp latest = existingOtps.get(0);
+            // Check 60-second cooldown
+            if (now.isBefore(latest.getCreatedAt().plusSeconds(60))) {
+                throw new OtpRateLimitException("Yêu cầu gửi mã OTP quá nhanh. Vui lòng đợi 60 giây.");
+            }
+            // Invalidate prior active OTPs/proofs by setting expiresAt = now
+            for (UserOtp oldOtp : existingOtps) {
+                if (oldOtp.getExpiresAt().isAfter(now)) {
+                    oldOtp.setExpiresAt(now);
+                    userOtpRepository.save(oldOtp);
+                }
+            }
+        }
+
+        String plainOtp = generateOtp();
+        String hashedOtp = hashOtp(plainOtp + ":" + normEmail);
+
+        UserOtp userOtp = UserOtp.builder()
+                .user(user)
+                .otpHash(hashedOtp)
+                .purpose(OtpPurpose.SELLER_REGISTRATION)
+                .attempts(0)
+                .expiresAt(now.plusMinutes(OTP_EXPIRY_MINUTES))
+                .createdAt(now)
+                .build();
+
+        userOtpRepository.save(userOtp);
+        return plainOtp;
+    }
+
+    @Transactional
+    public void verifySellerRegistrationOtp(User user, String targetEmail, String otp) {
+        String normEmail = normalizePartnerEmail(targetEmail);
+        LocalDateTime now = LocalDateTime.now();
+
+        java.util.List<UserOtp> existingOtps = userOtpRepository.findByUserAndPurposeForUpdate(user, OtpPurpose.SELLER_REGISTRATION);
+        if (existingOtps == null || existingOtps.isEmpty()) {
+            throw new OtpInvalidException("Mã xác thực không tồn tại hoặc đã bị thu hồi.");
+        }
+
+        UserOtp latestOtp = existingOtps.get(0);
+        String expectedProofHash = hashOtp("VERIFIED:" + user.getId() + ":" + normEmail);
+
+        // Check if latest record is ALREADY a valid verified proof for this user + normEmail
+        if (latestOtp.getOtpHash().equals(expectedProofHash) && latestOtp.getExpiresAt().isAfter(now)) {
+            // Idempotent success: already verified and still valid
+            return;
+        }
+
+        // Check expiration
+        if (now.isAfter(latestOtp.getExpiresAt())) {
+            latestOtp.setExpiresAt(now);
+            userOtpRepository.save(latestOtp);
+            throw new OtpExpiredException("Mã xác thực đã hết hạn.");
+        }
+
+        // Compare SHA-256 hash of plainOtp + ":" + normEmail
+        String hashedInput = hashOtp(otp + ":" + normEmail);
+        if (latestOtp.getOtpHash().equals(hashedInput)) {
+            // Mark as verified proof!
+            latestOtp.setOtpHash(expectedProofHash);
+            latestOtp.setExpiresAt(now.plusMinutes(15)); // 15-minute window to complete registration
+            latestOtp.setAttempts(0);
+            userOtpRepository.save(latestOtp);
+        } else {
+            int currentAttempts = latestOtp.getAttempts() + 1;
+            latestOtp.setAttempts(currentAttempts);
+
+            if (currentAttempts >= 3) {
+                latestOtp.setExpiresAt(now);
+                userOtpRepository.save(latestOtp);
+                throw new OtpAttemptsExceededException("Bạn đã nhập sai mã OTP quá 3 lần. Vui lòng yêu cầu gửi lại mã mới.");
+            } else {
+                userOtpRepository.save(latestOtp);
+                throw new OtpInvalidException("Mã OTP không chính xác. Bạn còn " + (3 - currentAttempts) + " lần thử.");
+            }
+        }
+    }
+
+    @Transactional
+    public void consumeSellerRegistrationOtpProof(User user, String targetEmail) {
+        String normEmail = normalizePartnerEmail(targetEmail);
+        LocalDateTime now = LocalDateTime.now();
+
+        java.util.List<UserOtp> existingOtps = userOtpRepository.findByUserAndPurposeForUpdate(user, OtpPurpose.SELLER_REGISTRATION);
+        if (existingOtps == null || existingOtps.isEmpty()) {
+            throw new CustomException("Vui lòng xác thực mã OTP trước khi hoàn tất đăng ký cửa hàng", org.springframework.http.HttpStatus.BAD_REQUEST);
+        }
+
+        UserOtp latestOtp = existingOtps.get(0);
+        String expectedProofHash = hashOtp("VERIFIED:" + user.getId() + ":" + normEmail);
+
+        if (!latestOtp.getOtpHash().equals(expectedProofHash) || now.isAfter(latestOtp.getExpiresAt())) {
+            throw new CustomException("Vui lòng xác thực mã OTP trước khi hoàn tất đăng ký cửa hàng", org.springframework.http.HttpStatus.BAD_REQUEST);
+        }
+
+        // Consume proof by setting expiresAt = now (invalidating it for future registration calls)
+        // without deleting the record, preserving the 10-minute rate limit count history!
+        latestOtp.setExpiresAt(now);
+        userOtpRepository.save(latestOtp);
+    }
 }

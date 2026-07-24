@@ -10,6 +10,7 @@ import com.greenlife.user.repository.RoleRepository;
 import com.greenlife.store.repository.StoreApprovalAuditRepository;
 import com.greenlife.store.repository.StoreRepository;
 import com.greenlife.user.repository.UserRepository;
+import com.greenlife.auth.repository.UserOtpRepository;
 import com.greenlife.security.JwtService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,6 +65,12 @@ public class StoreKycIntegrationTest {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private UserOtpRepository userOtpRepository;
+
+    @Autowired
+    private com.greenlife.auth.service.OtpService otpService;
+
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     private org.springframework.mail.javamail.JavaMailSender javaMailSender;
 
@@ -95,6 +102,19 @@ public class StoreKycIntegrationTest {
                 .role(ownerRole)
                 .status(UserStatus.ACTIVE)
                 .emailVerified(true)
+                .build());
+
+        seedVerifiedProof();
+    }
+
+    private void seedVerifiedProof() {
+        String proofHash = otpService.hashOtp("VERIFIED:" + ownerUser.getId() + ":" + ownerEmail.toLowerCase());
+        userOtpRepository.save(com.greenlife.auth.entity.UserOtp.builder()
+                .user(ownerUser)
+                .otpHash(proofHash)
+                .purpose(com.greenlife.auth.entity.enums.OtpPurpose.SELLER_REGISTRATION)
+                .expiresAt(java.time.LocalDateTime.now().plusMinutes(15))
+                .createdAt(java.time.LocalDateTime.now())
                 .build());
     }
 
