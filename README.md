@@ -19,8 +19,8 @@
 |---:|---|---|---|---|---|
 | 1 | DE190622 | Trần Nhất Duy | tranduy132005 | Leader | Tester&Dev |
 | 2 | DE190354 | Nguyễn Thanh Hoàng | hoang-11 | Member | Dev |
-| 3 | DE190230 | Dương Thành Long | duonglong123 | Member | Dev |
-| 4 |DE190206 | Lê Văn Minh Phát |Hihihi13213  | Member | Dev |
+| 3 | DE190230 | Dương Thành Long | LongDT-05 | Member | Dev |
+| 4 |DE190206 | Lê Văn Minh Phát |PhatLeVM  | Member | Dev |
 
 ---
 
