@@ -75,8 +75,10 @@ public class AuthService {
     }
 
     public MessageResponse register(RegisterRequest request) {
-        // Validate role for public registration
-        String requestedRole = request.getRole().toUpperCase();
+        String requestedRole = request.getRole() != null ? request.getRole().trim().toUpperCase() : "CUSTOMER";
+        if ("ADMIN".equals(requestedRole)) {
+            throw new CustomException("Đăng ký vai trò ADMIN bị cấm", HttpStatus.BAD_REQUEST);
+        }
         if (!"CUSTOMER".equals(requestedRole) && !"STORE_OWNER".equals(requestedRole)) {
             throw new CustomException("Đăng ký vai trò này không được phép trên hệ thống công cộng", HttpStatus.BAD_REQUEST);
         }
@@ -471,7 +473,11 @@ public class AuthService {
         });
 
         if (result != null) {
-            emailService.sendPasswordResetOtp(result.email, result.otp);
+            try {
+                emailService.sendPasswordResetOtp(result.email, result.otp);
+            } catch (Exception e) {
+                log.error("Failed to send password reset OTP due to mail failure, swallowing to prevent account enumeration.");
+            }
         }
         return new MessageResponse("If the account exists, a password reset OTP has been sent");
     }
@@ -790,6 +796,32 @@ public class AuthService {
                 .userAgent(audit.getUserAgent())
                 .failureReason(audit.getFailureReason())
                 .timestamp(audit.getLoginTime())
+                .build();
+    }
+
+    @Transactional
+    public MessageResponse sendSellerOtp(ResendOtpRequest request, String userEmail) {
+        User user = userRepository.findByEmailForUpdate(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        String targetEmail = request.getEmail();
+        String plainOtp = otpService.createSellerRegistrationOtp(user, targetEmail);
+        emailService.sendSellerRegistrationOtp(OtpService.normalizePartnerEmail(targetEmail), plainOtp);
+
+        return MessageResponse.builder()
+                .message("Mã OTP xác thực người bán đã được gửi thành công")
+                .build();
+    }
+
+    @Transactional
+    public MessageResponse verifySellerOtp(VerifyOtpRequest request, String userEmail) {
+        User user = userRepository.findByEmailForUpdate(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        otpService.verifySellerRegistrationOtp(user, request.getEmail(), request.getOtp());
+
+        return MessageResponse.builder()
+                .message("Xác thực OTP đăng ký bán hàng thành công")
                 .build();
     }
 

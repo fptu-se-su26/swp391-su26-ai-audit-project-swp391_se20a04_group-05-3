@@ -47,6 +47,18 @@ public class Store {
     @Column(name = "verification_document", length = 500)
     private String verificationDocument;
 
+    @Column(name = "business_type", length = 50)
+    private String businessType;
+
+    @Column(name = "cccd_front_url", length = 500)
+    private String cccdFrontUrl;
+
+    @Column(name = "cccd_back_url", length = 500)
+    private String cccdBackUrl;
+
+    @Column(name = "business_evidence_urls", columnDefinition = "NVARCHAR(MAX)")
+    private String businessEvidenceUrls;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default

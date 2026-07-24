@@ -13,8 +13,12 @@ import java.util.Optional;
 
 public interface UserOtpRepository extends JpaRepository<UserOtp, Long> {
 
-    @Query("SELECT o FROM UserOtp o WHERE o.user = :user AND o.purpose = :purpose ORDER BY o.createdAt DESC")
+    @Query("SELECT o FROM UserOtp o WHERE o.user = :user AND o.purpose = :purpose ORDER BY o.createdAt DESC, o.id DESC")
     List<UserOtp> findByUserAndPurposeOrderByCreatedAtDesc(@Param("user") User user, @Param("purpose") OtpPurpose purpose);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM UserOtp o WHERE o.user = :user AND o.purpose = :purpose ORDER BY o.createdAt DESC, o.id DESC")
+    List<UserOtp> findByUserAndPurposeForUpdate(@Param("user") User user, @Param("purpose") OtpPurpose purpose);
 
     default Optional<UserOtp> findByUserAndPurpose(User user, OtpPurpose purpose) {
         List<UserOtp> list = findByUserAndPurposeOrderByCreatedAtDesc(user, purpose);
@@ -22,6 +26,8 @@ public interface UserOtpRepository extends JpaRepository<UserOtp, Long> {
     }
 
     long countByUserAndCreatedAtAfter(User user, LocalDateTime time);
+
+    long countByUserAndPurposeAndCreatedAtAfter(User user, OtpPurpose purpose, LocalDateTime time);
 
     void deleteByUserAndPurpose(User user, OtpPurpose purpose);
 
