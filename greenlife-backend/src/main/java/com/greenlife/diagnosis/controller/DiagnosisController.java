@@ -30,10 +30,11 @@ public class DiagnosisController {
     public ResponseEntity<DiagnosisResponse> createDiagnosis(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "plantId", required = false) Integer plantId,
+            @RequestParam(value = "userContext", required = false) String userContext,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         User user = currentUserResolver.resolveUser(userDetails);
-        DiagnosisHistory history = diagnosisService.createDiagnosis(user, file, plantId);
+        DiagnosisHistory history = diagnosisService.createDiagnosis(user, file, plantId, userContext);
         return ResponseEntity.ok(diagnosisService.convertToResponse(history, true));
     }
 

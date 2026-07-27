@@ -57,6 +57,7 @@ export class AIDiagnosisService {
       disclaimer: backend.disclaimer || "",
       expertReviewRecommended: backend.expertReviewRecommended !== undefined ? backend.expertReviewRecommended : false,
       escalationReason: backend.escalationReason || null,
+      userContext: backend.userContext || null,
       recommendedProducts: backend.recommendedProducts || [],
       recommendedServices: backend.recommendedServices || [],
       provider: backend.provider || null,
@@ -85,10 +86,14 @@ export class AIDiagnosisService {
    */
   public static async diagnosePlantLeaf(
     file: File | Blob,
+    userContext?: string,
     signal?: AbortSignal
   ): Promise<DiagnosisLog> {
     const formData = new FormData();
     formData.append("file", file);
+    if (userContext && userContext.trim()) {
+      formData.append("userContext", userContext.trim());
+    }
 
     const data = await HttpClient.post("/api/diagnoses", formData, { signal });
     return this.mapBackendToDiagnosisLog(data);

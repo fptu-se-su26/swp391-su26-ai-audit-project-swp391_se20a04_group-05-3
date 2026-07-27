@@ -183,26 +183,40 @@ export const Chatbot: React.FC = () => {
     prevMessagesCountRef.current = messages.length;
   }, [messages, isOpen]);
 
-  const renderFormattedText = (text: string, isUserMessage: boolean) => {
+  const formatBotText = (rawText: string) => {
+    if (!rawText) return "";
+    return rawText
+      .replace(/(?<=[.\:!\?;\n])\s+(?=(?:\d+[\.\)]|[•\-\*])\s+)/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  };
+
+  const renderFormattedText = (rawText: string, isUserMessage: boolean) => {
+    const text = isUserMessage ? rawText : formatBotText(rawText);
     const lines = text.split("\n");
     return lines.map((line, lIdx) => {
+      const trimmedLine = line.trim();
+      const isListItem = /^(?:\d+[\.\)]|[•\-\*])\s+/.test(trimmedLine);
       const parts = line.split(/(\*\*.*?\*\*)/g);
+
       return (
         <React.Fragment key={lIdx}>
-          {parts.map((part, pIdx) => {
-            if (part.startsWith("**") && part.endsWith("**")) {
-              const boldContent = part.slice(2, -2);
-              return (
-                <strong
-                  key={pIdx}
-                  className={isUserMessage ? "font-bold text-white" : "font-semibold text-[var(--gl-accent)]"}
-                >
-                  {boldContent}
-                </strong>
-              );
-            }
-            return part;
-          })}
+          <span className={isListItem && !isUserMessage ? "block mt-1 mb-0.5 font-medium" : ""}>
+            {parts.map((part, pIdx) => {
+              if (part.startsWith("**") && part.endsWith("**")) {
+                const boldContent = part.slice(2, -2);
+                return (
+                  <strong
+                    key={pIdx}
+                    className={isUserMessage ? "font-bold text-white" : "font-semibold text-[var(--gl-accent)]"}
+                  >
+                    {boldContent}
+                  </strong>
+                );
+              }
+              return part;
+            })}
+          </span>
           {lIdx < lines.length - 1 && <br />}
         </React.Fragment>
       );
@@ -228,22 +242,24 @@ export const Chatbot: React.FC = () => {
     setIsTyping(true);
 
     try {
+      const currentRouteName = window.location.pathname.replace(/^\//, '') || 'home';
       const response = await HttpClient.post("/api/ai/chat", {
-        message: text.trim(),
-        history: messages.slice(-6).map((m) => ({
-          role: m.sender === "user" ? "user" : "assistant",
-          content: m.text
-        }))
+        question: text.trim(),
+        currentRoute: currentRouteName
       });
 
-      const data = response.data;
-      if (data && data.reply) {
+      const replyText = typeof response === "string" 
+        ? response 
+        : (response?.answer || response?.reply || response?.data?.answer || response?.data?.reply || response?.message);
+
+      if (replyText) {
+        const actions = (response?.suggestedActions || response?.data?.suggestedActions || []);
         const botMsg: Message = {
           id: `bot-${Date.now()}`,
-          text: data.reply,
+          text: replyText,
           sender: "bot",
           timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
-          suggestedActions: data.suggestedActions || []
+          suggestedActions: actions
         };
         setMessages((prev) => {
           const combined = [...prev, botMsg];
@@ -254,7 +270,7 @@ export const Chatbot: React.FC = () => {
           setHasUnread(true);
         }
       } else {
-        throw new Error("Phản hồi không hợp lệ từ máy chủ.");
+        throw new Error("Phản hồi từ dịch vụ AI bị trống.");
       }
     } catch (err: any) {
       logger.error("Chatbot API Error:", err);
