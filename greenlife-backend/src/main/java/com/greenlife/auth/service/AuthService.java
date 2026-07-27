@@ -1,0 +1,865 @@
+package com.greenlife.auth.service;
+
+import com.greenlife.common.dto.MessageResponse;
+import com.greenlife.common.service.EmailService;
+import com.greenlife.security.dto.RequestMetadata;
+import com.greenlife.auth.dto.*;
+import com.greenlife.user.dto.UserResponse;
+import com.greenlife.auth.entity.LoginAudit;
+import com.greenlife.auth.repository.LoginAuditRepository;
+import com.greenlife.auth.entity.PasswordHistory;
+import com.greenlife.auth.entity.RefreshToken;
+import com.greenlife.user.entity.Role;
+import com.greenlife.auth.entity.SecurityAudit;
+import com.greenlife.user.entity.User;
+import com.greenlife.auth.entity.enums.LoginFailureReason;
+import com.greenlife.auth.entity.enums.SecurityAuditAction;
+import com.greenlife.user.entity.enums.UserStatus;
+import com.greenlife.exception.*;
+import com.greenlife.auth.repository.PasswordHistoryRepository;
+import com.greenlife.auth.repository.RefreshTokenRepository;
+import com.greenlife.user.repository.RoleRepository;
+import com.greenlife.auth.repository.SecurityAuditRepository;
+import com.greenlife.user.repository.UserRepository;
+import com.greenlife.security.JwtService;
+import com.greenlife.security.JwtBlacklistService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.List;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import org.springframework.beans.factory.annotation.Value;
+
+@Service
+@RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
+    private final OtpService otpService;
+    private final EmailService emailService;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordHistoryRepository passwordHistoryRepository;
+    private final SecurityAuditRepository securityAuditRepository;
+    private final LoginAuditRepository loginAuditRepository;
+    private final SecurityAuditService securityAuditService;
+    private final SecurityMonitoringService securityMonitoringService;
+    private final JwtBlacklistService jwtBlacklistService;
+    private final TransactionTemplate transactionTemplate;
+
+    @Value("${greenlife.google.client-id:}")
+    private String googleClientId;
+
+    private GoogleIdTokenVerifier getGoogleVerifier() {
+        if (googleClientId == null || googleClientId.trim().isEmpty()) {
+            throw new IllegalStateException("Google Client ID is not configured");
+        }
+        return new GoogleIdTokenVerifier.Builder(new com.google.api.client.http.javanet.NetHttpTransport(), new com.google.api.client.json.gson.GsonFactory())
+                .setAudience(java.util.Collections.singletonList(googleClientId))
+                .build();
+    }
+
+    public MessageResponse register(RegisterRequest request) {
+        String requestedRole = request.getRole() != null ? request.getRole().trim().toUpperCase() : "CUSTOMER";
+        if ("ADMIN".equals(requestedRole)) {
+            throw new CustomException("Đăng ký vai trò ADMIN bị cấm", HttpStatus.BAD_REQUEST);
+        }
+        if (!"CUSTOMER".equals(requestedRole) && !"STORE_OWNER".equals(requestedRole)) {
+            throw new CustomException("Đăng ký vai trò này không được phép trên hệ thống công cộng", HttpStatus.BAD_REQUEST);
+        }
+
+        class RegisterResult {
+            String email;
+            String otp;
+        }
+
+        RegisterResult result = transactionTemplate.execute(status -> {
+            String normEmail = request.getEmail().toLowerCase().trim();
+            // Check unique email or allow resend if PENDING_VERIFICATION
+            Optional<User> existingUserOpt = userRepository.findByEmail(normEmail);
+            if (existingUserOpt.isPresent()) {
+                User existingUser = existingUserOpt.get();
+                if (existingUser.getStatus() == UserStatus.PENDING_VERIFICATION) {
+                    // Generate OTP
+                    String otp = otpService.createVerificationOtp(existingUser);
+                    RegisterResult r = new RegisterResult();
+                    r.email = existingUser.getEmail();
+                    r.otp = otp;
+                    return r;
+                } else {
+                    throw new CustomException("Email đã được sử dụng bởi tài khoản khác", HttpStatus.BAD_REQUEST);
+                }
+            }
+
+            // Get Role entity
+            Role roleEntity = roleRepository.findByName(requestedRole)
+                    .orElseThrow(() -> new CustomException("Vai trò " + requestedRole + " không tồn tại trong hệ thống", HttpStatus.BAD_REQUEST));
+
+            // Create User entity
+            User user = User.builder()
+                    .fullName(request.getFullName())
+                    .email(normEmail)
+                    .passwordHash(passwordEncoder.encode(request.getPassword()))
+                    .phone(request.getPhone())
+                    .address(request.getAddress())
+                    .role(roleEntity)
+                    .status(UserStatus.PENDING_VERIFICATION) // New users must verify email first
+                    .emailVerified(false)
+                    .build();
+
+            User savedUser = userRepository.save(user);
+
+            // Generate OTP
+            String otp = otpService.createVerificationOtp(savedUser);
+
+            RegisterResult r = new RegisterResult();
+            r.email = savedUser.getEmail();
+            r.otp = otp;
+            return r;
+        });
+
+        // Send email outside the transaction context
+        if (result != null) {
+            emailService.sendVerificationOtp(result.email, result.otp);
+        }
+
+        return MessageResponse.builder()
+                .message("Registration successful. Please verify your email.")
+                .build();
+    }
+
+    @Transactional
+    public MessageResponse verifyOtp(VerifyOtpRequest request) {
+        String normEmail = request.getEmail().toLowerCase().trim();
+        User user = userRepository.findByEmail(normEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        otpService.verifyOtp(user, request.getOtp());
+
+        return MessageResponse.builder()
+                .message("Email verified successfully")
+                .build();
+    }
+
+    public MessageResponse resendOtp(ResendOtpRequest request) {
+        class OtpResult {
+            String email;
+            String otp;
+        }
+
+        String normEmail = request.getEmail().toLowerCase().trim();
+        OtpResult result = transactionTemplate.execute(status -> {
+            User user = userRepository.findByEmail(normEmail)
+                    .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+            String otp = otpService.resendVerificationOtp(user);
+            OtpResult r = new OtpResult();
+            r.email = user.getEmail();
+            r.otp = otp;
+            return r;
+        });
+
+        if (result != null) {
+            emailService.sendVerificationOtp(result.email, result.otp);
+        }
+
+        return MessageResponse.builder()
+                .message("OTP resent successfully")
+                .build();
+    }
+
+    private static final String DUMMY_BCRYPT_HASH = "$2a$10$x.Xz4lqgX1HnB7z0p1xOueQWJcZq6Q7dI0jH.wB9o9kF.uR5r0i2e";
+
+    public LoginResult login(LoginRequest request, RequestMetadata metadata) {
+        String normEmail = request.getEmail().toLowerCase().trim();
+        // Find user first to check status
+        User user = userRepository.findByEmail(normEmail)
+                .orElseThrow(() -> {
+                    // Timing-attack mitigation
+                    passwordEncoder.matches(request.getPassword(), DUMMY_BCRYPT_HASH);
+
+                    try {
+                        securityAuditService.recordLoginAudit(null, normEmail, false, 
+                                metadata.ipAddress(), metadata.userAgent(), LoginFailureReason.INVALID_CREDENTIALS);
+                    } catch (Exception e) {
+                        log.warn("Non-critical login audit failed: {}", e.getMessage());
+                    }
+                    try {
+                        securityMonitoringService.checkFailedLogins(null, normEmail);
+                    } catch (Exception e) {
+                        log.warn("Non-critical security monitoring failed: {}", e.getMessage());
+                    }
+                    return new BadCredentialsException("Email hoặc mật khẩu không chính xác");
+                });
+
+        // Validate account state first
+        if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
+            try {
+                securityAuditService.recordLoginAudit(user, normEmail, false, 
+                        metadata.ipAddress(), metadata.userAgent(), LoginFailureReason.EMAIL_NOT_VERIFIED);
+            } catch (Exception e) {
+                log.warn("Non-critical login audit failed: {}", e.getMessage());
+            }
+            try {
+                securityAuditService.recordSecurityAudit(user, SecurityAuditAction.LOGIN_FAILED, "Failed login attempt: email not verified");
+            } catch (Exception e) {
+                log.warn("Non-critical security audit failed: {}", e.getMessage());
+            }
+            throw new EmailNotVerifiedException("Tài khoản chưa được xác thực email");
+        }
+
+        if (user.getStatus() == UserStatus.DISABLED) {
+            try {
+                securityAuditService.recordLoginAudit(user, normEmail, false, 
+                        metadata.ipAddress(), metadata.userAgent(), LoginFailureReason.ACCOUNT_DISABLED);
+            } catch (Exception e) {
+                log.warn("Non-critical login audit failed: {}", e.getMessage());
+            }
+            try {
+                securityAuditService.recordSecurityAudit(user, SecurityAuditAction.LOGIN_FAILED, "Failed login attempt: account disabled");
+            } catch (Exception e) {
+                log.warn("Non-critical security audit failed: {}", e.getMessage());
+            }
+            throw new AccountDisabledException("Tài khoản đã bị vô hiệu hóa");
+        }
+
+        boolean shouldUnlock = false;
+        if (user.getStatus() == UserStatus.LOCKED) {
+            if (user.getLockoutEnd() != null && user.getLockoutEnd().isAfter(LocalDateTime.now())) {
+                try {
+                    securityAuditService.recordLoginAudit(user, normEmail, false, 
+                            metadata.ipAddress(), metadata.userAgent(), LoginFailureReason.ACCOUNT_LOCKED);
+                } catch (Exception e) {
+                    log.warn("Non-critical login audit failed: {}", e.getMessage());
+                }
+                try {
+                    securityAuditService.recordSecurityAudit(user, SecurityAuditAction.LOGIN_FAILED, "Failed login attempt: account locked");
+                } catch (Exception e) {
+                    log.warn("Non-critical security audit failed: {}", e.getMessage());
+                }
+                long minutesLeft = java.time.Duration.between(LocalDateTime.now(), user.getLockoutEnd()).toMinutes() + 1;
+                throw new AccountLockedException("Tài khoản của bạn đã bị khóa. Vui lòng thử lại sau " + minutesLeft + " phút.");
+            } else {
+                shouldUnlock = true;
+            }
+        }
+
+        // Authenticate (slow CPU step, executed without holding database connection)
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()
+                    )
+            );
+        } catch (BadCredentialsException e) {
+            // Record failed login audit first
+            try {
+                securityAuditService.recordLoginAudit(user, normEmail, false, 
+                        metadata.ipAddress(), metadata.userAgent(), LoginFailureReason.INVALID_CREDENTIALS);
+            } catch (Exception auditEx) {
+                log.warn("Non-critical login audit failed: {}", auditEx.getMessage());
+            }
+            try {
+                securityAuditService.recordSecurityAudit(user, SecurityAuditAction.LOGIN_FAILED, "Failed login attempt: invalid credentials");
+            } catch (Exception auditEx) {
+                log.warn("Non-critical security audit failed: {}", auditEx.getMessage());
+            }
+
+            // Monitor suspicious logins
+            try {
+                securityMonitoringService.checkFailedLogins(user, normEmail);
+            } catch (Exception monitorEx) {
+                log.warn("Non-critical security monitoring failed: {}", monitorEx.getMessage());
+            }
+
+            final boolean finalShouldUnlock = shouldUnlock;
+            final Integer userId = user.getId();
+            transactionTemplate.execute(status -> {
+                User u = userRepository.findById(userId).orElseThrow();
+                int newAttempts = (finalShouldUnlock ? 0 : u.getFailedLoginAttempts()) + 1;
+                if (newAttempts >= 5) {
+                    try {
+                        securityAuditService.recordSecurityAudit(u, SecurityAuditAction.ACCOUNT_LOCKED, "Account locked out due to too many failed attempts");
+                    } catch (Exception auditEx) {
+                        log.warn("Non-critical security audit failed: {}", auditEx.getMessage());
+                    }
+                    u.setStatus(UserStatus.LOCKED);
+                    u.setLockoutEnd(LocalDateTime.now().plusMinutes(15));
+                } else if (finalShouldUnlock) {
+                    u.setStatus(UserStatus.ACTIVE);
+                    u.setLockoutEnd(null);
+                }
+                u.setFailedLoginAttempts(newAttempts);
+                return userRepository.save(u);
+            });
+
+            throw new BadCredentialsException("Email hoặc mật khẩu không chính xác");
+        }
+
+        // Record successful login audits first
+        try {
+            securityAuditService.recordLoginAudit(user, normEmail, true, 
+                    metadata.ipAddress(), metadata.userAgent(), null);
+        } catch (Exception auditEx) {
+            log.warn("Non-critical login audit failed: {}", auditEx.getMessage());
+        }
+        try {
+            securityAuditService.recordSecurityAudit(user, SecurityAuditAction.LOGIN_SUCCESS, "Successful login from IP: " + metadata.ipAddress());
+        } catch (Exception auditEx) {
+            log.warn("Non-critical security audit failed: {}", auditEx.getMessage());
+        }
+
+        // Check for suspicious activity: IP Hopping
+        try {
+            securityMonitoringService.checkIpHopping(user, metadata.ipAddress());
+        } catch (Exception monitorEx) {
+            log.warn("Non-critical security monitoring failed: {}", monitorEx.getMessage());
+        }
+
+        // Reset attempts on successful login and save
+        final boolean finalShouldUnlock = shouldUnlock;
+        final Integer userId = user.getId();
+        String accessToken = jwtService.generateToken(user);
+        String rawRefreshToken = generateRawToken();
+        String tokenHash = hashToken(rawRefreshToken);
+
+        User savedUser = transactionTemplate.execute(status -> {
+            User u = userRepository.findById(userId).orElseThrow();
+            u.setFailedLoginAttempts(0);
+            u.setLockoutEnd(null);
+            if (finalShouldUnlock) {
+                u.setStatus(UserStatus.ACTIVE);
+            }
+            u.setLastLoginAt(LocalDateTime.now());
+            u.setLastLoginIp(metadata.ipAddress());
+            User saved = userRepository.save(u);
+
+            RefreshToken refreshToken = RefreshToken.builder()
+                    .user(saved)
+                    .tokenHash(tokenHash)
+                    .expiresAt(LocalDateTime.now().plusDays(7))
+                    .revoked(false)
+                    .build();
+            refreshTokenRepository.save(refreshToken);
+            return saved;
+        });
+
+        AuthResponse authResponse = AuthResponse.builder()
+                .accessToken(accessToken)
+                .tokenType("Bearer")
+                .user(mapToUserResponse(savedUser))
+                .build();
+
+        return LoginResult.builder()
+                .authResponse(authResponse)
+                .rawRefreshToken(rawRefreshToken)
+                .build();
+    }
+
+    @Transactional(noRollbackFor = RefreshTokenReplayAttackException.class)
+    public RefreshResult refresh(String rawRefreshToken) {
+        if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
+            throw new CustomException("Refresh token is missing", HttpStatus.UNAUTHORIZED);
+        }
+
+        String tokenHash = hashToken(rawRefreshToken);
+        Optional<RefreshToken> tokenOpt = refreshTokenRepository.findByTokenHash(tokenHash);
+
+        if (tokenOpt.isEmpty()) {
+            throw new CustomException("Invalid refresh token", HttpStatus.UNAUTHORIZED);
+        }
+
+        RefreshToken token = tokenOpt.get();
+
+        // Replay attack handling
+        if (Boolean.TRUE.equals(token.getRevoked())) {
+            Integer userId = token.getUser().getId();
+            refreshTokenRepository.revokeAllUserTokens(userId);
+            securityMonitoringService.handleRefreshTokenFailure(token.getUser(), "Token replay attack detected");
+            throw new RefreshTokenReplayAttackException("Refresh token has been revoked. Reauthentication required.");
+        }
+
+        // Check expiration
+        if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new CustomException("Refresh token has expired", HttpStatus.UNAUTHORIZED);
+        }
+
+        // Rotate: mark current token as revoked
+        token.setRevoked(true);
+        refreshTokenRepository.save(token);
+
+        // Generate new tokens
+        User user = token.getUser();
+        String newAccessToken = jwtService.generateToken(user);
+        String newRawRefreshToken = generateRawToken();
+        String newHash = hashToken(newRawRefreshToken);
+
+        RefreshToken newRefreshToken = RefreshToken.builder()
+                .user(user)
+                .tokenHash(newHash)
+                .expiresAt(LocalDateTime.now().plusDays(7))
+                .revoked(false)
+                .build();
+
+        refreshTokenRepository.save(newRefreshToken);
+
+        AuthResponse authResponse = AuthResponse.builder()
+                .accessToken(newAccessToken)
+                .tokenType("Bearer")
+                .user(mapToUserResponse(user))
+                .build();
+
+        return RefreshResult.builder()
+                .authResponse(authResponse)
+                .newRawRefreshToken(newRawRefreshToken)
+                .build();
+    }
+
+    @Transactional
+    public void logout(String rawRefreshToken) {
+        logout(rawRefreshToken, null);
+    }
+
+    @Transactional
+    public void logout(String rawRefreshToken, String accessToken) {
+        if (rawRefreshToken != null && !rawRefreshToken.isBlank()) {
+            String tokenHash = hashToken(rawRefreshToken);
+            refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(token -> {
+                token.setRevoked(true);
+                refreshTokenRepository.save(token);
+            });
+        }
+        if (accessToken != null && !accessToken.isBlank()) {
+            jwtBlacklistService.blacklistToken(accessToken);
+        }
+    }
+
+    public MessageResponse forgotPassword(ForgotPasswordRequest request) {
+        class ResetResult {
+            String email;
+            String otp;
+        }
+
+        String normEmail = request.getEmail().toLowerCase().trim();
+        ResetResult result = transactionTemplate.execute(status -> {
+            Optional<User> userOpt = userRepository.findByEmail(normEmail);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                if (user.getStatus() == UserStatus.ACTIVE || user.getStatus() == UserStatus.LOCKED) {
+                    String otp = otpService.createPasswordResetOtp(user);
+                    ResetResult r = new ResetResult();
+                    r.email = user.getEmail();
+                    r.otp = otp;
+                    return r;
+                }
+            }
+            return null;
+        });
+
+        if (result != null) {
+            try {
+                emailService.sendPasswordResetOtp(result.email, result.otp);
+            } catch (Exception e) {
+                log.error("Failed to send password reset OTP due to mail failure, swallowing to prevent account enumeration.");
+            }
+        }
+        return new MessageResponse("If the account exists, a password reset OTP has been sent");
+    }
+
+    @Transactional
+    public MessageResponse resetPassword(ResetPasswordRequest request) {
+        if (request.getResetToken() != null && !request.getResetToken().isBlank()) {
+            // Secure JWT-based reset flow
+            String email = jwtService.extractEmailFromResetToken(request.getResetToken());
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+            jwtService.verifyPasswordResetToken(request.getResetToken(), user.getPasswordHash());
+
+            verifyPasswordNotReused(user, request.getNewPassword());
+            recordPasswordHistory(user, user.getPasswordHash());
+
+            user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+            user.setFailedLoginAttempts(0);
+            user.setLockoutEnd(null);
+            if (user.getStatus() == UserStatus.LOCKED) {
+                user.setStatus(UserStatus.ACTIVE);
+            }
+            userRepository.save(user);
+
+            refreshTokenRepository.revokeAllUserTokens(user.getId());
+            recordSecurityAudit(user, SecurityAuditAction.PASSWORD_RESET, "Password reset successfully via secure JWT token verification flow");
+            return new MessageResponse("Password reset successfully");
+        } else {
+            // Traditional OTP-based flow (for backward compatibility and tests)
+            if (request.getNewPassword() == null || request.getConfirmPassword() == null ||
+                !request.getNewPassword().equals(request.getConfirmPassword())) {
+                throw new PasswordMismatchException("Passwords do not match");
+            }
+            if (request.getEmail() == null || request.getEmail().isBlank()) {
+                throw new CustomException("Email không được để trống", HttpStatus.BAD_REQUEST);
+            }
+            if (request.getOtp() == null || request.getOtp().isBlank()) {
+                throw new CustomException("Mã OTP không được để trống", HttpStatus.BAD_REQUEST);
+            }
+
+            User user = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new PasswordResetOtpInvalidException("Invalid OTP or reset information"));
+
+            if (user.getStatus() != UserStatus.ACTIVE && user.getStatus() != UserStatus.LOCKED) {
+                throw new PasswordResetOtpInvalidException("Invalid OTP or reset information");
+            }
+
+            otpService.verifyPasswordResetOtp(user, request.getOtp());
+            verifyPasswordNotReused(user, request.getNewPassword());
+            recordPasswordHistory(user, user.getPasswordHash());
+
+            user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+            user.setFailedLoginAttempts(0);
+            user.setLockoutEnd(null);
+            if (user.getStatus() == UserStatus.LOCKED) {
+                user.setStatus(UserStatus.ACTIVE);
+            }
+
+            userRepository.save(user);
+            refreshTokenRepository.revokeAllUserTokens(user.getId());
+            otpService.consumePasswordResetOtp(user);
+            recordSecurityAudit(user, SecurityAuditAction.PASSWORD_RESET, "Password reset successfully via OTP verification flow");
+
+            return new MessageResponse("Password reset successfully");
+        }
+    }
+
+    @Transactional
+    public ResetTokenResponse verifyResetOtp(VerifyOtpRequest request) {
+        String normEmail = request.getEmail().toLowerCase().trim();
+        User user = userRepository.findByEmail(normEmail)
+                .orElseThrow(() -> new PasswordResetOtpInvalidException("Invalid OTP or reset information"));
+
+        if (user.getStatus() != UserStatus.ACTIVE && user.getStatus() != UserStatus.LOCKED) {
+            throw new PasswordResetOtpInvalidException("Invalid OTP or reset information");
+        }
+
+        otpService.verifyPasswordResetOtp(user, request.getOtp());
+        
+        // Generate password reset token
+        String resetToken = jwtService.generatePasswordResetToken(user);
+        
+        // Consume OTP
+        otpService.consumePasswordResetOtp(user);
+        
+        return ResetTokenResponse.builder().resetToken(resetToken).build();
+    }
+
+    public LoginResult googleLogin(String idTokenString, RequestMetadata metadata) {
+        if (googleClientId == null || googleClientId.trim().isEmpty() ||
+            googleClientId.startsWith("YOUR_") || googleClientId.startsWith("your-") ||
+            googleClientId.contains("placeholder")) {
+            throw new CustomException("Google authentication is currently unavailable", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+
+        // ── Step 1: Verify Google token (external HTTPS call — no DB connection held here) ──
+        final GoogleIdToken.Payload payload;
+        try {
+            GoogleIdTokenVerifier verifier = getGoogleVerifier();
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+            if (idToken == null) {
+                throw new CustomException("Google authentication is currently unavailable", HttpStatus.BAD_REQUEST);
+            }
+            payload = idToken.getPayload();
+        } catch (CustomException ce) {
+            throw ce;
+        } catch (Exception e) {
+            throw new CustomException("Google authentication is currently unavailable", HttpStatus.BAD_REQUEST);
+        }
+
+        if (payload.getEmailVerified() == null || !payload.getEmailVerified()) {
+            throw new CustomException("Tài khoản Google chưa được xác thực email", HttpStatus.BAD_REQUEST);
+        }
+
+        final String email = payload.getEmail().toLowerCase().trim();
+        final String name = (String) payload.get("name");
+        final String pictureUrl = (String) payload.get("picture");
+
+        // ── Step 2: DB work in a minimal transaction (connection acquired AFTER Google call) ──
+        class GoogleLoginResult {
+            User user;
+            String accessToken;
+            String rawRefreshToken;
+        }
+
+        GoogleLoginResult glResult = transactionTemplate.execute(status -> {
+            // Look up or auto-register user
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            User user;
+            if (userOpt.isPresent()) {
+                user = userOpt.get();
+                if (user.getStatus() == UserStatus.DISABLED) {
+                    throw new AccountDisabledException("Tài khoản đã bị vô hiệu hóa");
+                }
+                // Automatically activate and verify if they log in via Google
+                if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
+                    user.setStatus(UserStatus.ACTIVE);
+                    user.setEmailVerified(true);
+                    userRepository.save(user);
+                }
+            } else {
+                // Auto register verified Customer
+                Role customerRole = roleRepository.findByName("CUSTOMER")
+                        .orElseThrow(() -> new CustomException("Customer role not found", HttpStatus.INTERNAL_SERVER_ERROR));
+
+                user = User.builder()
+                        .fullName(name != null ? name : email.split("@")[0])
+                        .email(email)
+                        .passwordHash(passwordEncoder.encode(generateRawToken())) // random strong password
+                        .avatarUrl(pictureUrl)
+                        .role(customerRole)
+                        .status(UserStatus.ACTIVE)
+                        .emailVerified(true)
+                        .build();
+                user = userRepository.save(user);
+            }
+
+            user.setFailedLoginAttempts(0);
+            user.setLockoutEnd(null);
+            user.setLastLoginAt(LocalDateTime.now());
+            user.setLastLoginIp(metadata.ipAddress());
+            User savedUser = userRepository.save(user);
+
+            String accessToken = jwtService.generateToken(savedUser);
+            String rawRefreshToken = generateRawToken();
+            String tokenHash = hashToken(rawRefreshToken);
+
+            RefreshToken refreshToken = RefreshToken.builder()
+                    .user(savedUser)
+                    .tokenHash(tokenHash)
+                    .expiresAt(LocalDateTime.now().plusDays(7))
+                    .revoked(false)
+                    .build();
+            refreshTokenRepository.save(refreshToken);
+
+            GoogleLoginResult r = new GoogleLoginResult();
+            r.user = savedUser;
+            r.accessToken = accessToken;
+            r.rawRefreshToken = rawRefreshToken;
+            return r;
+        });
+
+        // ── Step 3: Non-critical audit writes outside the main transaction ──
+        // These use REQUIRES_NEW internally and acquire separate connections briefly.
+        // Wrapped in try-catch so a transient DB hiccup never fails the login response.
+        if (glResult != null) {
+            try {
+                securityAuditService.recordLoginAudit(glResult.user, email, true,
+                        metadata.ipAddress(), metadata.userAgent(), null);
+            } catch (Exception auditEx) {
+                log.warn("Non-critical Google login audit (loginAudit) failed: {}", auditEx.getMessage());
+            }
+            try {
+                securityAuditService.recordSecurityAudit(glResult.user, SecurityAuditAction.LOGIN_SUCCESS,
+                        "Successful Google login from IP: " + metadata.ipAddress());
+            } catch (Exception auditEx) {
+                log.warn("Non-critical Google login audit (securityAudit) failed: {}", auditEx.getMessage());
+            }
+
+            AuthResponse authResponse = AuthResponse.builder()
+                    .accessToken(glResult.accessToken)
+                    .tokenType("Bearer")
+                    .user(mapToUserResponse(glResult.user))
+                    .build();
+
+            return LoginResult.builder()
+                    .authResponse(authResponse)
+                    .rawRefreshToken(glResult.rawRefreshToken)
+                    .build();
+        }
+
+        throw new CustomException("Google authentication is currently unavailable", HttpStatus.BAD_REQUEST);
+    }
+
+    @Transactional(noRollbackFor = IncorrectPasswordException.class)
+    public void changePassword(ChangePasswordRequest request, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            recordSecurityAudit(user, SecurityAuditAction.PASSWORD_CHANGE_FAILED, "Incorrect current password attempted");
+            throw new IncorrectPasswordException("Incorrect current password");
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new PasswordMismatchException("Passwords do not match");
+        }
+
+        verifyPasswordNotReused(user, request.getNewPassword());
+
+        recordPasswordHistory(user, user.getPasswordHash());
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        refreshTokenRepository.revokeAllUserTokens(user.getId());
+
+        recordSecurityAudit(user, SecurityAuditAction.PASSWORD_CHANGED, "Password changed successfully via Change Password API");
+    }
+
+    private void verifyPasswordNotReused(User user, String newPassword) {
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new PasswordReuseException("Cannot reuse any of your last 5 passwords");
+        }
+
+        List<PasswordHistory> histories = passwordHistoryRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(0, 5));
+        for (PasswordHistory history : histories) {
+            if (passwordEncoder.matches(newPassword, history.getPasswordHash())) {
+                throw new PasswordReuseException("Cannot reuse any of your last 5 passwords");
+            }
+        }
+    }
+
+    private void recordPasswordHistory(User user, String oldHash) {
+        PasswordHistory history = PasswordHistory.builder()
+                .user(user)
+                .passwordHash(oldHash)
+                .createdAt(LocalDateTime.now())
+                .build();
+        passwordHistoryRepository.save(history);
+
+        List<PasswordHistory> histories = passwordHistoryRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+        if (histories.size() > 5) {
+            List<PasswordHistory> toDelete = histories.subList(5, histories.size());
+            passwordHistoryRepository.deleteAll(toDelete);
+        }
+    }
+
+    private void recordSecurityAudit(User user, SecurityAuditAction action, String details) {
+        securityAuditRepository.save(SecurityAudit.builder()
+                .user(user)
+                .action(action)
+                .details(details)
+                .createdAt(LocalDateTime.now())
+                .build());
+    }
+
+    public UserResponse getMe(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+        return mapToUserResponse(user);
+    }
+
+    @SuppressWarnings("null")
+    public SecurityHistoryResponse getSecurityHistory(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        List<LoginAudit> audits = loginAuditRepository.findTop20ByUserIdOrderByLoginTimeDesc(user.getId());
+
+        List<LoginAuditResponse> successful = audits.stream()
+                .filter(LoginAudit::isSuccess)
+                .map(this::mapToLoginAuditResponse)
+                .toList();
+
+        List<LoginAuditResponse> failed = audits.stream()
+                .filter(la -> !la.isSuccess())
+                .map(this::mapToLoginAuditResponse)
+                .toList();
+
+        return SecurityHistoryResponse.builder()
+                .lastLoginAt(user.getLastLoginAt())
+                .lastLoginIp(user.getLastLoginIp())
+                .recentSuccessfulLogins(successful)
+                .recentFailedLogins(failed)
+                .build();
+    }
+
+    private LoginAuditResponse mapToLoginAuditResponse(LoginAudit audit) {
+        return LoginAuditResponse.builder()
+                .id(audit.getId())
+                .email(audit.getEmail())
+                .success(audit.isSuccess())
+                .ipAddress(audit.getIpAddress())
+                .userAgent(audit.getUserAgent())
+                .failureReason(audit.getFailureReason())
+                .timestamp(audit.getLoginTime())
+                .build();
+    }
+
+    @Transactional
+    public MessageResponse sendSellerOtp(ResendOtpRequest request, String userEmail) {
+        User user = userRepository.findByEmailForUpdate(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        String targetEmail = request.getEmail();
+        String plainOtp = otpService.createSellerRegistrationOtp(user, targetEmail);
+        emailService.sendSellerRegistrationOtp(OtpService.normalizePartnerEmail(targetEmail), plainOtp);
+
+        return MessageResponse.builder()
+                .message("Mã OTP xác thực người bán đã được gửi thành công")
+                .build();
+    }
+
+    @Transactional
+    public MessageResponse verifySellerOtp(VerifyOtpRequest request, String userEmail) {
+        User user = userRepository.findByEmailForUpdate(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        otpService.verifySellerRegistrationOtp(user, request.getEmail(), request.getOtp());
+
+        return MessageResponse.builder()
+                .message("Xác thực OTP đăng ký bán hàng thành công")
+                .build();
+    }
+
+    private UserResponse mapToUserResponse(User user) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .address(user.getAddress())
+                .avatarUrl(user.getAvatarUrl())
+                .role(user.getRole().getName())
+                .status(user.getStatus())
+                .emailVerified(user.getEmailVerified())
+                .build();
+    }
+
+    private String generateRawToken() {
+        byte[] randomBytes = new byte[32];
+        new java.security.SecureRandom().nextBytes(randomBytes);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    }
+
+    private String hashToken(String token) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Error hashing token", e);
+        }
+    }
+}

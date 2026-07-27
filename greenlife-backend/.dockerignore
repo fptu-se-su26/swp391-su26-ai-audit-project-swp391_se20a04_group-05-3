@@ -1,0 +1,34 @@
+# Build artifacts
+target/
+*.jar
+*.war
+
+# Version control
+.git/
+.gitignore
+
+# IDE config files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.class
+
+# Logs
+logs/
+*.log
+
+# Local files & uploads
+uploads/
+local-uploads/
+debug_html.txt
+.env
+.env.*
+
+# Testing & debugging artifacts
+src/test/
+pom.xml.releaseBackup
+release.properties

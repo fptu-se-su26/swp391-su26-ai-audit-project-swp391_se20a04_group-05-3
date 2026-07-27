@@ -1,10 +1,10 @@
 import { useAppContext } from "../context/AppContext";
 
 export const useCart = () => {
-  const { cart, addToCart, updateCartQuantity, removeFromCart, clearCart } = useAppContext();
+  const { cart, cartSubtotal, addToCart, updateCartQuantity, removeFromCart, clearCart } = useAppContext();
 
-  // Optimized memorized totals
-  const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  // Use the backend-calculated promotional subtotal directly
+  const cartTotal = cartSubtotal;
   const cartItemCount = cart.reduce((count, item) => count + item.quantity, 0);
   
   // Computes carbon reductions based on standard GreenLife metrics (avg 1.5kg CO2 offset per organic item)

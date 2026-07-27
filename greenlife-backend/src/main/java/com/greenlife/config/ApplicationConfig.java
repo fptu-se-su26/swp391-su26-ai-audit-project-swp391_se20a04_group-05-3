@@ -1,6 +1,6 @@
 package com.greenlife.config;
 
-import com.greenlife.repository.UserRepository;
+import com.greenlife.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,7 +21,7 @@ public class ApplicationConfig {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        return username -> userRepository.findByEmail(username)
+        return username -> userRepository.findByEmail(username.toLowerCase().trim())
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với email: " + username));
     }
 

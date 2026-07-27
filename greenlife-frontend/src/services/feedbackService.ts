@@ -1,16 +1,42 @@
 import { Feedback } from "../types";
+import { HttpClient } from "./httpClient";
+import { logger } from "../utils/logger";
+
+function parseProductId(productId: string): number {
+  if (!productId) {
+    throw new Error("Mã sản phẩm không được để trống.");
+  }
+  if (/^\d+$/.test(productId)) {
+    return parseInt(productId, 10);
+  }
+  if (productId.startsWith("prod-")) {
+    const numericPart = productId.substring(5);
+    if (/^\d+$/.test(numericPart)) {
+      return parseInt(numericPart, 10);
+    }
+  }
+  throw new Error(`Định dạng mã sản phẩm không hợp lệ: ${productId}`);
+}
 
 export const FeedbackService = {
   async getProductFeedbacks(productId: string): Promise<Feedback[]> {
     try {
-      const response = await fetch(`/api/feedbacks/product/${productId}`);
-      const data = await response.json();
-      if (data.success) {
-        return data.feedbacks;
-      }
-      return [];
+      const plantId = parseProductId(productId);
+      const data = await HttpClient.get<any>(`/api/reviews/plants/${plantId}`);
+      const content = data.content || [];
+      return content.map((item: any) => ({
+        id: item.id,
+        productId: productId,
+        userId: item.customerDisplayName || "Anonymous",
+        orderId: "",
+        rating: item.rating,
+        comment: item.comment,
+        images: [],
+        createdAt: item.createdAt ? item.createdAt.split("T")[0] : new Date().toISOString().split("T")[0],
+        userName: item.customerDisplayName || "Anonymous"
+      }));
     } catch (err) {
-      console.error("Failed to load feedbacks:", err);
+      logger.error("Failed to load feedbacks:", err);
       return [];
     }
   },
@@ -24,27 +50,22 @@ export const FeedbackService = {
     images: string[];
   }): Promise<{ success: boolean; message: string }> {
     try {
-      const storedUser = localStorage.getItem("greenlife_current_user");
-      const token = storedUser ? JSON.parse(storedUser).token : null;
-
-      const response = await fetch("/api/feedbacks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(feedbackData),
-      });
-      const data = await response.json();
-      return {
-        success: data.success,
-        message: data.message || data.error || "Gặp sự cố khi gửi đánh giá.",
+      const plantId = parseProductId(feedbackData.productId);
+      const payload = {
+        plantId: plantId,
+        rating: feedbackData.rating,
+        comment: feedbackData.comment
       };
-    } catch (err) {
-      console.error("Failed to submit feedback:", err);
+      await HttpClient.post<any>("/api/reviews", payload);
+      return {
+        success: true,
+        message: "Đánh giá đã được gửi thành công.",
+      };
+    } catch (err: any) {
+      logger.error("Failed to submit feedback:", err);
       return {
         success: false,
-        message: "Lỗi kết nối hệ thống khi gửi đánh giá.",
+        message: err.message || "Lỗi kết nối hệ thống khi gửi đánh giá.",
       };
     }
   },

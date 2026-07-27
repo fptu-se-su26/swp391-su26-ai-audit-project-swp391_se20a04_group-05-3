@@ -1,0 +1,20 @@
+# IDE
+.vscode/
+
+# Frontend
+greenlife-frontend/node_modules/
+greenlife-frontend/dist/
+
+# Backend
+greenlife-backend/target/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db

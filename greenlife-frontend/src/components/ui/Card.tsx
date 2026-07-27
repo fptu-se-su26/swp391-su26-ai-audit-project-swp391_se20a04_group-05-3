@@ -5,9 +5,13 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className = "",
   ...props
 }) => {
+  const isClickable = Boolean(props.onClick);
+
   return (
     <div
-      className={`bg-stone-950 border border-stone-850 hover:border-stone-700 rounded-2xl overflow-hidden shadow-xl transition-all ${className}`}
+      className={`bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)] border border-[var(--gl-border-subtle)] rounded-2xl overflow-hidden shadow-sm transition-all duration-200 ${
+        isClickable ? "hover:border-[var(--gl-border)] cursor-pointer" : ""
+      } ${className}`}
       {...props}
     >
       {children}
@@ -22,7 +26,7 @@ export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 }) => {
   return (
     <div
-      className={`p-5 pb-3 border-b border-stone-850 flex flex-col gap-1.5 ${className}`}
+      className={`p-5 pb-3 border-b border-[var(--gl-border-subtle)] flex flex-col gap-1.5 ${className}`}
       {...props}
     >
       {children}
@@ -49,7 +53,7 @@ export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 }) => {
   return (
     <div
-      className={`p-5 pt-3 border-t border-stone-850 flex items-center justify-between ${className}`}
+      className={`p-5 pt-3 border-t border-[var(--gl-border-subtle)] flex items-center justify-between ${className}`}
       {...props}
     >
       {children}

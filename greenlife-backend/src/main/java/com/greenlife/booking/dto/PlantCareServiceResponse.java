@@ -1,0 +1,27 @@
+package com.greenlife.booking.dto;
+
+import com.greenlife.booking.entity.enums.ServiceStatus;
+import lombok.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class PlantCareServiceResponse {
+    private Integer id;
+    private Integer storeId;
+    private String storeName;
+    private String storeCity;
+    private String storeDistrict;
+    private String storeAddress;
+    private String storePhone;
+    private String name;
+    private String description;
+    private BigDecimal price;
+    private Integer durationMinutes;
+    private ServiceStatus status;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}

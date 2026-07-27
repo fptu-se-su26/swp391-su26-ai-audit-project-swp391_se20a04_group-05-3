@@ -1,5 +1,8 @@
 import { useAppContext } from "../context/AppContext";
 
+/**
+ * Hook to access authentication state and operations from the central AppContext.
+ */
 export const useAuth = () => {
   const { currentUser, userRole, switchRole, login, logout, loading } = useAppContext();
 
