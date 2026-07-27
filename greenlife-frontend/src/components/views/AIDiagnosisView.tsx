@@ -135,7 +135,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
     setActiveReport(null);
 
     try {
-      const logResult = await diagnose(selectedFile, userContext);
+      const logResult = await diagnose(selectedFile, userContext.trim() || undefined);
 
       if (fileBase64 && !logResult.imageUrl) {
         logResult.imageUrl = fileBase64;
@@ -323,22 +323,25 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
             </ul>
           </div>
 
-          {/* User Additional Description Textarea */}
-          <div className="space-y-1.5">
+          {/* Additional User Context Input */}
+          <div className="space-y-2 text-left">
             <div className="flex items-center justify-between text-xs font-semibold text-[var(--gl-text-secondary)]">
-              <label htmlFor="plant-user-context">Mô tả thêm về cây (tùy chọn)</label>
+              <label htmlFor="userContextInput" className="cursor-pointer">
+                Thông tin bổ sung (không bắt buộc)
+              </label>
               <span className="text-[11px] font-mono text-[var(--gl-text-muted)]">
                 {userContext.length}/500
               </span>
             </div>
             <textarea
-              id="plant-user-context"
-              rows={3}
-              maxLength={500}
+              id="userContextInput"
               value={userContext}
               onChange={(e) => setUserContext(e.target.value)}
-              placeholder="Ví dụ: cây trồng trong chậu khoảng 3 tháng, gần đây tưới nhiều nước hơn bình thường, lá vàng bắt đầu xuất hiện từ 1 tuần trước..."
-              className="w-full p-3 text-xs bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder-[var(--gl-text-muted)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--gl-focus-ring)] focus:border-[var(--gl-accent)] resize-y transition-all"
+              disabled={isScanning}
+              maxLength={500}
+              rows={3}
+              placeholder="Mô tả triệu chứng quan sát thấy, chế độ tưới nước, ánh sáng hoặc môi trường trồng..."
+              className="w-full p-3 text-xs bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] disabled:bg-[var(--gl-bg-muted)] disabled:text-[var(--gl-text-muted)] resize-none transition-all placeholder:text-[var(--gl-text-muted)]"
             />
           </div>
 
@@ -422,6 +425,18 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
                       </p>
                     )}
                   </div>
+
+                  {/* Display User Provided Context if present */}
+                  {activeReport.userContext && (
+                    <div className="space-y-2 bg-[var(--gl-bg-muted)] p-4 sm:p-5 rounded-2xl border border-[var(--gl-border)]">
+                      <h4 className="text-xs font-bold text-[var(--gl-text-primary)] flex items-center gap-1.5 uppercase font-mono tracking-wider">
+                        Thông tin bạn đã cung cấp
+                      </h4>
+                      <p className="text-xs text-[var(--gl-text-secondary)] leading-relaxed whitespace-pre-wrap break-words">
+                        {activeReport.userContext}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Checklist Hướng Dẫn Chụp Ảnh */}
                   <div className="space-y-3 bg-[var(--gl-bg-muted)] p-4 sm:p-5 rounded-2xl border border-[var(--gl-border)]">
@@ -532,15 +547,15 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
                     )}
                   </div>
 
-                  {/* Section 0: Mô tả từ người dùng (nếu có) */}
+                  {/* Section 0: Thông tin người dùng đã cung cấp */}
                   {activeReport.userContext && (
                     <div className="space-y-2">
                       <h4 className="text-xs text-[var(--gl-text-muted)] font-mono uppercase tracking-widest font-bold flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-[var(--gl-accent)]" />
-                        Mô tả từ người dùng
+                        Thông tin bạn đã cung cấp
                       </h4>
-                      <p className="text-xs text-[var(--gl-text-secondary)] leading-relaxed bg-[var(--gl-bg-muted)] p-4 rounded-xl border border-[var(--gl-border)] italic break-words">
-                        "{activeReport.userContext}"
+                      <p className="text-xs text-[var(--gl-text-secondary)] leading-relaxed bg-[var(--gl-bg-muted)] p-4 rounded-xl border border-[var(--gl-border)] whitespace-pre-wrap break-words">
+                        {activeReport.userContext}
                       </p>
                     </div>
                   )}

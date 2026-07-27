@@ -57,7 +57,7 @@ export class AIDiagnosisService {
       disclaimer: backend.disclaimer || "",
       expertReviewRecommended: backend.expertReviewRecommended !== undefined ? backend.expertReviewRecommended : false,
       escalationReason: backend.escalationReason || null,
-      userContext: backend.userContext || null,
+      userContext: backend.userContext ?? null,
       recommendedProducts: backend.recommendedProducts || [],
       recommendedServices: backend.recommendedServices || [],
       provider: backend.provider || null,
@@ -84,18 +84,33 @@ export class AIDiagnosisService {
   /**
    * Evaluates plant photo uploading, producing health score and pathology diagnosis
    */
+  public static async diagnosePlantLeaf(file: File | Blob, signal?: AbortSignal): Promise<DiagnosisLog>;
+  public static async diagnosePlantLeaf(file: File | Blob, userContext?: string, signal?: AbortSignal): Promise<DiagnosisLog>;
   public static async diagnosePlantLeaf(
     file: File | Blob,
-    userContext?: string,
+    userContextOrSignal?: string | AbortSignal,
     signal?: AbortSignal
   ): Promise<DiagnosisLog> {
+    let userContext: string | undefined;
+    let actualSignal: AbortSignal | undefined = signal;
+
+    if (typeof userContextOrSignal === "string") {
+      userContext = userContextOrSignal;
+    } else if (
+      userContextOrSignal instanceof AbortSignal ||
+      (userContextOrSignal && typeof userContextOrSignal === "object" && "aborted" in userContextOrSignal)
+    ) {
+      actualSignal = userContextOrSignal as AbortSignal;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
+
     if (userContext && userContext.trim()) {
       formData.append("userContext", userContext.trim());
     }
 
-    const data = await HttpClient.post("/api/diagnoses", formData, { signal });
+    const data = await HttpClient.post("/api/diagnoses", formData, { signal: actualSignal });
     return this.mapBackendToDiagnosisLog(data);
   }
 
