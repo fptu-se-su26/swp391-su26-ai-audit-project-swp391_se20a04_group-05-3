@@ -11,11 +11,29 @@ export interface Product {
   specs: Record<string, string>;
   stock: number;
   shopId?: string;
+  sku?: string;
+  isBestSeller?: boolean;
+  effectivePrice?: number;
+  discountAmount?: number;
+  onSale?: boolean;
+  promotionId?: number;
+  promotionName?: string;
+  status?: string;
 }
 
 export interface CartItem {
+  id?: number;
   product: Product;
   quantity: number;
+  baseUnitPrice?: number;
+  effectiveUnitPrice?: number;
+  unitDiscount?: number;
+  lineBaseAmount?: number;
+  lineEffectiveAmount?: number;
+  lineDiscountAmount?: number;
+  onSale?: boolean;
+  promotionId?: number;
+  promotionName?: string;
 }
 
 export interface DiagnosisLog {
@@ -30,7 +48,26 @@ export interface DiagnosisLog {
   imageUrl: string;
   accuracy?: number; // percent confidence 0-100
   notes?: string;
+
+  // Structured response fields from backend
+  diagnosable?: boolean;
+  uncertaintyReason?: string | null;
+  observedSymptoms?: string | null;
+  possibleCauses?: string | null;
+  alternativeDiagnoses?: string[];
+  treatmentSteps?: string[];
+  preventionSteps?: string[];
+  urgentWarning?: string | null;
+  disclaimer?: string;
+  expertReviewRecommended?: boolean;
+  escalationReason?: string | null;
+  userContext?: string | null;
+  recommendedProducts?: any[];
+  recommendedServices?: any[];
+  provider?: string | null;
+  model?: string | null;
 }
+
 
 export interface Appointment {
   id: string;
@@ -40,11 +77,45 @@ export interface Appointment {
   time: string;
   type: "online" | "offline";
   price: number;
-  status: "pending" | "confirmed" | "completed";
+  status: "pending" | "confirmed" | "in_progress" | "completed" | "cancelled";
   durationMinutes?: number;
   expertAvatar?: string;
   userNotes?: string;
+  customerId?: number | string;
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  issueDescription?: string;
+  storeId?: number;
+  serviceId?: number;
+  serviceAddress?: string;
+  customerNote?: string;
+  cancelReason?: string;
+  confirmedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+export interface PlantCareService {
+  id: number;
+  storeId: number;
+  storeName: string;
+  storeCity: string;
+  storeDistrict: string;
+  storeAddress: string;
+  storePhone: string;
+  name: string;
+  description: string;
+  price: number;
+  durationMinutes: number;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 
 export interface BlogPost {
   id: string;
@@ -59,19 +130,87 @@ export interface BlogPost {
   likes?: number;
   views?: number;
   taggedProductIds?: string[];
+  status?: string;
 }
 
-export interface Expert {
-  id: string | number;
-  name: string;
+export interface BlogPostAuthor {
+  id: number;
+  fullName: string;
+  email: string;
+}
+
+export interface BlogRevisionDto {
+  id: number;
+  revisionNumber: number;
   title: string;
-  specialty: string[];
-  location: string;
-  avatar: string;
-  phone: string;
-  zaloLink: string;
-  facebookLink: string;
-  bio: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface BlogModerationHistoryDto {
+  id: number;
+  actorName: string;
+  action: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface AuthorBlogResponse {
+  id: number;
+  title: string;
+  slug: string;
+  category: string;
+  summary: string;
+  content: string;
+  imageUrl: string;
+  readingTime: number;
+  status: string;
+  currentRevisionStatus: string;
+  reviewerNote: string | null;
+  hasPublishedVersion: boolean;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  version: number;
+  author: BlogPostAuthor;
+  revisions: BlogRevisionDto[];
+  history: BlogModerationHistoryDto[];
+}
+
+export interface AdminBlogReviewResponse {
+  id: number;
+  author: BlogPostAuthor;
+  authorRole: string;
+  hasStoreBadge: boolean;
+  title: string;
+  slug: string;
+  category: string;
+  summary: string;
+  content: string;
+  imageUrl: string;
+  readingTime: number;
+  status: string;
+  currentRevisionStatus: string;
+  version: number;
+  submittedAt: string | null;
+  createdAt: string;
+  previousPublished: {
+    title: string;
+    summary: string;
+    content: string;
+    imageUrl: string;
+    category: string;
+  } | null;
+  history: BlogModerationHistoryDto[];
+}
+
+export interface ImportDocumentResponse {
+  suggestedTitle: string;
+  contentHtml: string;
+  sourceType: string;
+  sourceFileName: string;
+  warnings: string[];
 }
 
 export interface StoreOrder {
@@ -79,8 +218,30 @@ export interface StoreOrder {
   customerName: string;
   date: string;
   total: number;
-  status: "pending" | "processing" | "shipped" | "cancelled";
+  status: "pending" | "processing" | "shipped" | "cancelled" | "completed" | "received" | "return_requested" | "return_approved" | "return_rejected";
   itemsCount: number;
+  recipientPhone?: string;
+  shippingAddress?: string;
+  note?: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  paymentUrl?: string | null;
+  paymentProvider?: string;
+  payosCheckoutUrl?: string | null;
+  payosQrCode?: string | null;
+  items?: string;
+  backendStatus?: string;
+  returnRejectReason?: string;
+  returnRequestReason?: string;
+  returnRequestReasonCode?: string;
+  evidenceImages?: string[];
+  itemsList?: Array<{
+    productId: string;
+    productName: string;
+    imageUrl: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
 }
 
 export interface EnergySimulation {
@@ -119,8 +280,11 @@ export interface UserAddress {
   fullname: string;
   phone: string;
   province: string;
-  district: string;
+  provinceCode?: string;
+  district?: string;
   ward: string;
+  communeCode?: string;
+  communeName?: string;
   detail_address: string;
   is_default: boolean;
   is_pickup: boolean;
@@ -175,4 +339,22 @@ export interface Feedback {
   createdAt: string;
   userName?: string;
 }
+
+export interface NotificationItem {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  referenceType: "ORDER" | "PAYMENT" | "REVIEW" | "PLANT" | "STORE" | "SYSTEM" | "BOOKING";
+  referenceId: number;
+  isRead: boolean;
+  createdAt: string;
+  readAt?: string;
+}
+
+export interface BroadcastRequest {
+  title: string;
+  message: string;
+}
+
 
