@@ -354,4 +354,78 @@ class DiagnosisServiceTest {
             verify(fileStorageService, never()).deleteFile(any());
         }
     }
+
+    @Test
+    void testCreateDiagnosis_ValidUserContext_NormalizedAndSaved() throws Exception {
+        org.springframework.test.util.ReflectionTestUtils.setField(diagnosisService, "dailyDiagnosisLimit", 5);
+        User customer = User.builder().id(10).email("customer@test.com").build();
+        org.springframework.web.multipart.MultipartFile mockFile = mock(org.springframework.web.multipart.MultipartFile.class);
+        when(mockFile.getOriginalFilename()).thenReturn("leaf.jpg");
+        when(mockFile.getBytes()).thenReturn(new byte[]{1, 2, 3});
+
+        when(diagnosisHistoryRepository.countByCustomerIdAndCreatedAtAfter(anyInt(), any())).thenReturn(0L);
+        when(diagnosisHistoryRepository.countByCustomerId(anyInt())).thenReturn(0L);
+        when(fileStorageService.storeDiagnosisImage(mockFile)).thenReturn("/uploads/diagnoses/leaf.jpg");
+
+        DiagnosisResult mockResult = DiagnosisResult.builder()
+                .plantName("Cây Sen Đá")
+                .diseaseName("Thối rễ")
+                .confidenceScore(BigDecimal.valueOf(90.0))
+                .severity(Severity.MEDIUM)
+                .result("Thối rễ")
+                .recommendation("Xử lý nấm")
+                .diagnosable(true)
+                .recommendationCategories(Collections.emptyList())
+                .build();
+
+        when(plantDiseaseClassifier.classify("leaf.jpg", new byte[]{1, 2, 3}, "Cây bị héo lá")).thenReturn(mockResult);
+
+        var mockRecResult = new DiagnosisRecommendationService.RecommendationResult(
+                Collections.emptyList(), Collections.emptyList(), false, null
+        );
+        when(diagnosisRecommendationService.resolveRecommendations(any(), any(), any(), any(), any())).thenReturn(mockRecResult);
+
+        ArgumentCaptor<DiagnosisHistory> historyCaptor = ArgumentCaptor.forClass(DiagnosisHistory.class);
+        when(diagnosisHistoryRepository.saveAndFlush(historyCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        DiagnosisHistory history = diagnosisService.createDiagnosis(customer, mockFile, null, "  Cây bị héo lá  ");
+
+        assertNotNull(history);
+        assertEquals("Cây bị héo lá", history.getUserContext());
+        verify(plantDiseaseClassifier, times(1)).classify("leaf.jpg", new byte[]{1, 2, 3}, "Cây bị héo lá");
+    }
+
+    @Test
+    void testCreateDiagnosis_UserContextExceeds500Chars_ThrowsBadRequestBeforeStorage() {
+        org.springframework.test.util.ReflectionTestUtils.setField(diagnosisService, "dailyDiagnosisLimit", 5);
+        User customer = User.builder().id(10).email("customer@test.com").build();
+        org.springframework.web.multipart.MultipartFile mockFile = mock(org.springframework.web.multipart.MultipartFile.class);
+
+        String longContext = "a".repeat(501);
+
+        CustomException exception = assertThrows(CustomException.class, () -> {
+            diagnosisService.createDiagnosis(customer, mockFile, null, longContext);
+        });
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        assertTrue(exception.getMessage().contains("500"));
+        verify(fileStorageService, never()).storeDiagnosisImage(any());
+        verify(plantDiseaseClassifier, never()).classify(any(), any(), any());
+    }
+
+    @Test
+    void testCreateDiagnosis_DailyLimitUsesConfiguredValue() {
+        org.springframework.test.util.ReflectionTestUtils.setField(diagnosisService, "dailyDiagnosisLimit", 5);
+        User customer = User.builder().id(10).email("customer@test.com").build();
+        org.springframework.web.multipart.MultipartFile mockFile = mock(org.springframework.web.multipart.MultipartFile.class);
+
+        when(diagnosisHistoryRepository.countByCustomerIdAndCreatedAtAfter(eq(10), any())).thenReturn(5L);
+
+        CustomException exception = assertThrows(CustomException.class, () -> {
+            diagnosisService.createDiagnosis(customer, mockFile, null, null);
+        });
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, exception.getStatus());
+        assertTrue(exception.getMessage().contains("5 lượt/ngày"));
+    }
 }

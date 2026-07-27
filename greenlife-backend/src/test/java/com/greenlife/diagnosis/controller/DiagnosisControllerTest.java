@@ -41,4 +41,24 @@ class DiagnosisControllerTest {
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         assertNull(response.getBody());
     }
+
+    @Test
+    void testCreateDiagnosis_PassesUserContextToService() {
+        UserDetails userDetails = mock(UserDetails.class);
+        User customer = User.builder().id(10).email("customer@test.com").build();
+        org.springframework.web.multipart.MultipartFile mockFile = mock(org.springframework.web.multipart.MultipartFile.class);
+        com.greenlife.diagnosis.entity.DiagnosisHistory mockHistory = com.greenlife.diagnosis.entity.DiagnosisHistory.builder().id(1).userContext("Test context").build();
+        com.greenlife.diagnosis.dto.DiagnosisResponse mockResponse = com.greenlife.diagnosis.dto.DiagnosisResponse.builder().id(1).userContext("Test context").build();
+
+        when(currentUserResolver.resolveUser(userDetails)).thenReturn(customer);
+        when(diagnosisService.createDiagnosis(customer, mockFile, 5, "Test context")).thenReturn(mockHistory);
+        when(diagnosisService.convertToResponse(mockHistory, true)).thenReturn(mockResponse);
+
+        ResponseEntity<com.greenlife.diagnosis.dto.DiagnosisResponse> response = diagnosisController.createDiagnosis(mockFile, 5, "Test context", userDetails);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("Test context", response.getBody().getUserContext());
+        verify(diagnosisService, times(1)).createDiagnosis(customer, mockFile, 5, "Test context");
+    }
 }
