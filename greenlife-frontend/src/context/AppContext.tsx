@@ -91,7 +91,7 @@ interface AppContextType {
   toggleWishlist: (productId: number) => Promise<void>;
 
   // Event dispatchers
-  diagnosePlant: (file: File | Blob) => Promise<DiagnosisLog>;
+  diagnosePlant: (file: File | Blob, userContext?: string) => Promise<DiagnosisLog>;
   addNewProduct: (product: Product) => void;
   deleteDiagnosisRecord: (id: string) => Promise<void>;
   cancelBooking: (id: string) => Promise<void>;
@@ -977,10 +977,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
-  const diagnosePlant = useCallback(async (file: File | Blob) => {
+  const diagnosePlant = useCallback(async (file: File | Blob, userContext?: string) => {
     setLoading((prev) => ({ ...prev, diagnosis: true }));
     try {
-      const newDiag = await AIDiagnosisService.diagnosePlantLeaf(file);
+      const newDiag = await AIDiagnosisService.diagnosePlantLeaf(file, userContext);
       setDiagnosisLogs((prev) => [newDiag, ...prev]);
       return newDiag;
     } catch (err) {

@@ -46,6 +46,11 @@ public class DiagnosisService {
 
     @Transactional
     public DiagnosisHistory createDiagnosis(User customer, MultipartFile file, Integer plantId) {
+        return createDiagnosis(customer, file, plantId, null);
+    }
+
+    @Transactional
+    public DiagnosisHistory createDiagnosis(User customer, MultipartFile file, Integer plantId, String userContext) {
         if (customer == null) {
             throw new CustomException("Unauthorized", HttpStatus.UNAUTHORIZED);
         }
@@ -75,8 +80,8 @@ public class DiagnosisService {
             // 4. Save image to disk
             relativeUrl = fileStorageService.storeDiagnosisImage(file);
 
-            // 5. Classify image using original filename and bytes
-            DiagnosisResult result = plantDiseaseClassifier.classify(file.getOriginalFilename(), file.getBytes());
+            // 5. Classify image using original filename, bytes, and userContext
+            DiagnosisResult result = plantDiseaseClassifier.classify(file.getOriginalFilename(), file.getBytes(), userContext);
 
             // Override with mandatory server disclaimer
             String serverDisclaimer = "Kết quả được AI phân tích từ hình ảnh và chỉ mang tính tham khảo. Tình trạng thực tế có thể cần thêm thông tin hoặc kiểm tra trực tiếp. Để có kết luận và phương án xử lý chính xác hơn, người dùng nên đặt dịch vụ tư vấn với cửa hàng hoặc chuyên gia GreenLife.";
@@ -117,6 +122,7 @@ public class DiagnosisService {
                     .expertReviewRecommended(recommendationResult.isExpertReviewRecommended())
                     .escalationReason(recommendationResult.getEscalationReason())
                     .recommendationCategories(serializeList(result.getRecommendationCategories()))
+                    .userContext(userContext != null && !userContext.isBlank() ? userContext.trim() : null)
                     .deleted(false)
                     .build();
 
@@ -341,6 +347,7 @@ public class DiagnosisService {
                 .escalationReason(friendlyEscalation)
                 .diagnosable(history.getDiagnosable())
                 .uncertaintyReason(history.getUncertaintyReason())
+                .userContext(history.getUserContext())
                 .createdAt(history.getCreatedAt())
                 .build();
     }

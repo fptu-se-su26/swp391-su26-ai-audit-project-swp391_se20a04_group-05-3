@@ -62,6 +62,10 @@ public class GeminiProviderService {
     }
 
     public DiagnosisResult classifyImage(byte[] imageBytes, String mimeType) {
+        return classifyImage(imageBytes, mimeType, null);
+    }
+
+    public DiagnosisResult classifyImage(byte[] imageBytes, String mimeType, String userContext) {
         if (!enabled) {
             throw new CustomException("Dịch vụ AI chẩn đoán chưa được kích hoạt.", HttpStatus.SERVICE_UNAVAILABLE);
         }
@@ -101,6 +105,10 @@ public class GeminiProviderService {
                 "4. Giá trị của \"recommendationCategories\" chỉ được phép chọn từ danh sách sau: PLANT_HEALTH_INSPECTION, EXPERT_CONSULTATION, PEST_CONTROL, FUNGAL_DISEASE_CARE, NUTRITION_AND_FERTILIZATION, WATERING_AND_DRAINAGE, SOIL_AND_ROOT_CARE, PRUNING_AND_RECOVERY, GENERAL_PLANT_CARE. Không thêm các giá trị khác ngoài danh sách này.\n" +
                 "5. Nếu \"diagnosable\" là false, \"diseaseName\" KHÔNG ĐƯỢC chứa tên bệnh cụ thể nào.\n" +
                 "6. Trả về kết quả CHỈ là chuỗi JSON hợp lệ, không chứa các ký tự định dạng markdown như ```json hoặc ``` ở đầu và cuối.";
+
+        if (userContext != null && !userContext.isBlank()) {
+            systemInstruction += "\n\nThông tin người trồng cung cấp: " + userContext.trim() + "\nHãy ưu tiên đối chiếu thông tin người trồng cung cấp với các giả thuyết bệnh lý phù hợp (thiếu/thừa nước, thiếu dinh dưỡng, sâu bệnh...) thay vì chỉ suy luận từ ảnh.";
+        }
 
         log.info("Sending plant disease diagnosis request to Gemini provider using model: {}", model);
 
