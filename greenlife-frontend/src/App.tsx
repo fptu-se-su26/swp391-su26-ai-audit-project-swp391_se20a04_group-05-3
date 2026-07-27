@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from "react";
+import React, { useState, useRef, useEffect, Suspense, lazy } from "react";
 import { Navigation, Footer } from "./components/common/Navigation";
 import { HomeView } from "./components/views/HomeView";
 import { BlogView } from "./components/views/BlogView";
@@ -37,7 +37,6 @@ export default function App() {
     appointments,
     diagnosisLogs,
     addNewProduct,
-    bookExpert,
     diagnosePlant,
     currentUser
   } = useAppContext();
@@ -67,6 +66,41 @@ export default function App() {
     }
   }, [setCurrentPage]);
 
+  // Browser Back support for standalone auth page.
+  const prevPageRef = useRef<string>("home");
+  const isPopStateRef = useRef<boolean>(false);
+
+  // Initialize history state on mount
+  useEffect(() => {
+    if (!window.history.state) {
+      window.history.replaceState({ glPage: currentPage }, "");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isPopStateRef.current) {
+      isPopStateRef.current = false;
+      return;
+    }
+
+    if (currentPage === "auth") {
+      window.history.pushState({ glPage: "auth" }, "");
+    } else {
+      prevPageRef.current = currentPage;
+      window.history.replaceState({ glPage: currentPage }, "");
+    }
+  }, [currentPage]);
+
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      isPopStateRef.current = true;
+      const targetPage = e.state?.glPage || prevPageRef.current || "home";
+      setCurrentPage(targetPage);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [setCurrentPage]);
+
   // Cart Handlers bridging UI events
   const handleAddToCart = (product: Product, quantity: number = 1) => {
     addToCart(product, quantity);
@@ -76,6 +110,23 @@ export default function App() {
   const handleInspectSelectedProduct = (prod: Product) => {
     setSelectedProduct(prod);
   };
+
+  // Standalone full-screen auth page — no Navigation, Footer, Chatbot, or page shell
+  if (currentPage === "auth") {
+    return (
+      <>
+        <AuthView
+          userRole={userRole}
+          setUserRole={switchRole}
+          setCurrentPage={setCurrentPage}
+        />
+        <Toaster
+          position="top-right"
+          toastOptions={{ duration: 4000 }}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-900 text-stone-100 flex flex-col justify-between font-sans selection:bg-emerald-500 selection:text-black">
@@ -91,7 +142,7 @@ export default function App() {
       />
 
       {/* Main viewport Container */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
+      <main className="flex-1 gl-page-shell py-8">
         <Suspense fallback={<DashboardSkeleton />}>
           {/* Swapping Active Component View according to state */}
           {(() => {
@@ -154,13 +205,7 @@ export default function App() {
               case "blog":
                 return <BlogView initialSearch={shopSearch} />;
               case "auth":
-                return (
-                  <AuthView
-                    userRole={userRole}
-                    setUserRole={switchRole}
-                    setCurrentPage={setCurrentPage}
-                  />
-                );
+                return null; // handled by standalone branch above
               case "customer-dashboard":
                 return (
                   <ProtectedRoute allowedRoles={["customer", "store", "admin"]} onPageRedirect={setCurrentPage}>

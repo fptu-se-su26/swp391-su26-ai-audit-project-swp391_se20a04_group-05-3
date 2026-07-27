@@ -9,8 +9,11 @@ export class AddressService {
       fullname: backend.recipientName || "",
       phone: backend.phone || "",
       province: backend.city || "",
+      provinceCode: backend.provinceCode || "",
       district: backend.district || "",
-      ward: backend.ward || "",
+      ward: backend.ward || backend.communeName || "",
+      communeCode: backend.communeCode || "",
+      communeName: backend.communeName || "",
       detail_address: backend.addressLine || "",
       is_default: backend.isDefault || false,
       is_pickup: false,
@@ -24,8 +27,11 @@ export class AddressService {
       phone: frontend.phone,
       addressLine: frontend.detail_address,
       ward: frontend.ward,
-      district: frontend.district,
+      district: frontend.district || null,
       city: frontend.province,
+      provinceCode: frontend.provinceCode,
+      communeCode: frontend.communeCode,
+      communeName: frontend.communeName || frontend.ward,
       isDefault: frontend.is_default || false
     };
   }

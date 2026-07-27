@@ -21,6 +21,7 @@ import { UserAddress } from "../../types";
 import { toast } from "react-hot-toast";
 import { EmptyState } from "./EmptyState";
 import { getMediaUrl } from "../../utils/mediaUrl";
+import AdministrativeService, { AdministrativeProvinceDTO, AdministrativeCommuneDTO } from "../../services/administrativeService";
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -28,39 +29,15 @@ interface CartDrawerProps {
   setCurrentPage: (page: string) => void;
 }
 
-const vietnamDivisions: Record<string, Record<string, string[]>> = {
-  "Đà Nẵng": {
-    "Hải Châu": ["Hải Châu I", "Hải Châu II", "Thạch Thang", "Thuận Phước", "Hòa Thuận Đông"],
-    "Thanh Khê": ["Vĩnh Trung", "Tân Chính", "Thạc Gián", "Chính Gián", "Xuân Hà"],
-    "Liên Chiểu": ["Hòa Minh", "Hòa Khánh Nam", "Hòa Khánh Bắc", "Hòa Hiệp Nam", "Hòa Hiệp Bắc"],
-    "Sơn Trà": ["An Hải Tây", "An Hải Bắc", "An Hải Đông", "Nại Hiên Đông", "Mân Thái"],
-  },
-  "Hà Nội": {
-    "Hoàn Kiếm": ["Hàng Bạc", "Hàng Đào", "Hàng Gai", "Tràng Tiền", "Đồng Xuân"],
-    "Ba Đình": ["Cống Vị", "Điện Biên", "Kim Mã", "Giảng Võ", "Thành Công"],
-    "Đống Đa": ["Cát Linh", "Láng Hạ", "Láng Thượng", "Quang Trung", "Ô Chợ Dừa"],
-    "Cầu Giấy": ["Dịch Vọng", "Nghĩa Tân", "Mai Dịch", "Yên Hòa", "Trung Hòa"],
-  },
-  "Hồ Chí Minh": {
-    "Quận 1": ["Bến Nghé", "Bến Thành", "Cô Giang", "Đa Kao", "Tân Định"],
-    "Quận 3": ["Phường 1", "Phường 2", "Phường 3", "Võ Thị Sáu"],
-    "Bình Thạnh": ["Phường 1", "Phường 2", "Phường 15", "Phường 25"],
-    "Thủ Đức": ["Thảo Điền", "An Phú", "Bình An", "Hiệp Bình Chánh"],
-  }
-};
-
-export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurrentPage }) => {
+export const CartDrawer: React.FC<CartDrawerProps> = ({
+  isOpen,
+  onClose,
+  setCurrentPage,
+}) => {
   const { currentUser, checkoutCart } = useAppContext();
-  const { 
-    items: cart, 
-    cartTotal, 
-    cartItemCount, 
-    co2OffsetKg, 
-    updateCartQuantity, 
-    removeFromCart,
-    clearCart 
-  } = useCart();
+  const { items: cart, cartTotal, cartItemCount, co2OffsetKg, updateCartQuantity, removeFromCart, clearCart } = useCart();
 
+  // Checkout flow state (1: Cart items, 2: Shipping Address, 3: Payment/Note)
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [checkoutComplete, setCheckoutComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -74,12 +51,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
   
   // New address form state
   const [showAddAddressForm, setShowAddAddressForm] = useState(false);
+
+  const [provincesList, setProvincesList] = useState<AdministrativeProvinceDTO[]>([]);
+  const [communesList, setCommunesList] = useState<AdministrativeCommuneDTO[]>([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingCommunes, setLoadingCommunes] = useState(false);
+
   const [addressForm, setAddressForm] = useState({
     fullname: currentUser?.name || "",
     phone: "",
-    province: "Đà Nẵng",
-    district: "Hải Châu",
-    ward: "Hải Châu I",
+    provinceId: 0,
+    province: "",
+    ward: "",
+    communeCode: "",
     detailAddress: "",
     isDefault: false
   });
@@ -140,28 +124,53 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
     }
   };
 
-  const handleProvinceChange = (province: string) => {
-    const districts = Object.keys(vietnamDivisions[province] || {});
-    const defaultDistrict = districts[0] || "";
-    const wards = vietnamDivisions[province]?.[defaultDistrict] || [];
-    const defaultWard = wards[0] || "";
-    
+  useEffect(() => {
+    let isMounted = true;
+    const fetchProvinces = async () => {
+      setLoadingProvinces(true);
+      try {
+        const data = await AdministrativeService.getProvinces();
+        if (isMounted) setProvincesList(data);
+      } catch (err) {
+        // Handled silently
+      } finally {
+        if (isMounted) setLoadingProvinces(false);
+      }
+    };
+    fetchProvinces();
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleProvinceSelectChange = async (provIdStr: string) => {
+    const pId = Number(provIdStr);
+    const selectedProv = provincesList.find(p => p.id === pId);
     setAddressForm(prev => ({
       ...prev,
-      province,
-      district: defaultDistrict,
-      ward: defaultWard
+      provinceId: pId,
+      province: selectedProv ? selectedProv.name : "",
+      ward: "",
+      communeCode: ""
     }));
+    setCommunesList([]);
+    if (pId) {
+      setLoadingCommunes(true);
+      try {
+        const communes = await AdministrativeService.getCommunesByProvince(pId);
+        setCommunesList(communes);
+      } catch (err) {
+        // Handled silently
+      } finally {
+        setLoadingCommunes(false);
+      }
+    }
   };
 
-  const handleDistrictChange = (district: string) => {
-    const wards = vietnamDivisions[addressForm.province]?.[district] || [];
-    const defaultWard = wards[0] || "";
-    
+  const handleCommuneSelectChange = (commCode: string) => {
+    const selectedComm = communesList.find(c => c.code === commCode);
     setAddressForm(prev => ({
       ...prev,
-      district,
-      ward: defaultWard
+      communeCode: commCode,
+      ward: selectedComm ? selectedComm.displayName : ""
     }));
   };
 
@@ -170,6 +179,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
     
     if (!addressForm.fullname.trim()) {
       setFormError("Vui lòng nhập tên người nhận.");
+      return;
+    }
+
+    if (!addressForm.communeCode || !addressForm.ward) {
+      setFormError("Vui lòng chọn Xã / Phường / Đặc khu.");
       return;
     }
     
@@ -195,7 +209,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
         fullname: addressForm.fullname,
         phone: addressForm.phone,
         province: addressForm.province,
-        district: addressForm.district,
+        communeCode: addressForm.communeCode,
+        communeName: addressForm.ward,
         ward: addressForm.ward,
         detail_address: addressForm.detailAddress,
         is_default: addressForm.isDefault
@@ -210,9 +225,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
       setAddressForm({
         fullname: currentUser?.name || "",
         phone: "",
-        province: "Đà Nẵng",
-        district: "Hải Châu",
-        ward: "Hải Châu I",
+        provinceId: 0,
+        province: "",
+        ward: "",
+        communeCode: "",
         detailAddress: "",
         isDefault: false
       });
@@ -295,26 +311,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
         {/* Backdrop cover */}
         <div 
           onClick={handleClose}
-          className={`absolute inset-0 bg-stone-950/75 transition-opacity opacity-100 duration-200 ${submitting ? "cursor-not-allowed" : "cursor-pointer"}`} 
+          className={`absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity opacity-100 duration-200 ${submitting ? "cursor-not-allowed" : "cursor-pointer"}`}
         />
 
         <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
           <div className="pointer-events-auto w-screen max-w-md">
-            <div className="flex h-full flex-col bg-stone-950 border-l border-stone-250 dark:border-stone-800 shadow-2xl text-stone-850 dark:text-stone-100">
+            <div className="flex h-full flex-col bg-[var(--gl-bg-surface)] border-l border-[var(--gl-border)] shadow-2xl text-[var(--gl-text-primary)]">
               
               {/* Cart Header */}
-              <div className="flex items-center justify-between border-b border-stone-250 dark:border-stone-850 px-5 py-5">
-                <h2 className="text-sm font-semibold text-stone-850 dark:text-stone-100 flex items-center gap-2" id="slide-over-title">
-                  <ShoppingBag className="h-4.5 w-4.5 text-emerald-500 dark:text-emerald-400" />
+              <div className="flex items-center justify-between border-b border-[var(--gl-border)] px-5 py-5 bg-[var(--gl-bg-surface)]">
+                <h2 className="text-sm font-semibold text-[var(--gl-text-primary)] flex items-center gap-2" id="slide-over-title">
+                  <ShoppingBag className="h-4.5 w-4.5 text-[var(--gl-accent)]" />
                   {step === 1 && "Giỏ Hàng Sinh Thái Của Bạn"}
                   {step === 2 && "Địa Chỉ Giao Hàng"}
                   {step === 3 && "Thanh Toán & Ghi Chú"}
                 </h2>
                 <button
+                  type="button"
                   disabled={submitting}
                   onClick={handleClose}
                   aria-label="Đóng giỏ hàng"
-                  className="rounded-lg p-2 bg-stone-100 dark:bg-stone-900 hover:bg-stone-200 dark:hover:bg-stone-850 text-stone-500 dark:text-stone-400 hover:text-stone-850 dark:hover:text-stone-100 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-xl p-2 bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] min-w-[40px] min-h-[40px] flex items-center justify-center"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -322,21 +339,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
 
               {/* Steps Progress Indicator */}
               {!checkoutComplete && cart.length > 0 && (
-                <div className="flex justify-between px-5 py-2.5 border-b border-stone-250 dark:border-stone-850 bg-stone-100/30 dark:bg-stone-950/40 text-[10px] font-mono">
-                  <span className={step === 1 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-stone-450 dark:text-stone-500"}>1. Giỏ hàng</span>
-                  <span className="text-stone-400 dark:text-stone-600">➔</span>
-                  <span className={step === 2 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-stone-450 dark:text-stone-500"}>2. Địa chỉ</span>
-                  <span className="text-stone-400 dark:text-stone-600">➔</span>
-                  <span className={step === 3 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-stone-450 dark:text-stone-500"}>3. Thanh toán</span>
+                <div className="flex justify-between px-5 py-2.5 border-b border-[var(--gl-border)] bg-[var(--gl-bg-muted)]/50 text-[10px] font-mono">
+                  <span className={step === 1 ? "text-[var(--gl-accent)] font-bold" : "text-[var(--gl-text-muted)]"}>1. Giỏ hàng</span>
+                  <span className="text-[var(--gl-text-muted)]">➔</span>
+                  <span className={step === 2 ? "text-[var(--gl-accent)] font-bold" : "text-[var(--gl-text-muted)]"}>2. Địa chỉ</span>
+                  <span className="text-[var(--gl-text-muted)]">➔</span>
+                  <span className={step === 3 ? "text-[var(--gl-accent)] font-bold" : "text-[var(--gl-text-muted)]"}>3. Thanh toán</span>
                 </div>
               )}
 
               {/* Cart Contents Section */}
-              <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
+              <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4 bg-[var(--gl-bg-page)]">
                 
                 {/* Error message */}
                 {errorMsg && (
-                  <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-start gap-2 text-rose-500 text-xs font-mono font-medium animate-slide-down">
+                  <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-start gap-2 text-[var(--gl-danger)] text-xs font-mono font-medium animate-slide-down">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{errorMsg}</span>
                   </div>
@@ -344,19 +361,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
 
                 {/* Checkout message screen */}
                 {checkoutComplete && (
-                  <div className="text-center py-10 px-4 bg-emerald-950/45 border border-emerald-500/20 rounded-2xl space-y-3">
+                  <div className="text-center py-10 px-4 bg-[var(--gl-accent-soft)]/40 border border-[var(--gl-accent)]/20 rounded-2xl space-y-3">
                     <div className="text-4xl">🌱</div>
-                    <h4 className="text-sm font-semibold text-emerald-400">Đặt hàng thành công!</h4>
-                    <p className="text-xs text-stone-400 leading-relaxed font-mono">
+                    <h4 className="text-sm font-semibold text-[var(--gl-accent)]">Đặt hàng thành công!</h4>
+                    <p className="text-xs text-[var(--gl-text-secondary)] leading-relaxed font-mono">
                       Hệ thống đã xác nhận đơn hàng hữu cơ của bạn và tích lũy carbon thăng hạng đóng góp của bạn trên tài khoản GreenLife.
                     </p>
                     <button
+                      type="button"
                       onClick={() => {
                         setCheckoutComplete(false);
                         setStep(1);
                         onClose();
                       }}
-                      className="mt-2 text-xs text-emerald-450 hover:underline inline-block font-semibold cursor-pointer"
+                      className="mt-2 text-xs text-[var(--gl-accent)] hover:underline inline-block font-semibold cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                     >
                       Tiếp tục khám phá
                     </button>
@@ -384,43 +402,43 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                     {cart.map((item) => (
                       <div 
                         key={item.product.id} 
-                        className="bg-stone-100/50 dark:bg-stone-900/30 border border-stone-250 dark:border-stone-850 p-3.5 rounded-2xl flex items-center justify-between gap-3 text-xs"
+                        className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-3.5 rounded-2xl flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 text-xs transition-all hover:border-[var(--gl-border-subtle)]"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
                           <img
                             src={getMediaUrl(item.product.image)}
                             alt={item.product.name}
-                            className="w-12 h-12 object-cover rounded-xl"
+                            className="w-12 h-12 shrink-0 object-cover rounded-xl border border-[var(--gl-border-subtle)] bg-[var(--gl-bg-muted)]"
                             referrerPolicy="no-referrer"
                             loading="lazy"
                           />
-                          <div className="space-y-0.5">
-                            <span className="font-semibold text-stone-850 dark:text-stone-100 block line-clamp-1">{item.product.name}</span>
+                          <div className="space-y-0.5 min-w-0 flex-1">
+                            <span className="font-semibold text-[var(--gl-text-primary)] block truncate" title={item.product.name}>{item.product.name}</span>
                             {item.onSale && item.effectiveUnitPrice !== undefined ? (
                               <div className="space-y-0.5 mt-0.5">
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-[10px] text-stone-500 line-through font-mono">
+                                  <span className="text-[10px] text-[var(--gl-text-muted)] line-through font-mono">
                                     {item.baseUnitPrice !== undefined
                                       ? item.baseUnitPrice.toLocaleString("vi-VN")
                                       : item.product.price.toLocaleString("vi-VN")}₫
                                   </span>
-                                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                                  <span className="text-[10px] font-semibold text-[var(--gl-accent)] font-mono">
                                     {item.effectiveUnitPrice.toLocaleString("vi-VN")}₫
                                   </span>
                                   {item.promotionName && (
-                                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-bold font-mono">
+                                    <span className="px-1.5 py-0.5 rounded bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] text-[9px] font-bold font-mono">
                                       {item.promotionName}
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-emerald-600 dark:text-emerald-400 font-mono block font-bold">
+                                <span className="text-[var(--gl-accent)] font-mono block font-bold">
                                   {item.lineEffectiveAmount !== undefined
                                     ? item.lineEffectiveAmount.toLocaleString("vi-VN") + "₫"
                                     : "Đang cập nhật giá"}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-stone-600 dark:text-stone-400 font-mono block mt-0.5 font-semibold">
+                              <span className="text-[var(--gl-text-secondary)] font-mono block mt-0.5 font-semibold">
                                 {item.lineBaseAmount !== undefined
                                   ? item.lineBaseAmount.toLocaleString("vi-VN") + "₫"
                                   : item.lineEffectiveAmount !== undefined
@@ -431,30 +449,33 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
                           {/* Dec/Inc Quantity buttons */}
-                          <div className="flex items-center bg-stone-100 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-lg">
+                          <div className="flex items-center bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] rounded-xl overflow-hidden">
                             <button
+                              type="button"
                               onClick={() => updateCartQuantity(item.product.id, -1)}
                               aria-label="Giảm số lượng"
-                              className="px-2.5 py-1 text-stone-400 dark:text-stone-500 hover:text-stone-850 dark:hover:text-stone-100 cursor-pointer"
+                              className="min-w-[36px] min-h-[36px] flex items-center justify-center text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             >
-                              <Minus className="h-3 w-3" />
+                              <Minus className="h-3.5 w-3.5" />
                             </button>
-                            <span className="px-1 text-[11px] text-stone-850 dark:text-stone-100 font-mono font-semibold">{item.quantity}</span>
+                            <span className="px-2 text-xs text-[var(--gl-text-primary)] font-mono font-semibold select-none min-w-[20px] text-center">{item.quantity}</span>
                             <button
+                              type="button"
                               onClick={() => updateCartQuantity(item.product.id, 1)}
                               aria-label="Tăng số lượng"
-                              className="px-2.5 py-1 text-stone-400 dark:text-stone-500 hover:text-stone-850 dark:hover:text-stone-100 cursor-pointer"
+                              className="min-w-[36px] min-h-[36px] flex items-center justify-center text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             >
-                              <Plus className="h-3 w-3" />
+                              <Plus className="h-3.5 w-3.5" />
                             </button>
                           </div>
 
                           <button
+                            type="button"
                             onClick={() => removeFromCart(item.product.id)}
-                            aria-label="Xóa khỏi giỏ hàng"
-                            className="p-1.5 text-stone-400 dark:text-stone-500 hover:text-rose-500 transition-colors cursor-pointer"
+                            aria-label={`Xóa ${item.product.name} khỏi giỏ hàng`}
+                            className="min-w-[36px] min-h-[36px] flex items-center justify-center text-[var(--gl-text-muted)] hover:text-[var(--gl-danger)] hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             title="Xóa khỏi giỏ"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -471,11 +492,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                     {!showAddAddressForm ? (
                       <>
                         <div className="flex justify-between items-center mb-2">
-                          <span className="text-[10px] text-stone-500 dark:text-stone-400 uppercase tracking-widest font-mono font-bold">Địa chỉ giao hàng đã lưu</span>
+                          <span className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-widest font-mono font-bold">Địa chỉ giao hàng đã lưu</span>
                           <button
                             type="button"
                             onClick={() => setShowAddAddressForm(true)}
-                            className="text-emerald-500 hover:text-emerald-450 hover:underline flex items-center gap-1 font-bold cursor-pointer transition-colors"
+                            className="text-[var(--gl-accent)] hover:underline flex items-center gap-1 font-bold cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                           >
                             <PlusCircle className="w-3.5 h-3.5" /> Thêm địa chỉ mới
                           </button>
@@ -484,20 +505,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                         {loadingAddresses ? (
                           <div className="space-y-3 animate-pulse" aria-busy="true" aria-label="Đang tải địa chỉ">
                             {[1, 2].map((i) => (
-                              <div key={i} className="p-4 border border-stone-250 dark:border-stone-850 bg-stone-100/50 dark:bg-stone-900/10 rounded-2xl space-y-3">
+                              <div key={i} className="p-4 border border-[var(--gl-border)] bg-[var(--gl-bg-surface)] rounded-2xl space-y-3">
                                 <div className="flex justify-between items-center">
-                                  <div className="h-4 bg-stone-200 dark:bg-stone-800 rounded w-1/3" />
-                                  <div className="h-3 bg-stone-200 dark:bg-stone-800 rounded w-1/4" />
+                                  <div className="h-4 bg-[var(--gl-bg-muted)] rounded w-1/3" />
+                                  <div className="h-3 bg-[var(--gl-bg-muted)] rounded w-1/4" />
                                 </div>
                                 <div className="space-y-1.5">
-                                  <div className="h-3.5 bg-stone-200 dark:bg-stone-800 rounded w-full" />
-                                  <div className="h-3.5 bg-stone-200 dark:bg-stone-800 rounded w-5/6" />
+                                  <div className="h-3.5 bg-[var(--gl-bg-muted)] rounded w-full" />
+                                  <div className="h-3.5 bg-[var(--gl-bg-muted)] rounded w-5/6" />
                                 </div>
                               </div>
                             ))}
                           </div>
                         ) : addresses.length === 0 ? (
-                          <div className="border border-dashed border-stone-300 dark:border-stone-800 p-6 rounded-2xl text-center text-stone-500">
+                          <div className="border border-dashed border-[var(--gl-border)] p-6 rounded-2xl text-center text-[var(--gl-text-muted)]">
                             Chưa có địa chỉ nào được lưu. Vui lòng thêm địa chỉ mới.
                           </div>
                         ) : (
@@ -508,19 +529,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                                 onClick={() => setSelectedAddressId(addr.address_id || null)}
                                 className={`p-4 border rounded-2xl cursor-pointer transition-all ${
                                   selectedAddressId === addr.address_id
-                                    ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/20"
-                                    : "border-stone-250 dark:border-stone-850 bg-stone-100/50 dark:bg-stone-900/10 hover:border-stone-400 dark:hover:border-stone-700"
+                                    ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/30"
+                                    : "border-[var(--gl-border)] bg-[var(--gl-bg-surface)] hover:border-[var(--gl-border-subtle)]"
                                 }`}
                               >
                                 <div className="flex justify-between items-start mb-2">
-                                  <span className="font-bold text-stone-850 dark:text-stone-100 text-[13px]">{addr.fullname}</span>
-                                  <span className="font-mono text-stone-500 dark:text-stone-400">{addr.phone}</span>
+                                  <span className="font-bold text-[var(--gl-text-primary)] text-[13px]">{addr.fullname}</span>
+                                  <span className="font-mono text-[var(--gl-text-muted)]">{addr.phone}</span>
                                 </div>
-                                <p className="text-stone-600 dark:text-stone-300 leading-snug">{addr.detail_address}, {addr.ward}, {addr.district}, {addr.province}</p>
+                                <p className="text-[var(--gl-text-secondary)] leading-snug">{addr.detail_address}, {addr.ward}, {addr.district}, {addr.province}</p>
                                 
                                 <div className="flex gap-2 mt-2">
                                   {addr.is_default && (
-                                    <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold">Mặc định</span>
+                                    <span className="bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold">Mặc định</span>
                                   )}
                                 </div>
                               </div>
@@ -530,90 +551,91 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                       </>
                     ) : (
                       // Add new address form
-                      <form onSubmit={handleCreateAddress} className="bg-stone-100/30 dark:bg-stone-900/40 p-4 border border-stone-250 dark:border-stone-850 rounded-2xl space-y-3">
-                        <h4 className="font-semibold text-stone-850 dark:text-stone-100 mb-2 border-b border-stone-250 dark:border-stone-850 pb-2">Thêm Địa Chỉ Mới</h4>
+                      <form onSubmit={handleCreateAddress} className="bg-[var(--gl-bg-surface)] p-4 border border-[var(--gl-border)] rounded-2xl space-y-3">
+                        <h4 className="font-semibold text-[var(--gl-text-primary)] mb-2 border-b border-[var(--gl-border)] pb-2">Thêm Địa Chỉ Mới</h4>
                         
                         {formError && (
-                          <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-2 text-rose-500 text-[11px] font-mono font-medium animate-slide-down">
+                          <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-2 text-[var(--gl-danger)] text-[11px] font-mono font-medium animate-slide-down">
                             <AlertCircle className="w-4 h-4 shrink-0 mt-0.2" />
                             <span>{formError}</span>
                           </div>
                         )}
 
                         <div className="space-y-1.5">
-                          <label className="text-[10px] text-stone-500 dark:text-stone-400 font-mono font-semibold uppercase tracking-wider block">Tên người nhận *</label>
+                          <label className="text-[10px] text-[var(--gl-text-muted)] font-mono font-semibold uppercase tracking-wider block">Tên người nhận *</label>
                           <input
                             type="text"
                             required
                             placeholder="Ví dụ: Nguyễn Văn A"
                             value={addressForm.fullname}
                             onChange={(e) => setAddressForm({ ...addressForm, fullname: e.target.value })}
-                            className="w-full bg-stone-100 dark:bg-stone-950 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 dark:focus:border-emerald-450 focus:ring-2 focus:ring-emerald-500/20 py-2.5 px-3.5 rounded-xl text-stone-850 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none transition-all checkout-input text-xs font-semibold"
+                            className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] py-2.5 px-3.5 rounded-xl text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none transition-all text-xs font-semibold"
                           />
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="text-[10px] text-stone-500 dark:text-stone-400 font-mono font-semibold uppercase tracking-wider block">Số điện thoại *</label>
+                          <label className="text-[10px] text-[var(--gl-text-muted)] font-mono font-semibold uppercase tracking-wider block">Số điện thoại *</label>
                           <input
                             type="tel"
                             required
                             placeholder="Ví dụ: 09XXXXXXXX"
                             value={addressForm.phone}
                             onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value.replace(/\D/g, "") })}
-                            className="w-full bg-stone-100 dark:bg-stone-950 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 dark:focus:border-emerald-450 focus:ring-2 focus:ring-emerald-500/20 py-2.5 px-3.5 rounded-xl text-stone-850 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none transition-all checkout-input text-xs font-semibold"
+                            className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] py-2.5 px-3.5 rounded-xl text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none transition-all text-xs font-semibold"
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] text-stone-500 dark:text-stone-400 font-mono font-semibold uppercase tracking-wider block">Tỉnh / Thành phố *</label>
+                            <label className="text-[10px] text-[var(--gl-text-muted)] font-mono font-semibold uppercase tracking-wider block">Tỉnh / Thành phố *</label>
                             <select
-                              value={addressForm.province}
-                              onChange={(e) => handleProvinceChange(e.target.value)}
-                              className="w-full bg-stone-100 dark:bg-stone-950 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 dark:focus:border-emerald-450 focus:ring-2 focus:ring-emerald-500/20 py-2.5 px-3 rounded-xl text-stone-850 dark:text-stone-200 focus:outline-none transition-all checkout-input text-xs font-semibold cursor-pointer"
+                              value={addressForm.provinceId || ""}
+                              onChange={(e) => handleProvinceSelectChange(e.target.value)}
+                              disabled={loadingProvinces}
+                              className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] py-2.5 px-3 rounded-xl text-[var(--gl-text-primary)] focus:outline-none transition-all text-xs font-semibold cursor-pointer disabled:opacity-60"
                             >
-                              {Object.keys(vietnamDivisions).map(p => (
-                                <option key={p} value={p} className="bg-stone-100 dark:bg-stone-950 text-stone-850 dark:text-stone-200">{p}</option>
+                              <option value="" disabled className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-muted)]">
+                                {loadingProvinces ? "Đang tải dữ liệu địa chỉ..." : "-- Chọn Tỉnh / Thành phố --"}
+                              </option>
+                              {provincesList.map(p => (
+                                <option key={p.id} value={p.id} className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">{p.name}</option>
                               ))}
                             </select>
                           </div>
                           
                           <div className="space-y-1.5">
-                            <label className="text-[10px] text-stone-500 dark:text-stone-400 font-mono font-semibold uppercase tracking-wider block">Quận / Huyện *</label>
+                            <label className="text-[10px] text-[var(--gl-text-muted)] font-mono font-semibold uppercase tracking-wider block">Xã / Phường / Đặc khu *</label>
                             <select
-                              value={addressForm.district}
-                              onChange={(e) => handleDistrictChange(e.target.value)}
-                              className="w-full bg-stone-100 dark:bg-stone-950 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 dark:focus:border-emerald-450 focus:ring-2 focus:ring-emerald-500/20 py-2.5 px-3 rounded-xl text-stone-850 dark:text-stone-200 focus:outline-none transition-all checkout-input text-xs font-semibold cursor-pointer"
+                              value={addressForm.communeCode}
+                              onChange={(e) => handleCommuneSelectChange(e.target.value)}
+                              disabled={!addressForm.provinceId || loadingCommunes}
+                              className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] py-2.5 px-3 rounded-xl text-[var(--gl-text-primary)] focus:outline-none transition-all text-xs font-semibold cursor-pointer disabled:opacity-60"
                             >
-                              {Object.keys(vietnamDivisions[addressForm.province] || {}).map(d => (
-                                <option key={d} value={d} className="bg-stone-100 dark:bg-stone-950 text-stone-850 dark:text-stone-200">{d}</option>
+                              <option value="" disabled className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-muted)]">
+                                {!addressForm.provinceId
+                                  ? "-- Vui lòng chọn Tỉnh / Thành phố trước --"
+                                  : loadingCommunes
+                                    ? "Đang tải dữ liệu địa chỉ..."
+                                    : communesList.length === 0
+                                      ? "Dữ liệu xã/phường của tỉnh/thành này chưa có."
+                                      : "-- Chọn Xã / Phường / Đặc khu --"}
+                              </option>
+                              {communesList.map(c => (
+                                <option key={c.code} value={c.code} className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">{c.displayName}</option>
                               ))}
                             </select>
                           </div>
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="text-[10px] text-stone-500 dark:text-stone-400 font-mono font-semibold uppercase tracking-wider block">Phường / Xã *</label>
-                          <select
-                            value={addressForm.ward}
-                            onChange={(e) => setAddressForm({ ...addressForm, ward: e.target.value })}
-                            className="w-full bg-stone-100 dark:bg-stone-950 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 dark:focus:border-emerald-450 focus:ring-2 focus:ring-emerald-500/20 py-2.5 px-3 rounded-xl text-stone-850 dark:text-stone-200 focus:outline-none transition-all checkout-input text-xs font-semibold cursor-pointer"
-                          >
-                            {(vietnamDivisions[addressForm.province]?.[addressForm.district] || []).map(w => (
-                              <option key={w} value={w} className="bg-stone-100 dark:bg-stone-950 text-stone-850 dark:text-stone-200">{w}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] text-stone-500 dark:text-stone-400 font-mono font-semibold uppercase tracking-wider block">Địa chỉ chi tiết (Số nhà, tên đường) *</label>
+                          <label className="text-[10px] text-[var(--gl-text-muted)] font-mono font-semibold uppercase tracking-wider block">Địa chỉ chi tiết (Số nhà, tên đường) *</label>
                           <input
                             type="text"
                             required
                             placeholder="Ví dụ: 123 Lê Lợi"
                             value={addressForm.detailAddress}
                             onChange={(e) => setAddressForm({ ...addressForm, detailAddress: e.target.value })}
-                            className="w-full bg-stone-100 dark:bg-stone-950 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 dark:focus:border-emerald-450 focus:ring-2 focus:ring-emerald-500/20 py-2.5 px-3.5 rounded-xl text-stone-850 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none transition-all checkout-input text-xs font-semibold"
+                            className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] py-2.5 px-3.5 rounded-xl text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none transition-all text-xs font-semibold"
                           />
                         </div>
 
@@ -623,22 +645,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                             id="is-default-checkbox"
                             checked={addressForm.isDefault}
                             onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
-                            className="w-4 h-4 accent-emerald-500 cursor-pointer"
+                            className="w-4 h-4 accent-[var(--gl-accent)] cursor-pointer"
                           />
-                          <label htmlFor="is-default-checkbox" className="text-[11px] text-stone-600 dark:text-stone-300 cursor-pointer font-medium">Đặt làm địa chỉ mặc định</label>
+                          <label htmlFor="is-default-checkbox" className="text-[11px] text-[var(--gl-text-secondary)] cursor-pointer font-medium">Đặt làm địa chỉ mặc định</label>
                         </div>
 
                         <div className="flex gap-3 pt-2">
                           <button
                             type="button"
                             onClick={() => setShowAddAddressForm(false)}
-                            className="flex-1 py-3 border border-stone-250 dark:border-stone-800 hover:bg-stone-100 dark:hover:bg-stone-900 text-stone-600 dark:text-stone-300 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono"
+                            className="flex-1 min-h-[44px] py-3 border border-[var(--gl-border)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                           >
                             Trở lại
                           </button>
                           <button
                             type="submit"
-                            className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono shadow-sm"
+                            className="flex-1 min-h-[44px] py-3 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                           >
                             Lưu Địa Chỉ
                           </button>
@@ -653,27 +675,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                   <div className="space-y-4 text-xs">
                     
                     {/* Selected address review */}
-                    <div className="bg-stone-100/50 dark:bg-stone-900/30 border border-stone-250 dark:border-stone-850 p-3.5 rounded-2xl space-y-1">
-                      <div className="flex items-center gap-1 text-[10px] text-stone-500 dark:text-stone-450 uppercase font-mono font-bold">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" /> Địa chỉ giao nhận
+                    <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-3.5 rounded-2xl space-y-1">
+                      <div className="flex items-center gap-1 text-[10px] text-[var(--gl-text-muted)] uppercase font-mono font-bold">
+                        <MapPin className="w-3.5 h-3.5 text-[var(--gl-accent)]" /> Địa chỉ giao nhận
                       </div>
-                      <p className="text-stone-850 dark:text-stone-200 mt-1.5 leading-relaxed font-sans">{getSelectedAddressDetails()}</p>
+                      <p className="text-[var(--gl-text-primary)] mt-1.5 leading-relaxed font-sans">{getSelectedAddressDetails()}</p>
                     </div>
 
                     {/* Payment methods choice */}
                     <div className="space-y-2">
-                      <span className="text-[10px] text-stone-500 dark:text-stone-400 uppercase tracking-widest font-mono font-bold block">Hình thức thanh toán</span>
+                      <span className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-widest font-mono font-bold block">Hình thức thanh toán</span>
                       <div className="grid grid-cols-2 gap-3 mt-1.5">
                         
                         <div
                           onClick={() => setPaymentMethod("COD")}
                           className={`p-4 border rounded-2xl cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5 text-center select-none ${
                             paymentMethod === "COD"
-                              ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 font-bold shadow-sm"
-                              : "border-stone-250 dark:border-stone-850 bg-stone-100/50 dark:bg-stone-900/10 hover:border-stone-400 dark:hover:border-stone-700 text-stone-600 dark:text-stone-450"
+                              ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/30 text-[var(--gl-accent)] font-bold shadow-sm"
+                              : "border-[var(--gl-border)] bg-[var(--gl-bg-surface)] hover:border-[var(--gl-border-subtle)] text-[var(--gl-text-secondary)]"
                           }`}
                         >
-                          <CreditCard className={`w-5 h-5 ${paymentMethod === "COD" ? "text-emerald-500" : "text-stone-400 dark:text-stone-500"}`} />
+                          <CreditCard className={`w-5 h-5 ${paymentMethod === "COD" ? "text-[var(--gl-accent)]" : "text-[var(--gl-text-muted)]"}`} />
                           <span className="font-semibold text-[11px]">Thanh toán COD (Tiền mặt)</span>
                         </div>
 
@@ -681,11 +703,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                           onClick={() => setPaymentMethod("PAYOS")}
                           className={`p-4 border rounded-2xl cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5 text-center select-none ${
                             paymentMethod === "PAYOS"
-                              ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 font-bold shadow-sm"
-                              : "border-stone-250 dark:border-stone-850 bg-stone-100/50 dark:bg-stone-900/10 hover:border-stone-400 dark:hover:border-stone-700 text-stone-600 dark:text-stone-450"
+                              ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/30 text-[var(--gl-accent)] font-bold shadow-sm"
+                              : "border-[var(--gl-border)] bg-[var(--gl-bg-surface)] hover:border-[var(--gl-border-subtle)] text-[var(--gl-text-secondary)]"
                           }`}
                         >
-                          <span className={`text-sm font-black tracking-tighter ${paymentMethod === "PAYOS" ? "text-emerald-600 dark:text-emerald-400" : "text-stone-550 dark:text-stone-450"}`}>PayOS</span>
+                          <span className={`text-sm font-black tracking-tighter ${paymentMethod === "PAYOS" ? "text-[var(--gl-accent)]" : "text-[var(--gl-text-muted)]"}`}>PayOS</span>
                           <span className="font-semibold text-[11px]">Cổng PayOS QR</span>
                         </div>
 
@@ -694,12 +716,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
 
                     {/* Notes textarea */}
                     <div className="space-y-1.5">
-                      <span className="text-[10px] text-stone-500 dark:text-stone-400 uppercase tracking-widest font-mono font-bold block">Ghi chú giao hàng</span>
+                      <span className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-widest font-mono font-bold block">Ghi chú giao hàng</span>
                       <textarea
                         placeholder="Ví dụ: Giao giờ hành chính, gọi trước khi giao, hoặc gửi bảo vệ..."
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
-                        className="w-full h-20 bg-stone-100 dark:bg-stone-950 border border-stone-250 dark:border-stone-800 focus:border-emerald-500 dark:focus:border-emerald-450 focus:ring-2 focus:ring-emerald-500/20 rounded-xl p-3.5 text-stone-850 dark:text-stone-200 text-xs resize-none placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none transition-all checkout-input leading-relaxed"
+                        className="w-full h-20 bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] rounded-xl p-3.5 text-[var(--gl-text-primary)] text-xs resize-none placeholder:text-[var(--gl-text-muted)] focus:outline-none transition-all leading-relaxed"
                       />
                     </div>
 
@@ -709,24 +731,24 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
 
               {/* Cart Footer Price totals and transaction action */}
               {!checkoutComplete && cart.length > 0 && (
-                <div className="border-t border-stone-250 dark:border-stone-850 bg-stone-950 p-5 space-y-4 text-xs">
+                <div className="border-t border-[var(--gl-border)] bg-[var(--gl-bg-surface)] p-5 space-y-4 text-xs">
                   <div className="space-y-1.5">
                     <div className="flex justify-between">
-                      <span className="text-stone-500 dark:text-stone-400 font-medium">Tổng phụ cộng:</span>
-                      <span className="text-stone-850 dark:text-stone-100 font-mono font-semibold">{cartTotal.toLocaleString("vi-VN")}₫</span>
+                      <span className="text-[var(--gl-text-secondary)] font-medium">Tổng phụ cộng:</span>
+                      <span className="text-[var(--gl-text-primary)] font-mono font-semibold">{cartTotal.toLocaleString("vi-VN")}₫</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-stone-500 dark:text-stone-400 font-medium">Đóng gói hữu cơ:</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 text-[10px] font-mono font-bold uppercase">Miễn Phí (Eco Bag)</span>
+                      <span className="text-[var(--gl-text-secondary)] font-medium">Đóng gói hữu cơ:</span>
+                      <span className="text-[var(--gl-accent)] text-[10px] font-mono font-bold uppercase">Miễn Phí (Eco Bag)</span>
                     </div>
-                    <div className="flex justify-between border-t border-stone-250 dark:border-stone-850 pt-2.5 font-semibold">
-                      <span className="text-stone-850 dark:text-stone-100">Tổng cộng giao ước:</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 text-sm font-mono font-bold">{cartTotal.toLocaleString("vi-VN")}₫</span>
+                    <div className="flex justify-between border-t border-[var(--gl-border-subtle)] pt-2.5 font-semibold">
+                      <span className="text-[var(--gl-text-primary)]">Tổng cộng giao ước:</span>
+                      <span className="text-[var(--gl-accent)] text-sm font-mono font-bold">{cartTotal.toLocaleString("vi-VN")}₫</span>
                     </div>
                   </div>
 
-                  <div className="p-3 bg-emerald-500/10 dark:bg-emerald-950/20 border border-emerald-500/20 dark:border-emerald-900/10 rounded-xl text-[10px] text-stone-600 dark:text-stone-400 leading-normal font-sans">
-                    🌿 Mua hàng đóng góp trực tiếp <strong className="text-emerald-600 dark:text-emerald-400 font-bold">-{co2OffsetKg} kg CO₂</strong> khí phát thải bù đắp bảo vệ mầm xanh quốc thổ.
+                  <div className="p-3 bg-[var(--gl-accent-soft)]/30 border border-[var(--gl-accent)]/20 rounded-xl text-[10px] text-[var(--gl-text-secondary)] leading-normal font-sans">
+                    🌿 Mua hàng đóng góp trực tiếp <strong className="text-[var(--gl-accent)] font-bold">-{co2OffsetKg} kg CO₂</strong> khí phát thải bù đắp bảo vệ mầm xanh quốc thổ.
                   </div>
 
                   <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] text-amber-600 dark:text-amber-400 leading-normal font-sans flex items-start gap-2">
@@ -737,6 +759,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                   {/* STEP 1 ACTIONS */}
                   {step === 1 && (
                     <button
+                      type="button"
                       onClick={() => {
                         if (!currentUser) {
                           toast.error("Vui lòng đăng nhập trước khi thanh toán.");
@@ -746,7 +769,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                         }
                         setStep(2);
                       }}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold uppercase rounded-xl cursor-pointer transition-all tracking-wider text-[11px] font-mono shadow-sm"
+                      className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl cursor-pointer transition-all tracking-wider text-[11px] font-mono shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                     >
                       Chọn Địa Chi Giao Hàng
                       <ArrowRight className="h-4 w-4" />
@@ -757,13 +780,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                   {step === 2 && !showAddAddressForm && (
                     <div className="flex gap-3">
                       <button
+                        type="button"
                         onClick={() => setStep(1)}
-                        className="flex-1 flex items-center justify-center gap-2 py-3.5 border border-stone-250 dark:border-stone-800 hover:bg-stone-100 dark:hover:bg-stone-900 text-stone-600 dark:text-stone-300 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono"
+                        className="flex-1 min-h-[44px] flex items-center justify-center gap-2 py-3.5 border border-[var(--gl-border)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         <ArrowLeft className="h-4 w-4" />
                         Quay lại
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
                           if (!selectedAddressId) {
                             toast.error("Vui lòng chọn địa chỉ giao hàng.");
@@ -771,7 +796,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                           }
                           setStep(3);
                         }}
-                        className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono shadow-sm"
+                        className="flex-1 min-h-[44px] flex items-center justify-center gap-2 py-3.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         Tiếp Tục
                         <ArrowRight className="h-4 w-4" />
@@ -783,17 +808,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, setCurr
                   {step === 3 && (
                     <div className="flex gap-3">
                       <button
+                        type="button"
                         disabled={submitting}
                         onClick={() => setStep(2)}
-                        className="flex-1 flex items-center justify-center gap-2 py-3.5 border border-stone-250 dark:border-stone-800 hover:bg-stone-100 dark:hover:bg-stone-900 text-stone-600 dark:text-stone-300 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 min-h-[44px] flex items-center justify-center gap-2 py-3.5 border border-[var(--gl-border)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         <ArrowLeft className="h-4 w-4" />
                         Quay lại
                       </button>
                       <button
+                        type="button"
                         disabled={submitting}
                         onClick={handleCheckoutSubmit}
-                        className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                        className="flex-1 min-h-[44px] flex items-center justify-center gap-2 py-3.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono disabled:opacity-50 disabled:cursor-not-allowed shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         {submitting ? "Đang xử lý..." : paymentMethod === "PAYOS" ? "THANH TOÁN PAYOS" : "ĐẶT HÀNG COD"}
                         <Check className="h-4 w-4" />

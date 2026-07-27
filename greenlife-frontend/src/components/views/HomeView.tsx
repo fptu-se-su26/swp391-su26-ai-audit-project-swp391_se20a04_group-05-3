@@ -1,7 +1,6 @@
-import React, { useState } from "react";
-import { ArrowUpRight, BrainCircuit, Award, ChevronRight, Sparkles, TrendingDown, Users, Leaf, Camera } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { ArrowUpRight, BrainCircuit, Award, ChevronRight, ChevronLeft, Sparkles, TrendingDown, Users, Leaf, Camera } from "lucide-react";
 import { Product } from "../../types";
-
 
 interface HomeViewProps {
   products: Product[];
@@ -10,6 +9,21 @@ interface HomeViewProps {
   onSearch: (query: string) => void;
 }
 
+const HERO_SLIDES = [
+  {
+    src: "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=1600&q=80",
+    alt: "Hệ sinh thái nhà kính công nghệ cao GreenLife",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=1600&q=80",
+    alt: "Công nghệ AI chẩn đoán sức khỏe cây trồng",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=1600&q=80",
+    alt: "Thiết kế cảnh quan và sân vườn sinh thái tự dưỡng",
+  },
+];
+
 export const HomeView: React.FC<HomeViewProps> = ({
   products,
   setCurrentPage,
@@ -17,6 +31,83 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSearch,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [manualNavigationVersion, setManualNavigationVersion] = useState(0);
+
+  // Track document visibility state
+  const [isDocumentVisible, setIsDocumentVisible] = useState(
+    () => typeof document === "undefined" || !document.hidden
+  );
+
+  // Track prefers-reduced-motion OS preference
+  const [isReducedMotion, setIsReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsDocumentVisible(!document.hidden);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setIsReducedMotion(mediaQuery.matches);
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsReducedMotion(e.matches);
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleChange);
+    } else {
+      mediaQuery.addListener(handleChange);
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener("change", handleChange);
+      } else {
+        mediaQuery.removeListener(handleChange);
+      }
+    };
+  }, []);
+
+  // Auto-play timer effect (4000ms) with proper cleanup and reset on manual nav
+  useEffect(() => {
+    if (HERO_SLIDES.length < 2 || isPaused || isInputFocused || !isDocumentVisible || isReducedMotion) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+    }, 4000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [isPaused, isInputFocused, isDocumentVisible, isReducedMotion, manualNavigationVersion]);
+
+  const handlePrevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length);
+    setManualNavigationVersion((v) => v + 1);
+  };
+
+  const handleNextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+    setManualNavigationVersion((v) => v + 1);
+  };
+
+  const goToSlide = (idx: number) => {
+    setCurrentSlide(idx);
+    setManualNavigationVersion((v) => v + 1);
+  };
 
   // Filter products based on active search
   const filteredProducts = products.filter(p => 
@@ -27,68 +118,128 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const featured = filteredProducts.slice(0, 3);
 
-
   return (
     <div className="space-y-16 pb-20">
-      {/* Hero Banner Section with Greenhouse Background */}
-      <section className="relative overflow-hidden rounded-3xl min-h-[460px] flex flex-col justify-center border border-stone-850 p-8 sm:p-12 lg:p-16 shadow-2xl bg-stone-950">
-        {/* Greenhouse Background Cover Image */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center transition-all duration-700 opacity-80" 
-          style={{ 
-            backgroundImage: `url("https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=1600&q=80")`,
-          }}
-        />
-        {/* Dimmed Black Premium Overlay (Nền chìm) */}
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
+      {/* Hero Banner Section with Greenhouse Background Carousel */}
+      <section
+        className="relative overflow-hidden rounded-3xl min-h-[460px] flex flex-col justify-center border border-[var(--gl-border)] p-4 sm:p-12 lg:p-16 shadow-2xl bg-[var(--gl-bg-surface)] w-full min-w-0"
+        aria-roledescription="carousel"
+        aria-label="Hình ảnh giới thiệu GreenLife"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onFocus={() => setIsPaused(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) {
+            setIsPaused(false);
+          }
+        }}
+      >
+        {/* Carousel Slide Images with Crossfade */}
+        {HERO_SLIDES.map((slide, idx) => (
+          <div
+            key={slide.src}
+            aria-hidden="true"
+            className={`absolute inset-0 bg-cover bg-center z-0 pointer-events-none transition-opacity duration-700 ease-in-out motion-reduce:transition-none ${
+              idx === currentSlide ? "opacity-80" : "opacity-0"
+            }`}
+            style={{ backgroundImage: `url("${slide.src}")` }}
+          />
+        ))}
 
-        {/* content container explicitly raised to z-10 */}
-        <div className="relative z-10 max-w-3xl space-y-6 mx-auto text-center flex flex-col items-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/90 border border-emerald-500/30 text-emerald-400 text-xs font-mono shadow-sm">
-            <Sparkles className="h-3 w-3 animate-pulse" />
-            <span>GREEN LIFE • HỆ SINH THÁI NHÀ KÍNH CÔNG NGHỆ CAO</span>
+        {/* Dimmed Overlay */}
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] z-[1] pointer-events-none" />
+
+        {/* Previous / Next Arrow Controls (Desktop) */}
+        <div className="absolute inset-y-0 left-3 right-3 z-20 hidden sm:flex items-center justify-between pointer-events-none">
+          <button
+            type="button"
+            onClick={handlePrevSlide}
+            aria-label="Ảnh trước"
+            className="min-w-[40px] min-h-[40px] w-10 h-10 inline-flex items-center justify-center rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-xs transition-all pointer-events-auto cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleNextSlide}
+            aria-label="Ảnh tiếp theo"
+            className="min-w-[40px] min-h-[40px] w-10 h-10 inline-flex items-center justify-center rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-xs transition-all pointer-events-auto cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Content container raised to z-10 */}
+        <div className="relative z-10 w-full max-w-3xl space-y-6 mx-auto text-center flex flex-col items-center min-w-0 px-2 sm:px-0">
+          <div className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-2xl bg-emerald-950/90 border border-emerald-500/30 text-emerald-400 text-[11px] sm:text-xs font-mono shadow-sm max-w-full min-w-0 whitespace-normal text-center leading-snug">
+            <Sparkles className="h-3.5 w-3.5 animate-pulse shrink-0" />
+            <span className="break-words">GREEN LIFE • HỆ SINH THÁI NHÀ KÍNH CÔNG NGHỆ CAO</span>
           </div>
           
-          <h1 className="font-display font-bold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-white leading-tight text-center drop-shadow-xl">
+          <h1 className="font-display font-bold text-2xl sm:text-4xl lg:text-5xl tracking-tight text-white leading-tight text-center drop-shadow-xl max-w-full min-w-0 break-words">
             Kiến Tạo Không Gian Sống Xanh Thượng Lưu
           </h1>
 
-          {/* Wireframe Mockup Search & AI Scan Bar Container */}
+          {/* Wireframe Search & AI Scan Bar Container */}
           <form 
             onSubmit={(e) => {
               e.preventDefault();
               onSearch(searchQuery);
             }}
-            className="w-full max-w-lg bg-stone-950/95 border border-stone-800 rounded-full p-1.5 flex items-center shadow-xl focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/20 transition-all"
+            className="w-full max-w-lg bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl sm:rounded-full p-2 sm:p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-1.5 shadow-xl focus-within:border-[var(--gl-accent)] focus-within:ring-2 focus-within:ring-[var(--gl-focus-ring)] transition-all min-w-0 max-w-full"
           >
-            {/* Round Logo Icon (Left) */}
-            <div className="w-9 h-9 rounded-full bg-emerald-950 border border-emerald-500/30 flex items-center justify-center shrink-0 ml-1">
-              <Leaf className="h-4.5 w-4.5 text-emerald-400" />
-            </div>
+            <div className="flex items-center flex-1 min-w-0 gap-1.5 w-full sm:w-auto">
+              {/* Round Logo Icon (Left) */}
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 ml-0.5">
+                <Leaf className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
 
-            {/* Input Search Field (Middle) */}
-            <input 
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm cây cảnh, chậu cây, phân bón..."
-              className="flex-1 bg-transparent border-0 px-3.5 text-xs text-white focus:outline-none focus:ring-0 placeholder-zinc-500"
-            />
+              {/* Input Search Field (Middle) */}
+              <input
+                type="text"
+                value={searchQuery}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm kiếm cây cảnh, chậu cây, phân bón..."
+                className="flex-1 bg-transparent border-0 px-2 text-xs text-[var(--gl-text-primary)] [color:var(--gl-text-primary)] [-webkit-text-fill-color:var(--gl-text-primary)] focus:outline-none focus:ring-0 placeholder:text-[var(--gl-text-muted)] placeholder:opacity-100 caret-[var(--gl-accent)] min-w-0"
+              />
+            </div>
 
             {/* Chụp ảnh Button (Right) */}
             <button
               type="button"
               onClick={() => setCurrentPage("ai-diagnosis")}
-              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs rounded-full transition-all cursor-pointer shadow-md shrink-0 mr-1"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 min-h-[40px] bg-[var(--gl-accent)] hover:opacity-90 text-white dark:text-emerald-950 font-semibold text-xs rounded-full transition-all cursor-pointer shadow-md shrink-0 sm:mr-0.5 w-full sm:w-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
             >
               <Camera className="h-3.5 w-3.5" />
               Chụp ảnh
             </button>
           </form>
           
-          <p className="text-zinc-200 text-xs sm:text-sm leading-relaxed max-w-2xl text-center font-sans tracking-wide">
+          <p className="text-zinc-200 text-xs sm:text-sm leading-relaxed max-w-2xl text-center font-sans tracking-wide min-w-0 break-words">
             GreenLife kết nối công nghệ AI chẩn đoán thực vật và các sản phẩm hữu cơ sinh học cao cấp phục vụ nhà kính tự dưỡng hiện đại của bạn.
           </p>
+
+          {/* Carousel Indicator Dots */}
+          <div className="flex items-center justify-center gap-1 pt-2 z-20">
+            {HERO_SLIDES.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => goToSlide(idx)}
+                aria-label={`Chuyển đến ảnh ${idx + 1}`}
+                aria-current={idx === currentSlide ? "true" : undefined}
+                className="min-w-[40px] min-h-[40px] inline-flex items-center justify-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-full"
+              >
+                <span
+                  className={`h-2 rounded-full transition-all duration-300 motion-reduce:transition-none ${
+                    idx === currentSlide ? "w-6 bg-emerald-400" : "w-2 bg-white/50 hover:bg-white/80"
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 

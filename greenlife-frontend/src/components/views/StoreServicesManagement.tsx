@@ -291,10 +291,10 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
 
   if (storeId === undefined) {
     return (
-      <div className="max-w-md mx-auto text-center py-16 bg-stone-900 border border-stone-800 rounded-3xl space-y-4 my-12 text-xs">
+      <div className="max-w-md mx-auto text-center py-16 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-3xl space-y-4 my-12 text-xs">
         <AlertCircle className="h-8 w-8 text-amber-500 mx-auto" />
-        <p className="text-stone-300 font-semibold text-sm">Hồ sơ cửa hàng không khả dụng.</p>
-        <p className="text-stone-500 text-xs px-6">Vui lòng đăng ký/xác minh thông tin đối tác trước khi quản lý dịch vụ.</p>
+        <p className="text-[var(--gl-text-primary)] font-semibold text-sm">Hồ sơ cửa hàng không khả dụng.</p>
+        <p className="text-[var(--gl-text-muted)] text-xs px-6">Vui lòng đăng ký/xác minh thông tin đối tác trước khi quản lý dịch vụ.</p>
       </div>
     );
   }
@@ -302,20 +302,21 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
   return (
     <div className="space-y-12">
       {/* SECTION 1: SERVICES MANAGEMENT */}
-      <section className="bg-stone-950/40 border border-stone-200/50 dark:border-stone-850/40 rounded-3xl p-6 shadow-xs backdrop-blur-md space-y-6">
+      <section className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-3xl p-6 shadow-xs backdrop-blur-md space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+            <h2 className="text-xl font-bold text-[var(--gl-text-primary)] flex items-center gap-2">
               <Calendar className="h-5 w-5 text-emerald-500" />
               Danh Sách Dịch Vụ Chăm Sóc Cây
             </h2>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
+            <p className="text-xs text-[var(--gl-text-muted)] mt-1">
               Niêm yết các gói dịch vụ chăm sóc tại nhà hoặc tham vấn trực tiếp của nhà vườn.
             </p>
           </div>
           <button
+            type="button"
             onClick={handleOpenCreateModal}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
           >
             <Plus className="h-4 w-4" />
             Thêm Dịch Vụ Mới
@@ -331,6 +332,7 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
           <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl text-xs flex items-center justify-between">
             <span>{servicesError}</span>
             <button
+              type="button"
               onClick={() => fetchServices(servicesPage)}
               className="flex items-center gap-1 hover:underline cursor-pointer"
             >
@@ -338,7 +340,7 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
             </button>
           </div>
         ) : services.length === 0 ? (
-          <div className="text-center py-12 text-stone-500 border border-dashed border-stone-800 rounded-2xl text-xs">
+          <div className="text-center py-12 text-[var(--gl-text-muted)] border border-dashed border-[var(--gl-border)] rounded-2xl text-xs">
             Bạn chưa đăng dịch vụ chăm sóc cây nào. Nhấp vào "Thêm Dịch Vụ Mới" để bắt đầu.
           </div>
         ) : (
@@ -347,32 +349,32 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
               {services.map((service) => (
                 <div
                   key={service.id}
-                  className="p-5 bg-stone-900/60 border border-stone-800 hover:border-emerald-500/30 rounded-2xl space-y-3 transition-all relative overflow-hidden group"
+                  className="p-5 bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] hover:border-emerald-500/30 rounded-2xl space-y-3 transition-all relative overflow-hidden group"
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="font-bold text-sm text-stone-100">{service.name}</h3>
-                      <p className="text-stone-400 text-xs mt-1 line-clamp-2 leading-relaxed">
+                      <h3 className="font-bold text-sm text-[var(--gl-text-primary)]">{service.name}</h3>
+                      <p className="text-[var(--gl-text-muted)] text-xs mt-1 line-clamp-2 leading-relaxed">
                         {service.description || "Chưa có mô tả dịch vụ."}
                       </p>
                     </div>
                     <span
                       className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
                         service.status === "ACTIVE"
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : "bg-stone-500/10 text-stone-400 border border-stone-800"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          : "bg-[var(--gl-bg-elevated)] text-[var(--gl-text-muted)] border border-[var(--gl-border)]"
                       }`}
                     >
                       {service.status === "ACTIVE" ? "Đang hoạt động" : "Tạm ngưng"}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-stone-850 text-xs">
+                  <div className="flex items-center justify-between pt-2 border-t border-[var(--gl-border)] text-xs">
                     <div className="space-y-0.5">
-                      <span className="text-stone-500 text-[10px] block font-mono">ĐƠN GIÁ / THỜI LƯỢNG</span>
+                      <span className="text-[var(--gl-text-muted)] text-[10px] block font-mono">ĐƠN GIÁ / THỜI LƯỢNG</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-emerald-400 font-bold">{formatPrice(service.price)}</span>
-                        <span className="text-stone-400 text-[10px] bg-stone-800 px-1.5 py-0.5 rounded-sm">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">{formatPrice(service.price)}</span>
+                        <span className="text-[var(--gl-text-secondary)] text-[10px] bg-[var(--gl-bg-elevated)] px-1.5 py-0.5 rounded-sm">
                           {service.durationMinutes} phút
                         </span>
                       </div>
@@ -380,23 +382,27 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
 
                     <div className="flex items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => handleToggleServiceStatus(service)}
                         disabled={updatingServiceStatusId === service.id}
-                        className="p-2 bg-stone-800 hover:bg-stone-750 text-stone-300 rounded-xl transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                        className="p-2 min-w-[40px] min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] rounded-xl transition-all cursor-pointer active:scale-95 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         title={service.status === "ACTIVE" ? "Tạm ngưng dịch vụ" : "Kích hoạt dịch vụ"}
+                        aria-label={service.status === "ACTIVE" ? "Tạm ngưng dịch vụ" : "Kích hoạt dịch vụ"}
                       >
                         {updatingServiceStatusId === service.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-stone-400" />
+                          <Loader2 className="h-4 w-4 animate-spin text-[var(--gl-text-muted)]" />
                         ) : service.status === "ACTIVE" ? (
                           <ToggleRight className="h-4 w-4 text-emerald-500" />
                         ) : (
-                          <ToggleLeft className="h-4 w-4 text-stone-400" />
+                          <ToggleLeft className="h-4 w-4 text-[var(--gl-text-muted)]" />
                         )}
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleOpenEditModal(service)}
-                        className="p-2 bg-stone-800 hover:bg-stone-750 text-stone-300 rounded-xl transition-all cursor-pointer active:scale-95"
+                        className="p-2 min-w-[40px] min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] rounded-xl transition-all cursor-pointer active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         title="Chỉnh sửa dịch vụ"
+                        aria-label="Chỉnh sửa dịch vụ"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
@@ -408,20 +414,22 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
 
             {/* Services Pagination */}
             {servicesTotalPages > 1 && (
-              <div className="flex justify-between items-center pt-2 text-xs text-stone-400">
+              <div className="flex justify-between items-center pt-2 text-xs text-[var(--gl-text-muted)]">
                 <span>Trang {servicesPage + 1} / {servicesTotalPages}</span>
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={() => fetchServices(servicesPage - 1)}
                     disabled={servicesPage === 0}
-                    className="px-3 py-1 bg-stone-800 hover:bg-stone-750 disabled:opacity-40 rounded-lg cursor-pointer"
+                    className="px-3 py-1 min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] disabled:opacity-40 rounded-lg cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                   >
                     Trước
                   </button>
                   <button
+                    type="button"
                     onClick={() => fetchServices(servicesPage + 1)}
                     disabled={servicesPage >= servicesTotalPages - 1}
-                    className="px-3 py-1 bg-stone-800 hover:bg-stone-750 disabled:opacity-40 rounded-lg cursor-pointer"
+                    className="px-3 py-1 min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] disabled:opacity-40 rounded-lg cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                   >
                     Sau
                   </button>
@@ -433,13 +441,13 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
       </section>
 
       {/* SECTION 2: BOOKINGS MANAGEMENT */}
-      <section className="bg-stone-950/40 border border-stone-200/50 dark:border-stone-850/40 rounded-3xl p-6 shadow-xs backdrop-blur-md space-y-6">
+      <section className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-3xl p-6 shadow-xs backdrop-blur-md space-y-6">
         <div>
-          <h2 className="text-xl font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-[var(--gl-text-primary)] flex items-center gap-2">
             <Calendar className="h-5 w-5 text-emerald-500" />
             Lịch Hẹn Dịch Vụ Khách Hàng
           </h2>
-          <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
+          <p className="text-xs text-[var(--gl-text-muted)] mt-1">
             Theo dõi, xác nhận và cập nhật tiến độ công việc chăm sóc cây từ các yêu cầu đặt lịch của khách hàng.
           </p>
         </div>
@@ -453,6 +461,7 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
           <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl text-xs flex items-center justify-between">
             <span>{bookingsError}</span>
             <button
+              type="button"
               onClick={() => fetchBookings(bookingsPage)}
               className="flex items-center gap-1 hover:underline cursor-pointer"
             >
@@ -460,7 +469,7 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
             </button>
           </div>
         ) : bookings.length === 0 ? (
-          <div className="text-center py-12 text-stone-500 border border-dashed border-stone-800 rounded-2xl text-xs">
+          <div className="text-center py-12 text-[var(--gl-text-muted)] border border-dashed border-[var(--gl-border)] rounded-2xl text-xs">
             Hiện tại cửa hàng không có lịch hẹn dịch vụ nào.
           </div>
         ) : (
@@ -469,15 +478,15 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
               {bookings.map((booking) => (
                 <div
                   key={booking.id}
-                  className="p-5 bg-stone-900/60 border border-stone-850 hover:border-stone-800 rounded-2xl space-y-4 transition-all"
+                  className="p-5 bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] hover:border-emerald-500/30 rounded-2xl space-y-4 transition-all"
                 >
                   {/* Top line Info */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-stone-850">
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[var(--gl-border)]">
                     <div className="flex items-center gap-2.5">
-                      <span className="text-xs text-stone-400">Mã lịch hẹn:</span>
-                      <strong className="text-xs text-emerald-500 font-mono">#{booking.id}</strong>
-                      <span className="text-stone-600">|</span>
-                      <span className="text-xs text-stone-300 font-bold">{booking.title}</span>
+                      <span className="text-xs text-[var(--gl-text-muted)]">Mã lịch hẹn:</span>
+                      <strong className="text-xs text-emerald-600 dark:text-emerald-400 font-mono">#{booking.id}</strong>
+                      <span className="text-[var(--gl-border)]">|</span>
+                      <span className="text-xs text-[var(--gl-text-primary)] font-bold">{booking.title}</span>
                     </div>
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusBadgeClass(booking.status)}`}>
                       {getStatusLabel(booking.status)}
@@ -485,53 +494,57 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
                   </div>
 
                   {/* Booking details Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-6 text-xs text-stone-300">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-6 text-xs text-[var(--gl-text-secondary)]">
                     <div>
-                      <span className="text-stone-500 text-[10px] block font-mono uppercase">Khách hàng</span>
-                      <span className="font-semibold">{booking.customerName || "Không có tên"}</span>
+                      <span className="text-[var(--gl-text-muted)] text-[10px] block font-mono uppercase">Khách hàng</span>
+                      <span className="font-semibold text-[var(--gl-text-primary)]">{booking.customerName || "Không có tên"}</span>
                     </div>
 
                     <div>
-                      <span className="text-stone-500 text-[10px] block font-mono uppercase">Lịch hẹn</span>
-                      <span className="font-semibold text-emerald-450">{booking.date} lúc {booking.time}</span>
+                      <span className="text-[var(--gl-text-muted)] text-[10px] block font-mono uppercase">Lịch hẹn</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">{booking.date} lúc {booking.time}</span>
                     </div>
 
                     <div>
-                      <span className="text-stone-500 text-[10px] block font-mono uppercase">Đơn giá dịch vụ</span>
-                      <span className="font-semibold text-amber-500">{formatPrice(booking.price)}</span>
+                      <span className="text-[var(--gl-text-muted)] text-[10px] block font-mono uppercase">Đơn giá dịch vụ</span>
+                      <span className="font-semibold text-amber-600 dark:text-amber-400">{formatPrice(booking.price)}</span>
                     </div>
 
                     <div className="sm:col-span-2">
-                      <span className="text-stone-500 text-[10px] block font-mono uppercase">Địa chỉ thực hiện</span>
-                      <span className="font-medium text-stone-400 break-words">{booking.customerAddress || booking.serviceAddress || "Chưa có địa chỉ"}</span>
+                      <span className="text-[var(--gl-text-muted)] text-[10px] block font-mono uppercase">Địa chỉ thực hiện</span>
+                      <span className="font-medium text-[var(--gl-text-secondary)] break-words">{booking.customerAddress || booking.serviceAddress || "Chưa có địa chỉ"}</span>
                     </div>
 
                     {booking.customerPhone && (
                       <div className="flex items-center gap-2 pt-2 sm:pt-0">
-                        <span className="text-stone-500 text-[10px] block font-mono uppercase mr-1">Liên hệ nhanh</span>
+                        <span className="text-[var(--gl-text-muted)] text-[10px] block font-mono uppercase mr-1">Liên hệ nhanh</span>
                         <div className="flex items-center gap-1.5">
                           <a
                             href={getZaloContactUrl(booking.customerPhone)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 bg-stone-850 hover:bg-stone-800 text-sky-400 rounded-lg transition-all"
+                            className="p-1.5 min-w-[40px] min-h-[40px] flex items-center justify-center bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-sky-500 rounded-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             title="Nhắn tin Zalo"
+                            aria-label="Nhắn tin Zalo cho khách hàng"
                           >
-                            <MessageSquare className="h-3.5 w-3.5" />
+                            <MessageSquare className="h-4 w-4" />
                           </a>
                           <a
                             href={getTelUrl(booking.customerPhone)}
-                            className="p-1.5 bg-stone-850 hover:bg-stone-800 text-emerald-400 rounded-lg transition-all"
+                            className="p-1.5 min-w-[40px] min-h-[40px] flex items-center justify-center bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-emerald-500 rounded-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             title="Gọi điện"
+                            aria-label="Gọi điện cho khách hàng"
                           >
-                            <Phone className="h-3.5 w-3.5" />
+                            <Phone className="h-4 w-4" />
                           </a>
                           <button
+                            type="button"
                             onClick={() => copyPhoneToClipboard(booking.customerPhone!)}
-                            className="p-1.5 bg-stone-850 hover:bg-stone-800 text-amber-450 rounded-lg transition-all cursor-pointer"
+                            className="p-1.5 min-w-[40px] min-h-[40px] flex items-center justify-center bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-amber-500 rounded-lg transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                             title="Copy số điện thoại"
+                            aria-label="Sao chép số điện thoại"
                           >
-                            <Clipboard className="h-3.5 w-3.5" />
+                            <Clipboard className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
@@ -540,8 +553,8 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
 
                   {/* Customer issue descriptions and notes */}
                   {(booking.issueDescription || booking.userNotes || booking.customerNote) && (
-                    <div className="p-3 bg-stone-950/40 rounded-xl border border-stone-850 text-xs text-stone-400">
-                      <span className="text-stone-500 text-[9px] block font-mono uppercase mb-1">Mô tả chi tiết & yêu cầu của khách</span>
+                    <div className="p-3 bg-[var(--gl-bg-page)] rounded-xl border border-[var(--gl-border)] text-xs text-[var(--gl-text-secondary)]">
+                      <span className="text-[var(--gl-text-muted)] text-[9px] block font-mono uppercase mb-1">Mô tả chi tiết & yêu cầu của khách</span>
                       <p className="italic">"{booking.issueDescription || booking.userNotes || booking.customerNote}"</p>
                     </div>
                   )}
@@ -556,20 +569,22 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
 
                   {/* Actions Area */}
                   {booking.status !== "completed" && booking.status !== "cancelled" && (
-                    <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-stone-850">
+                    <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-[var(--gl-border)]">
                       <button
+                        type="button"
                         onClick={() => handleOpenCancelModal(booking)}
                         disabled={updatingBookingId === booking.id}
-                        className="px-3.5 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 rounded-lg text-xs font-semibold cursor-pointer transition-all disabled:opacity-50"
+                        className="px-3.5 py-1.5 min-h-[40px] border border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-lg text-xs font-semibold cursor-pointer transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >
                         Hủy lịch hẹn
                       </button>
 
                       {booking.status === "pending" && (
                         <button
+                          type="button"
                           onClick={() => handleUpdateBookingStatus(booking, "CONFIRMED")}
                           disabled={updatingBookingId === booking.id}
-                          className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5"
+                          className="px-4 py-1.5 min-h-[40px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         >
                           {updatingBookingId === booking.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                           Xác nhận lịch
@@ -578,9 +593,10 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
 
                       {booking.status === "confirmed" && (
                         <button
+                          type="button"
                           onClick={() => handleUpdateBookingStatus(booking, "IN_PROGRESS")}
                           disabled={updatingBookingId === booking.id}
-                          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5"
+                          className="px-4 py-1.5 min-h-[40px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         >
                           {updatingBookingId === booking.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                           Bắt đầu phục vụ
@@ -589,9 +605,10 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
 
                       {booking.status === "in_progress" && (
                         <button
+                          type="button"
                           onClick={() => handleUpdateBookingStatus(booking, "COMPLETED")}
                           disabled={updatingBookingId === booking.id}
-                          className="px-4 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5"
+                          className="px-4 py-1.5 min-h-[40px] bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         >
                           {updatingBookingId === booking.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                           Hoàn thành dịch vụ
@@ -605,20 +622,22 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
 
             {/* Bookings Pagination */}
             {bookingsTotalPages > 1 && (
-              <div className="flex justify-between items-center pt-2 text-xs text-stone-400">
+              <div className="flex justify-between items-center pt-2 text-xs text-[var(--gl-text-muted)]">
                 <span>Trang {bookingsPage + 1} / {bookingsTotalPages}</span>
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={() => fetchBookings(bookingsPage - 1)}
                     disabled={bookingsPage === 0}
-                    className="px-3 py-1 bg-stone-800 hover:bg-stone-750 disabled:opacity-40 rounded-lg cursor-pointer"
+                    className="px-3 py-1 min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] disabled:opacity-40 rounded-lg cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                   >
                     Trước
                   </button>
                   <button
+                    type="button"
                     onClick={() => fetchBookings(bookingsPage + 1)}
                     disabled={bookingsPage >= bookingsTotalPages - 1}
-                    className="px-3 py-1 bg-stone-800 hover:bg-stone-750 disabled:opacity-40 rounded-lg cursor-pointer"
+                    className="px-3 py-1 min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] disabled:opacity-40 rounded-lg cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                   >
                     Sau
                   </button>
@@ -632,27 +651,29 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
       {/* SERVICE MODAL POPUP */}
       {showServiceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-stone-900 border border-stone-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain">
             <button
+              type="button"
               onClick={() => setShowServiceModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-stone-800 text-stone-400 hover:text-stone-200 transition-all cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+              aria-label="Đóng"
             >
               <X className="h-4 w-4" />
             </button>
 
-            <h3 className="text-base font-bold text-stone-100 font-display">
+            <h3 className="text-base font-bold text-[var(--gl-text-primary)] font-display">
               {selectedService ? "Chỉnh Sửa Dịch Vụ" : "Thêm Dịch Vụ Mới"}
             </h3>
 
             {formValidationError && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-450 rounded-xl text-xs">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-xs">
                 {formValidationError}
               </div>
             )}
 
             <form onSubmit={handleSubmitService} className="space-y-4 text-xs">
               <div className="space-y-1.5">
-                <label className="block text-stone-400 font-semibold">Tên dịch vụ *</label>
+                <label className="block text-[var(--gl-text-secondary)] font-semibold">Tên dịch vụ *</label>
                 <input
                   type="text"
                   required
@@ -660,27 +681,27 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   maxLength={150}
-                  className="w-full px-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-200 focus:outline-none focus:border-emerald-500 transition-all font-sans"
+                  className="w-full px-3.5 py-2.5 bg-[var(--gl-bg-page)] border border-[var(--gl-border)] rounded-xl text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] transition-all font-sans"
                 />
-                <span className="text-[10px] text-stone-500 text-right block font-mono">{formName.trim().length}/150 ký tự</span>
+                <span className="text-[10px] text-[var(--gl-text-muted)] text-right block font-mono">{formName.trim().length}/150 ký tự</span>
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-stone-400 font-semibold">Mô tả chi tiết</label>
+                <label className="block text-[var(--gl-text-secondary)] font-semibold">Mô tả chi tiết</label>
                 <textarea
                   rows={3}
                   placeholder="Ghi rõ chi tiết công việc thực hiện (tỉa cành, bón phân, phòng sâu bệnh...)"
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
                   maxLength={1000}
-                  className="w-full px-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-200 focus:outline-none focus:border-emerald-500 transition-all font-sans resize-none"
+                  className="w-full px-3.5 py-2.5 bg-[var(--gl-bg-page)] border border-[var(--gl-border)] rounded-xl text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] transition-all font-sans resize-none"
                 />
-                <span className="text-[10px] text-stone-500 text-right block font-mono">{formDescription.trim().length}/1000 ký tự</span>
+                <span className="text-[10px] text-[var(--gl-text-muted)] text-right block font-mono">{formDescription.trim().length}/1000 ký tự</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-stone-400 font-semibold">Giá dịch vụ (VNĐ) *</label>
+                  <label className="block text-[var(--gl-text-secondary)] font-semibold">Giá dịch vụ (VNĐ) *</label>
                   <input
                     type="number"
                     required
@@ -688,12 +709,12 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
                     placeholder="0"
                     value={formPrice}
                     onChange={(e) => setFormPrice(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-200 focus:outline-none focus:border-emerald-500 transition-all font-mono"
+                    className="w-full px-3.5 py-2.5 bg-[var(--gl-bg-page)] border border-[var(--gl-border)] rounded-xl text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] transition-all font-mono"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-stone-400 font-semibold">Thời lượng (Phút) *</label>
+                  <label className="block text-[var(--gl-text-secondary)] font-semibold">Thời lượng (Phút) *</label>
                   <input
                     type="number"
                     required
@@ -701,7 +722,7 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
                     placeholder="60"
                     value={formDuration}
                     onChange={(e) => setFormDuration(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-200 focus:outline-none focus:border-emerald-500 transition-all font-mono"
+                    className="w-full px-3.5 py-2.5 bg-[var(--gl-bg-page)] border border-[var(--gl-border)] rounded-xl text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] transition-all font-mono"
                   />
                 </div>
               </div>
@@ -710,14 +731,14 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
                 <button
                   type="button"
                   onClick={() => setShowServiceModal(false)}
-                  className="flex-1 py-2.5 bg-stone-800 hover:bg-stone-750 text-stone-300 rounded-xl font-semibold cursor-pointer transition-all active:scale-95"
+                  className="flex-1 py-2.5 min-h-[44px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] rounded-xl font-semibold cursor-pointer transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Quay lại
                 </button>
                 <button
                   type="submit"
                   disabled={savingService}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold uppercase tracking-wider cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 min-h-[44px] bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold uppercase tracking-wider cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   {savingService && <Loader2 className="h-4 w-4 animate-spin" />}
                   Lưu Lại
@@ -731,10 +752,12 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
       {/* CANCELLATION MODAL POPUP */}
       {showCancelModal && cancelBookingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-stone-900 border border-stone-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain">
             <button
+              type="button"
               onClick={() => setShowCancelModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-stone-800 text-stone-400 hover:text-stone-200 transition-all cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+              aria-label="Đóng"
             >
               <X className="h-4 w-4" />
             </button>
@@ -742,19 +765,19 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
             <h3 className="text-base font-bold text-rose-500 font-display">
               Xác Nhận Hủy Lịch Hẹn
             </h3>
-            <p className="text-xs text-stone-400">
+            <p className="text-xs text-[var(--gl-text-muted)]">
               Vui lòng nhập lý do hủy lịch hẹn này. Thông báo hủy lịch kèm lý do sẽ được gửi trực tiếp đến khách hàng.
             </p>
 
             {cancelReasonValidationError && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-xs">
                 {cancelReasonValidationError}
               </div>
             )}
 
             <form onSubmit={handleSubmitCancel} className="space-y-4 text-xs">
               <div className="space-y-1.5">
-                <label className="block text-stone-400 font-semibold">Lý do hủy *</label>
+                <label className="block text-[var(--gl-text-secondary)] font-semibold">Lý do hủy *</label>
                 <textarea
                   rows={4}
                   required
@@ -762,23 +785,23 @@ export const StoreServicesManagement: React.FC<StoreServicesManagementProps> = (
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   maxLength={500}
-                  className="w-full px-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-200 focus:outline-none focus:border-emerald-500 transition-all font-sans resize-none"
+                  className="w-full px-3.5 py-2.5 bg-[var(--gl-bg-page)] border border-[var(--gl-border)] rounded-xl text-[var(--gl-text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] transition-all font-sans resize-none"
                 />
-                <span className="text-[10px] text-stone-500 text-right block font-mono">{cancelReason.trim().length}/500 ký tự</span>
+                <span className="text-[10px] text-[var(--gl-text-muted)] text-right block font-mono">{cancelReason.trim().length}/500 ký tự</span>
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowCancelModal(false)}
-                  className="flex-1 py-2.5 bg-stone-800 hover:bg-stone-750 text-stone-300 rounded-xl font-semibold cursor-pointer transition-all active:scale-95"
+                  className="flex-1 py-2.5 min-h-[44px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-secondary)] rounded-xl font-semibold cursor-pointer transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Quay lại
                 </button>
                 <button
                   type="submit"
                   disabled={cancellingBooking}
-                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-750 disabled:opacity-50 text-white rounded-xl font-bold uppercase tracking-wider cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 min-h-[44px] bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl font-bold uppercase tracking-wider cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   {cancellingBooking && <Loader2 className="h-4 w-4 animate-spin" />}
                   Xác Nhận Hủy

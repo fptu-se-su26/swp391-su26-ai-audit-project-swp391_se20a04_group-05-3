@@ -271,19 +271,19 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
     const activeStatus = revStatus || status;
     switch (activeStatus) {
       case "DRAFT":
-        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">Bản nháp</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[var(--gl-bg-muted)] text-[var(--gl-text-secondary)]">Bản nháp</span>;
       case "PENDING_REVIEW":
-        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 animate-pulse">Chờ duyệt</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 animate-pulse">Chờ duyệt</span>;
       case "CHANGES_REQUESTED":
-        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">Yêu cầu chỉnh sửa</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400">Yêu cầu chỉnh sửa</span>;
       case "REJECTED":
-        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">Từ chối</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400">Từ chối</span>;
       case "PUBLISHED":
-        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Đã xuất bản</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Đã xuất bản</span>;
       case "ARCHIVED":
-        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">Đã lưu trữ</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)]">Đã lưu trữ</span>;
       default:
-        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{activeStatus}</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[var(--gl-bg-muted)] text-[var(--gl-text-secondary)]">{activeStatus}</span>;
     }
   };
 
@@ -303,15 +303,15 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[600px] flex flex-col">
+    <div className="bg-[var(--gl-bg-surface)] rounded-2xl shadow-sm border border-[var(--gl-border)] overflow-hidden min-h-[600px] flex flex-col">
       {/* HEADER SECTION */}
-      <div className="px-6 py-5 bg-gradient-to-r from-emerald-50/50 to-teal-50/50 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
+      <div className="px-6 py-5 bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-[var(--gl-text-primary)] flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-emerald-600" />
             Quản lý bài viết của tôi
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-[var(--gl-text-muted)] mt-1">
             {userRole === "STORE_OWNER" 
               ? "Soạn thảo bài viết chia sẻ kinh nghiệm làm vườn và gửi duyệt xuất bản." 
               : "Trở thành tác giả GreenLife bằng cách viết và gửi duyệt các bài viết sống xanh."
@@ -320,8 +320,9 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
         </div>
         {view === "list" && (
           <button
+            type="button"
             onClick={handleOpenCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm transition-all duration-200"
+            className="flex items-center gap-2 px-4 py-2 min-h-[40px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm transition-all duration-200"
           >
             <Plus className="w-5 h-5" />
             Viết bài mới
@@ -331,15 +332,15 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
 
       {/* WARNINGS PANEL */}
       {importWarnings.length > 0 && (
-        <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex gap-3">
+        <div className="bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-900/30 px-6 py-4 flex gap-3">
           <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
-            <h4 className="font-semibold text-amber-800 text-sm">Cảnh báo nhập tài liệu:</h4>
-            <ul className="list-disc pl-5 mt-1 text-xs text-amber-700 space-y-1">
+            <h4 className="font-semibold text-amber-800 dark:text-amber-400 text-sm">Cảnh báo nhập tài liệu:</h4>
+            <ul className="list-disc pl-5 mt-1 text-xs text-amber-700 dark:text-amber-500 space-y-1">
               {importWarnings.map((w, idx) => <li key={idx}>{w}</li>)}
             </ul>
           </div>
-          <button onClick={() => setImportWarnings([])} className="ml-auto text-amber-500 hover:text-amber-700">
+          <button type="button" onClick={() => setImportWarnings([])} className="ml-auto text-amber-500 hover:text-amber-700" aria-label="Đóng cảnh báo">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -391,28 +392,29 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center py-20">
               <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
-              <p className="text-gray-500 mt-4 text-sm font-medium">Đang tải danh sách bài viết...</p>
+              <p className="text-[var(--gl-text-muted)] mt-4 text-sm font-medium">Đang tải danh sách bài viết...</p>
             </div>
           ) : blogs.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-gray-100 rounded-2xl">
-              <FileText className="w-16 h-16 text-gray-300" />
-              <h3 className="text-lg font-bold text-gray-800 mt-4">Không tìm thấy bài viết nào</h3>
-              <p className="text-gray-500 max-w-md text-sm mt-2">
+            <div className="flex-1 flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-[var(--gl-border)] rounded-2xl">
+              <FileText className="w-16 h-16 text-[var(--gl-text-muted)]" />
+              <h3 className="text-lg font-bold text-[var(--gl-text-primary)] mt-4">Không tìm thấy bài viết nào</h3>
+              <p className="text-[var(--gl-text-muted)] max-w-md text-sm mt-2">
                 Hãy bắt đầu viết bài đầu tiên của bạn để chia sẻ những kiến thức sống xanh bổ ích!
               </p>
               <button 
+                type="button"
                 onClick={handleOpenCreate}
-                className="mt-6 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm transition-all"
+                className="mt-6 px-4 py-2.5 min-h-[40px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm transition-all"
               >
                 Tạo bài viết đầu tiên
               </button>
             </div>
           ) : (
             <div className="flex-1 flex flex-col">
-              <div className="overflow-x-auto rounded-xl border border-gray-100">
+              <div className="overflow-x-auto rounded-xl border border-[var(--gl-border)]">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase border-b border-gray-100">
+                    <tr className="bg-[var(--gl-bg-muted)] text-[var(--gl-text-secondary)] text-xs font-semibold uppercase border-b border-[var(--gl-border)]">
                       <th className="px-6 py-4">Bài viết</th>
                       <th className="px-6 py-4">Danh mục</th>
                       <th className="px-6 py-4">Trạng thái</th>
@@ -421,32 +423,32 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                       <th className="px-6 py-4 text-right">Thao tác</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 text-sm">
+                  <tbody className="divide-y divide-[var(--gl-border)] text-sm">
                     {blogs.map((blog) => (
-                      <tr key={blog.id} className="hover:bg-gray-50/50 transition-colors">
+                      <tr key={blog.id} className="hover:bg-[var(--gl-bg-muted)] transition-colors">
                         <td className="px-6 py-4 max-w-[320px]">
                           <div className="flex items-center gap-3">
                             <img 
                               src={blog.imageUrl || "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=200"}
                               alt={blog.title}
-                              className="w-12 h-12 object-cover rounded-lg border border-gray-100"
+                              className="w-12 h-12 object-cover rounded-lg border border-[var(--gl-border)]"
                             />
                             <div className="truncate">
-                              <h4 className="font-semibold text-gray-800 truncate" title={blog.title}>{blog.title}</h4>
-                              <p className="text-gray-500 text-xs truncate mt-0.5" title={blog.summary}>{blog.summary}</p>
+                              <h4 className="font-semibold text-[var(--gl-text-primary)] truncate" title={blog.title}>{blog.title}</h4>
+                              <p className="text-[var(--gl-text-muted)] text-xs truncate mt-0.5" title={blog.summary}>{blog.summary}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="font-medium text-gray-700">{getCategoryLabel(blog.category)}</span>
+                          <span className="font-medium text-[var(--gl-text-secondary)]">{getCategoryLabel(blog.category)}</span>
                         </td>
                         <td className="px-6 py-4">
                           {getStatusBadge(blog.status, blog.currentRevisionStatus)}
                         </td>
-                        <td className="px-6 py-4 font-semibold text-gray-600">
+                        <td className="px-6 py-4 font-semibold text-[var(--gl-text-secondary)]">
                           v{blog.version}
                         </td>
-                        <td className="px-6 py-4 text-gray-500">
+                        <td className="px-6 py-4 text-[var(--gl-text-muted)]">
                           {new Date(blog.updatedAt || blog.createdAt).toLocaleDateString("vi-VN")}
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -454,17 +456,21 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                             {/* Editor triggers */}
                             {(blog.currentRevisionStatus === "DRAFT" || blog.currentRevisionStatus === "CHANGES_REQUESTED" || blog.currentRevisionStatus === "REJECTED") ? (
                               <button
+                                type="button"
                                 onClick={() => handleOpenEdit(blog)}
-                                className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center text-[var(--gl-text-muted)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-lg transition-colors"
                                 title="Chỉnh sửa bản nháp"
+                                aria-label="Chỉnh sửa bài viết"
                               >
                                 <Pencil className="w-4 h-4" />
                               </button>
                             ) : blog.status === "PUBLISHED" ? (
                               <button
+                                type="button"
                                 onClick={() => handleSpawnRevision(blog)}
-                                className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center text-[var(--gl-text-muted)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-lg transition-colors"
                                 title="Tạo bản chỉnh sửa mới"
+                                aria-label="Tạo bản chỉnh sửa mới"
                               >
                                 <Plus className="w-4 h-4" />
                               </button>
@@ -472,9 +478,11 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
 
                             {/* View history */}
                             <button
+                              type="button"
                               onClick={() => setHistoryBlog(blog)}
-                              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center text-[var(--gl-text-muted)] hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-lg transition-colors"
                               title="Xem lịch sử duyệt"
+                              aria-label="Xem lịch sử duyệt"
                             >
                               <History className="w-4 h-4" />
                             </button>
@@ -482,9 +490,11 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                             {/* Withdraw Pending */}
                             {blog.currentRevisionStatus === "PENDING_REVIEW" && (
                               <button
+                                type="button"
                                 onClick={() => handleWithdrawSubmission(blog)}
-                                className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center text-[var(--gl-text-muted)] hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20 rounded-lg transition-colors"
                                 title="Rút yêu cầu duyệt"
+                                aria-label="Rút yêu cầu duyệt"
                               >
                                 <RotateCcw className="w-4 h-4" />
                               </button>
@@ -493,9 +503,11 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                             {/* Delete Draft */}
                             {blog.status !== "PUBLISHED" && blog.status !== "ARCHIVED" && (
                               <button
+                                type="button"
                                 onClick={() => handleDeleteBlog(blog)}
-                                className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center text-[var(--gl-text-muted)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition-colors"
                                 title="Xóa bản nháp"
+                                aria-label="Xóa bài viết này"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -510,35 +522,38 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
 
               {/* PAGINATION */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-4">
-                  <span className="text-sm text-gray-500">
+                <div className="flex items-center justify-between border-t border-[var(--gl-border)] pt-4 mt-4">
+                  <span className="text-sm text-[var(--gl-text-muted)]">
                     Tổng số bài viết: <strong>{totalElements}</strong>
                   </span>
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={() => setPage(p => Math.max(0, p - 1))}
                       disabled={page === 0}
-                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-transparent"
+                      className="px-3 py-1.5 min-h-[36px] rounded-lg border border-[var(--gl-border)] text-sm hover:bg-[var(--gl-bg-muted)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--gl-text-secondary)]"
                     >
                       Trước
                     </button>
                     {Array.from({ length: totalPages }, (_, i) => (
                       <button
                         key={i}
+                        type="button"
                         onClick={() => setPage(i)}
-                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                        className={`px-3 py-1.5 min-h-[36px] rounded-lg text-sm transition-colors ${
                           page === i 
                             ? "bg-emerald-600 text-white font-semibold" 
-                            : "border border-gray-200 hover:bg-gray-50 text-gray-600"
+                            : "border border-[var(--gl-border)] hover:bg-[var(--gl-bg-muted)] text-[var(--gl-text-secondary)]"
                         }`}
                       >
                         {i + 1}
                       </button>
                     ))}
                     <button
+                      type="button"
                       onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                       disabled={page === totalPages - 1}
-                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-transparent"
+                      className="px-3 py-1.5 min-h-[36px] rounded-lg border border-[var(--gl-border)] text-sm hover:bg-[var(--gl-bg-muted)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--gl-text-secondary)]"
                     >
                       Sau
                     </button>
@@ -552,17 +567,18 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
 
       {/* EDIT / PREVIEW VIEW */}
       {view === "edit" && (
-        <div className="flex-1 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 min-h-[500px]">
+        <div className="flex-1 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-[var(--gl-border)] min-h-[500px]">
           {/* EDITOR SIDE */}
           <div className="flex-1 p-6 flex flex-col gap-5">
             {/* Top Toolbar */}
-            <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-4">
+            <div className="flex items-center justify-between gap-4 border-b border-[var(--gl-border)] pb-4">
               <button
+                type="button"
                 onClick={() => {
                   setView("list");
                   fetchBlogs();
                 }}
-                className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center gap-1.5 text-sm font-semibold text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 <ChevronLeft className="w-5 h-5" />
                 Quay lại danh sách
@@ -570,11 +586,11 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
 
               <div className="flex items-center gap-2">
                 {/* File import */}
-                <label className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 hover:bg-gray-50 rounded-xl text-xs font-semibold cursor-pointer text-gray-700 transition-all">
+                <label className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--gl-border)] hover:bg-[var(--gl-bg-muted)] rounded-xl text-xs font-semibold cursor-pointer text-[var(--gl-text-secondary)] transition-all focus-within:ring-2 focus-within:ring-[var(--gl-focus-ring)]">
                   {importing ? (
                     <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
                   ) : (
-                    <Upload className="w-4 h-4 text-gray-500" />
+                    <Upload className="w-4 h-4 text-[var(--gl-text-muted)]" />
                   )}
                   Nhập tài liệu (.docx, .md, .txt)
                   <input
@@ -582,21 +598,23 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                     accept=".docx,.md,.txt"
                     onChange={handleFileImport}
                     disabled={importing || loading}
-                    className="hidden"
+                    className="sr-only"
                   />
                 </label>
 
                 {/* Tab selector */}
-                <div className="flex bg-gray-100 p-0.5 rounded-xl text-xs font-semibold">
+                <div className="flex bg-[var(--gl-bg-muted)] p-0.5 rounded-xl text-xs font-semibold">
                   <button
+                    type="button"
                     onClick={() => setActiveTab("edit")}
-                    className={`px-3 py-1.5 rounded-lg ${activeTab === "edit" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}
+                    className={`px-3 py-1.5 rounded-lg transition-colors ${activeTab === "edit" ? "bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] shadow-sm" : "text-[var(--gl-text-muted)] hover:text-[var(--gl-text-secondary)]"}`}
                   >
                     Biên tập
                   </button>
                   <button
+                    type="button"
                     onClick={() => setActiveTab("preview")}
-                    className={`px-3 py-1.5 rounded-lg ${activeTab === "preview" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}
+                    className={`px-3 py-1.5 rounded-lg transition-colors ${activeTab === "preview" ? "bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] shadow-sm" : "text-[var(--gl-text-muted)] hover:text-[var(--gl-text-secondary)]"}`}
                   >
                     Xem trước HTML
                   </button>
@@ -608,24 +626,24 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
               <div className="flex-1 flex flex-col gap-4">
                 {/* Title */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Tiêu đề bài viết</label>
+                  <label className="block text-xs font-bold text-[var(--gl-text-secondary)] uppercase mb-1.5">Tiêu đề bài viết</label>
                   <input
                     type="text"
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     placeholder="Nhập tiêu đề sinh động cho bài viết..."
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-semibold"
+                    className="w-full px-4 py-2.5 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-semibold"
                   />
                 </div>
 
                 {/* Category & Image URL */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Danh mục</label>
+                    <label className="block text-xs font-bold text-[var(--gl-text-secondary)] uppercase mb-1.5">Danh mục</label>
                     <select
                       value={formCategory}
                       onChange={(e) => setFormCategory(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm"
+                      className="w-full px-4 py-2.5 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm"
                     >
                       <option value="GREEN_LIVING">Sống xanh</option>
                       <option value="URBAN_FARMING">Làm nông đô thị</option>
@@ -633,15 +651,15 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Ảnh bìa (Đường dẫn URL)</label>
+                    <label className="block text-xs font-bold text-[var(--gl-text-secondary)] uppercase mb-1.5">Ảnh bìa (Đường dẫn URL)</label>
                     <div className="relative">
-                      <ImageIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <ImageIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--gl-text-muted)]" />
                       <input
                         type="text"
                         value={formImageUrl}
                         onChange={(e) => setFormImageUrl(e.target.value)}
                         placeholder="Nhập URL hình ảnh minh họa..."
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm"
+                        className="w-full pl-10 pr-4 py-2.5 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm"
                       />
                     </div>
                   </div>
@@ -649,34 +667,34 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
 
                 {/* Summary */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Tóm tắt ngắn</label>
+                  <label className="block text-xs font-bold text-[var(--gl-text-secondary)] uppercase mb-1.5">Tóm tắt ngắn</label>
                   <textarea
                     rows={2}
                     value={formSummary}
                     onChange={(e) => setFormSummary(e.target.value)}
                     placeholder="Mô tả tóm tắt nội dung bài viết để thu hút người đọc..."
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm resize-none"
+                    className="w-full px-4 py-2.5 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm resize-none"
                   />
                 </div>
 
                 {/* Content editor */}
                 <div className="flex-1 flex flex-col min-h-[300px]">
-                  <label className="block text-xs font-bold text-gray-600 uppercase mb-1.5">Nội dung bài viết (HTML / Văn bản)</label>
+                  <label className="block text-xs font-bold text-[var(--gl-text-secondary)] uppercase mb-1.5">Nội dung bài viết (HTML / Văn bản)</label>
                   <textarea
                     value={formContent}
                     onChange={(e) => setFormContent(e.target.value)}
                     placeholder="Nhập nội dung bài viết tại đây. Sử dụng các thẻ HTML cơ bản như <p>, <h1>, <h2>, <strong>, <em>, <a>..."
-                    className="w-full flex-1 p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-mono resize-none min-h-[250px]"
+                    className="w-full flex-1 p-4 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-mono resize-none min-h-[250px]"
                   />
                 </div>
               </div>
             ) : (
               // HTML preview
               <div className="flex-1 flex flex-col gap-4">
-                <div className="border border-gray-200 rounded-xl p-6 bg-gray-50 flex-1 overflow-y-auto max-h-[500px]">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-4">{formTitle || "Tiêu đề bài viết"}</h1>
-                  <div className="flex items-center gap-3 mb-6 text-xs text-gray-500">
-                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">
+                <div className="border border-[var(--gl-border)] rounded-xl p-6 bg-[var(--gl-bg-muted)] flex-1 overflow-y-auto max-h-[500px]">
+                  <h1 className="text-2xl font-bold text-[var(--gl-text-primary)] mb-4">{formTitle || "Tiêu đề bài viết"}</h1>
+                  <div className="flex items-center gap-3 mb-6 text-xs text-[var(--gl-text-muted)]">
+                    <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded-full font-semibold">
                       {getCategoryLabel(formCategory)}
                     </span>
                     <span>•</span>
@@ -693,21 +711,21 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                     />
                   )}
                   {formSummary && (
-                    <p className="text-gray-600 font-medium italic border-l-4 border-emerald-500 pl-4 mb-6">
+                    <p className="text-[var(--gl-text-secondary)] font-medium italic border-l-4 border-emerald-500 pl-4 mb-6">
                       {formSummary}
                     </p>
                   )}
                   <div 
-                    className="prose prose-sm prose-emerald max-w-none text-gray-800 space-y-4"
-                    dangerouslySetInnerHTML={{ __html: formContent || "<p className='text-gray-400'>Chưa có nội dung bài viết.</p>" }}
+                    className="prose prose-sm prose-emerald max-w-none text-[var(--gl-text-primary)] space-y-4"
+                    dangerouslySetInnerHTML={{ __html: formContent || "<p class='text-gray-400'>Chưa có nội dung bài viết.</p>" }}
                   />
                 </div>
               </div>
             )}
 
             {/* Form actions */}
-            <div className="flex justify-between items-center gap-4 mt-auto border-t border-gray-100 pt-4">
-              <div className="text-xs text-gray-500">
+            <div className="flex justify-between items-center gap-4 mt-auto border-t border-[var(--gl-border)] pt-4">
+              <div className="text-xs text-[var(--gl-text-muted)]">
                 Phiên bản chỉnh sửa: <strong>v{formVersion}</strong>
               </div>
               <div className="flex gap-2">
@@ -715,7 +733,7 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                   type="button"
                   onClick={handleSaveDraft}
                   disabled={loading}
-                  className="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-semibold text-sm transition-all"
+                  className="px-4 py-2 min-h-[40px] border border-[var(--gl-border)] hover:bg-[var(--gl-bg-muted)] text-[var(--gl-text-secondary)] rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Lưu bản nháp
                 </button>
@@ -724,7 +742,7 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                     type="button"
                     onClick={handleSubmitReview}
                     disabled={loading}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all"
+                    className="flex items-center gap-1.5 px-4 py-2 min-h-[40px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                   >
                     <Send className="w-4 h-4" />
                     Gửi đi duyệt
@@ -736,10 +754,10 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
 
           {/* EDITORIAL REVISIONS AND HISTORY SIDE PANEL */}
           {editingBlog && (
-            <div className="w-full md:w-80 p-6 bg-gray-50/50 flex flex-col gap-6">
+            <div className="w-full md:w-80 p-6 bg-[var(--gl-bg-muted)] flex flex-col gap-6">
               {/* Revision history */}
               <div>
-                <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2 mb-3">
+                <h3 className="text-sm font-bold text-[var(--gl-text-primary)] flex items-center gap-2 mb-3">
                   <History className="w-4.5 h-4.5 text-emerald-600" />
                   Các phiên bản sửa đổi ({editingBlog.revisions?.length || 0})
                 </h3>
@@ -749,16 +767,16 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                       key={rev.id} 
                       className={`p-2.5 rounded-lg border text-xs flex flex-col gap-1 transition-all ${
                         rev.revisionNumber === editingBlog.version 
-                          ? "bg-emerald-50 border-emerald-200 shadow-sm" 
-                          : "bg-white border-gray-200"
+                          ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/30 shadow-sm"
+                          : "bg-[var(--gl-bg-elevated)] border-[var(--gl-border)]"
                       }`}
                     >
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-gray-700">Phiên bản {rev.revisionNumber}</span>
+                        <span className="font-bold text-[var(--gl-text-primary)]">Phiên bản {rev.revisionNumber}</span>
                         <span className="scale-90 font-medium">{getStatusBadge(rev.status)}</span>
                       </div>
-                      <p className="text-gray-500 truncate">{rev.title}</p>
-                      <span className="text-[10px] text-gray-400">
+                      <p className="text-[var(--gl-text-muted)] truncate">{rev.title}</p>
+                      <span className="text-[10px] text-[var(--gl-text-muted)]">
                         {new Date(rev.createdAt).toLocaleString("vi-VN")}
                       </span>
                     </div>
@@ -768,27 +786,27 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
 
               {/* Moderation History */}
               <div className="flex-1 flex flex-col min-h-0">
-                <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2 mb-3">
+                <h3 className="text-sm font-bold text-[var(--gl-text-primary)] flex items-center gap-2 mb-3">
                   <CheckCircle className="w-4.5 h-4.5 text-emerald-600" />
-                  Lịch sử duyệt & nhận xét
+                  Lịch sử duyệt &amp; nhận xét
                 </h3>
                 <div className="flex-1 space-y-3 overflow-y-auto pr-1">
                   {editingBlog.history && editingBlog.history.length > 0 ? (
                     editingBlog.history.map((hist) => (
-                      <div key={hist.id} className="bg-white border border-gray-100 rounded-xl p-3 text-xs shadow-sm space-y-2">
+                      <div key={hist.id} className="bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] rounded-xl p-3 text-xs shadow-sm space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="font-semibold text-gray-800">{hist.actorName}</span>
-                          <span className="text-[10px] text-gray-400">
+                          <span className="font-semibold text-[var(--gl-text-primary)]">{hist.actorName}</span>
+                          <span className="text-[10px] text-[var(--gl-text-muted)]">
                             {new Date(hist.createdAt).toLocaleDateString("vi-VN")}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] font-bold text-gray-600">
+                          <span className="px-1.5 py-0.5 rounded bg-[var(--gl-bg-muted)] text-[10px] font-bold text-[var(--gl-text-secondary)]">
                             {hist.action}
                           </span>
                         </div>
                         {hist.note && (
-                          <p className="bg-gray-50 p-2 rounded text-gray-600 italic">
+                          <p className="bg-[var(--gl-bg-muted)] p-2 rounded text-[var(--gl-text-secondary)] italic">
                             &quot;{hist.note}&quot;
                           </p>
                         )}
@@ -807,46 +825,48 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
       {/* HISTORY MODAL DETAILED VIEW */}
       {historyBlog && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col shadow-xl">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+          <div className="bg-[var(--gl-bg-surface)] rounded-2xl max-w-lg w-full max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain flex flex-col shadow-xl border border-[var(--gl-border)]">
+            <div className="px-6 py-4 bg-[var(--gl-bg-muted)] border-b border-[var(--gl-border)] flex items-center justify-between flex-shrink-0">
+              <h3 className="font-bold text-[var(--gl-text-primary)] flex items-center gap-2">
                 <History className="w-5 h-5 text-emerald-600" />
                 Lịch sử duyệt của bài viết
               </h3>
               <button 
+                type="button"
                 onClick={() => setHistoryBlog(null)} 
-                className="text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-lg transition-colors"
+                className="text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] p-1.5 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                aria-label="Đóng"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <h4 className="font-semibold text-sm text-gray-800">{historyBlog.title}</h4>
-              <p className="text-xs text-gray-500 mt-1">Trạng thái công khai: {getStatusBadge(historyBlog.status)}</p>
+              <h4 className="font-semibold text-sm text-[var(--gl-text-primary)]">{historyBlog.title}</h4>
+              <p className="text-xs text-[var(--gl-text-muted)] mt-1">Trạng thái công khai: {getStatusBadge(historyBlog.status)}</p>
 
-              <div className="border-t border-gray-100 pt-4 space-y-3">
-                <h5 className="text-xs font-bold text-gray-600 uppercase">Dòng sự kiện kiểm duyệt:</h5>
+              <div className="border-t border-[var(--gl-border)] pt-4 space-y-3">
+                <h5 className="text-xs font-bold text-[var(--gl-text-secondary)] uppercase">Dòng sự kiện kiểm duyệt:</h5>
                 {historyBlog.history && historyBlog.history.length > 0 ? (
-                  <div className="relative pl-6 border-l border-gray-200 space-y-5 py-2">
+                  <div className="relative pl-6 border-l border-[var(--gl-border)] space-y-5 py-2">
                     {historyBlog.history.map((hist) => (
                       <div key={hist.id} className="relative">
                         {/* Dot indicator */}
-                        <div className="absolute -left-[30px] top-1.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
+                        <div className="absolute -left-[30px] top-1.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[var(--gl-bg-surface)]" />
                         <div className="text-xs space-y-1">
                           <div className="flex justify-between items-center">
-                            <span className="font-bold text-gray-800">{hist.actorName}</span>
-                            <span className="text-[10px] text-gray-400">
+                            <span className="font-bold text-[var(--gl-text-primary)]">{hist.actorName}</span>
+                            <span className="text-[10px] text-[var(--gl-text-muted)]">
                               {new Date(hist.createdAt).toLocaleString("vi-VN")}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-[10px] font-bold text-emerald-700">
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/30 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
                               {hist.action}
                             </span>
                           </div>
                           {hist.note && (
-                            <p className="bg-gray-50 p-2 rounded text-gray-600 italic mt-1.5">
+                            <p className="bg-[var(--gl-bg-muted)] p-2 rounded text-[var(--gl-text-secondary)] italic mt-1.5">
                               &quot;{hist.note}&quot;
                             </p>
                           )}
@@ -855,15 +875,16 @@ export const AuthorBlogWorkspace: React.FC<AuthorBlogWorkspaceProps> = ({ userRo
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-400 text-xs italic">Chưa ghi nhận sự kiện kiểm duyệt nào cho bài viết này.</p>
+                  <p className="text-[var(--gl-text-muted)] text-xs italic">Chưa ghi nhận sự kiện kiểm duyệt nào cho bài viết này.</p>
                 )}
               </div>
             </div>
 
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+            <div className="px-6 py-4 bg-[var(--gl-bg-muted)] border-t border-[var(--gl-border)] flex justify-end flex-shrink-0">
               <button 
+                type="button"
                 onClick={() => setHistoryBlog(null)}
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-xl text-xs font-semibold"
+                className="px-4 py-2 min-h-[40px] bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-border)] text-[var(--gl-text-primary)] rounded-xl text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 Đóng
               </button>

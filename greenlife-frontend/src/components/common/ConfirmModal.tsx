@@ -26,46 +26,53 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-modal-title"
+        className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-md rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl relative select-none"
+      >
         {/* Close button */}
         <button
+          type="button"
           onClick={onCancel}
-          className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-750 dark:hover:text-stone-250 transition-all cursor-pointer"
+          className="absolute top-4 right-4 p-2 rounded-xl text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-muted)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+          aria-label="Đóng hộp thoại"
         >
           <X className="h-4 w-4" />
         </button>
 
         {/* Title & Icon */}
-        <div className="flex items-center gap-3">
-          <div className={`p-2.5 rounded-2xl ${isDanger ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"}`}>
+        <div className="flex items-center gap-3 pr-6">
+          <div className={`p-2.5 rounded-2xl shrink-0 ${isDanger ? "bg-rose-500/10 text-[var(--gl-danger)] border border-rose-500/20" : "bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20"}`}>
             <AlertTriangle className="h-5 w-5" />
           </div>
-          <h3 className="text-base font-bold text-stone-900 dark:text-stone-100 font-display">
+          <h3 id="confirm-modal-title" className="text-base sm:text-lg font-bold text-[var(--gl-text-primary)] font-display tracking-tight leading-snug">
             {title}
           </h3>
         </div>
 
         {/* Message */}
-        <div className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed font-sans">
+        <div className="text-xs sm:text-sm text-[var(--gl-text-secondary)] leading-relaxed font-sans">
           {message}
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 py-2.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-750 text-stone-700 dark:text-stone-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+            className="flex-1 min-h-[44px] py-2.5 px-4 bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] rounded-xl text-xs font-semibold cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] active:scale-[0.98]"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`flex-1 py-2.5 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm ${
+            className={`flex-1 min-h-[44px] py-2.5 px-4 text-white font-bold uppercase text-xs tracking-wider rounded-xl cursor-pointer transition-all shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] active:scale-[0.98] ${
               isDanger
-                ? "bg-rose-600 hover:bg-rose-750 hover:shadow-rose-650/10"
-                : "bg-emerald-600 hover:bg-emerald-750 hover:shadow-emerald-650/10"
+                ? "bg-rose-600 hover:bg-rose-700 dark:text-white"
+                : "bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] dark:text-emerald-950"
             }`}
           >
             {confirmLabel}
@@ -75,3 +82,5 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     </div>
   );
 };
+
+export default ConfirmModal;

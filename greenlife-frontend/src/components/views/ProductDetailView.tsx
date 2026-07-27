@@ -258,11 +258,12 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
 
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-8 pb-20 text-[var(--gl-text-primary)]">
       {/* Back to Catalog trigger */}
       <button
+        type="button"
         onClick={onBackToShop}
-        className="inline-flex items-center gap-2 text-sm text-stone-500 hover:text-stone-850 dark:text-stone-400 dark:hover:text-stone-100 transition-colors cursor-pointer font-medium"
+        className="inline-flex items-center gap-2 min-h-[40px] px-3 py-1.5 text-sm text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] transition-colors cursor-pointer font-medium rounded-xl hover:bg-[var(--gl-bg-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
       >
         <ArrowLeft className="h-4 w-4" />
         Quay lại tất cả sản phẩm
@@ -273,12 +274,12 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         
         {/* Left Columns - Image Presentation */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="relative aspect-square bg-stone-100 dark:bg-stone-950 border border-stone-250 dark:border-stone-800 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center">
+          <div className="relative aspect-square bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-3xl overflow-hidden shadow-xl flex items-center justify-center">
             {imageError || !product.image ? (
-              <div className="flex flex-col items-center justify-center text-stone-400 dark:text-stone-500 p-6 text-center space-y-2">
-                <Leaf className="w-12 h-12 stroke-[1.5] text-stone-300 dark:text-stone-700 animate-pulse" />
+              <div className="flex flex-col items-center justify-center text-[var(--gl-text-muted)] p-6 text-center space-y-2">
+                <Leaf className="w-12 h-12 stroke-[1.5] text-[var(--gl-text-muted)] animate-pulse" />
                 <span className="text-xs font-mono font-semibold uppercase tracking-wider">Hình ảnh sinh học</span>
-                <span className="text-[10px] text-stone-450 dark:text-stone-600 max-w-[200px] leading-relaxed">Đang cập nhật hình ảnh chụp thực tế tại vườn ươm Lâm Đồng</span>
+                <span className="text-[10px] text-[var(--gl-text-muted)] max-w-[200px] leading-relaxed">Đang cập nhật hình ảnh chụp thực tế tại vườn ươm Lâm Đồng</span>
               </div>
             ) : (
               <img
@@ -290,19 +291,19 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 onError={() => setImageError(true)}
               />
             )}
-            <div className="absolute top-4 left-4 bg-emerald-500/10 dark:bg-emerald-950/95 border border-emerald-500/20 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+            <div className="absolute top-4 left-4 bg-[var(--gl-accent-soft)]/90 backdrop-blur-xs border border-[var(--gl-accent)]/30 text-[var(--gl-accent)] font-mono text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm font-bold">
               <Leaf className="h-4 w-4" />
               Chỉ số Thân Thiện: {product.ecoScore}%
             </div>
           </div>
 
           {/* Premium Ecology Commitment Card */}
-          <div className="bg-stone-100/50 dark:bg-stone-900/20 border border-stone-250 dark:border-stone-800 p-5 rounded-2xl space-y-3">
-            <h4 className="text-xs text-stone-500 dark:text-stone-400 font-mono uppercase tracking-widest flex items-center gap-2 font-bold">
-              <ShieldCheck className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-5 rounded-2xl space-y-3 shadow-sm">
+            <h4 className="text-xs text-[var(--gl-text-muted)] font-mono uppercase tracking-widest flex items-center gap-2 font-bold">
+              <ShieldCheck className="h-4 w-4 text-[var(--gl-accent)]" />
               BẢO CHỨNG SINH THÁI CO₂
             </h4>
-            <p className="text-stone-600 dark:text-stone-300 text-xs leading-relaxed">
+            <p className="text-[var(--gl-text-secondary)] text-xs leading-relaxed">
               Mỗi đơn hàng sản phẩm {product.name} đã được trung hòa hoàn toàn dấu chân Carbon từ vùng nguyên liệu gieo ươm Lâm Đồng về tới nội đô nhờ quy cách đóng gói sinh học.
             </p>
           </div>
@@ -311,53 +312,53 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         {/* Right Columns - Details, Pricing & Customization controls */}
         <div className="lg:col-span-7 space-y-6">
           <div className="space-y-2">
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono tracking-widest uppercase font-bold">{product.category}</span>
-            <h1 className="text-3xl sm:text-4xl font-display font-bold text-stone-850 dark:text-stone-100 tracking-tight">{product.name}</h1>
+            <span className="text-xs text-[var(--gl-accent)] font-mono tracking-widest uppercase font-bold">{product.category}</span>
+            <h1 className="text-3xl sm:text-4xl font-display font-bold text-[var(--gl-text-primary)] tracking-tight">{product.name}</h1>
             
             {/* Rating Stars and stock count */}
             <div className="flex flex-wrap items-center gap-4 pt-1">
-              <div className="flex items-center gap-1 bg-stone-100 dark:bg-stone-900 px-3 py-1 rounded-xl text-stone-700 dark:text-stone-200 text-sm border border-stone-200 dark:border-stone-800/80">
+              <div className="flex items-center gap-1 bg-[var(--gl-bg-surface)] px-3 py-1.5 rounded-xl text-[var(--gl-text-primary)] text-sm border border-[var(--gl-border)] shadow-xs">
                 <span>⭐</span>
                 <span className="font-mono font-semibold">{product.rating}</span>
               </div>
-              <span className="text-xs font-mono text-stone-300 dark:text-stone-800">|</span>
+              <span className="text-xs font-mono text-[var(--gl-text-muted)]">|</span>
               <span className={`text-xs font-mono px-3 py-1.5 rounded-xl font-bold uppercase ${stockBadgeInfo.classes}`}>
                 {stockBadgeInfo.text} {product.stock > 0 ? `(${product.stock})` : ""}
               </span>
               {product.isBestSeller && (
-                <span className="text-xs font-mono bg-amber-500/15 text-amber-500 border border-amber-500/30 px-3 py-1.5 rounded-xl font-bold uppercase flex items-center gap-1.5 animate-pulse">
+                <span className="text-xs font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-3 py-1.5 rounded-xl font-bold uppercase flex items-center gap-1.5 animate-pulse">
                   🔥 Bán chạy
                 </span>
               )}
             </div>
           </div>
 
-          <div className="border-t border-b border-stone-200 dark:border-stone-800/60 py-4">
-            <span className="text-[10px] font-mono text-stone-500 dark:text-stone-450 block font-bold uppercase tracking-wider">Giá sản phẩm:</span>
+          <div className="border-t border-b border-[var(--gl-border)] py-4">
+            <span className="text-[10px] font-mono text-[var(--gl-text-muted)] block font-bold uppercase tracking-wider">Giá sản phẩm:</span>
             {product.onSale && product.effectivePrice !== undefined ? (
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-stone-500 line-through font-mono">
+                  <span className="text-sm text-[var(--gl-text-muted)] line-through font-mono">
                     {product.price.toLocaleString("vi-VN")}₫
                   </span>
                   {product.promotionName && (
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold font-mono">
+                    <span className="px-2 py-0.5 rounded bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] text-xs font-bold font-mono">
                       Khuyến mãi: {product.promotionName}
                     </span>
                   )}
                 </div>
-                <span className="text-3xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 block">
+                <span className="text-3xl font-extrabold font-mono text-[var(--gl-accent)] block">
                   {product.effectivePrice.toLocaleString("vi-VN")}₫
                 </span>
               </div>
             ) : (
-              <span className="text-3xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 block mt-1">
+              <span className="text-3xl font-extrabold font-mono text-[var(--gl-accent)] block mt-1">
                 {product.price.toLocaleString("vi-VN")}₫
               </span>
             )}
           </div>
 
-          <p className="text-stone-600 dark:text-stone-300 text-sm leading-relaxed">
+          <p className="text-[var(--gl-text-secondary)] text-sm leading-relaxed">
             {product.description}
           </p>
 
@@ -366,8 +367,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             {/* Custom Pot Selector */}
             {product.category === "plants" && (
               <div className="space-y-2">
-                <label className="text-xs text-stone-500 dark:text-stone-400 font-mono block">Lựa chọn chậu đất gốm tinh xảo:</label>
-                <div className="grid grid-cols-2 gap-3">
+                <label className="text-xs text-[var(--gl-text-muted)] font-mono block font-semibold uppercase tracking-wider">Lựa chọn chậu đất gốm tinh xảo:</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
                     { id: "classic-clay", label: "Đất nung bản địa (Hữu cơ)", desc: "Màu gạch đỏ tự dưỡng hơi ẩm" },
                     { id: "bat-trang-glaze", label: "Men độc bản Bát Tràng (+30k)", desc: "Gốm nung mộc cao tịnh chảy men" }
@@ -377,14 +378,14 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <div
                         key={pot.id}
                         onClick={() => setPotOption(pot.id)}
-                        className={`cursor-pointer p-3.5 rounded-xl border-2 transition-all select-none ${
+                        className={`cursor-pointer p-3.5 rounded-xl border-2 transition-all select-none min-h-[44px] ${
                           isSelected
-                            ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/25 text-emerald-600 dark:text-emerald-400"
-                            : "border-stone-250 dark:border-stone-800 bg-stone-100/50 dark:bg-stone-950 hover:border-stone-400 dark:hover:border-stone-700 text-stone-600 dark:text-stone-400"
+                            ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/30 text-[var(--gl-accent)]"
+                            : "border-[var(--gl-border)] bg-[var(--gl-bg-surface)] hover:border-[var(--gl-border-subtle)] text-[var(--gl-text-secondary)]"
                         }`}
                       >
-                        <h5 className={`text-xs font-semibold ${isSelected ? "text-emerald-700 dark:text-emerald-400" : "text-stone-800 dark:text-stone-300"}`}>{pot.label}</h5>
-                        <span className="text-[10px] text-stone-500 dark:text-stone-500 mt-1 block leading-normal">{pot.desc}</span>
+                        <h5 className={`text-xs font-semibold ${isSelected ? "text-[var(--gl-accent)]" : "text-[var(--gl-text-primary)]"}`}>{pot.label}</h5>
+                        <span className="text-[10px] text-[var(--gl-text-muted)] mt-1 block leading-normal">{pot.desc}</span>
                       </div>
                     );
                   })}
@@ -394,13 +395,13 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
             {/* Specialized Substrate Matching Toggle */}
             <div className="space-y-2">
-              <label className="text-xs text-stone-500 dark:text-stone-400 font-mono block">Tiện ích tối ưu sinh thái:</label>
+              <label className="text-xs text-[var(--gl-text-muted)] font-mono block font-semibold uppercase tracking-wider">Tiện ích tối ưu sinh thái:</label>
               <div
                 onClick={() => setSoilAddon(!soilAddon)}
-                className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all select-none ${
-                  soilAddon 
-                    ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/20" 
-                    : "border-stone-250 dark:border-stone-800 bg-stone-100/50 dark:bg-stone-950 hover:border-stone-400 dark:hover:border-stone-700"
+                className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all select-none min-h-[44px] ${
+                  soilAddon
+                    ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/30"
+                    : "border-[var(--gl-border)] bg-[var(--gl-bg-surface)] hover:border-[var(--gl-border-subtle)]"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -408,11 +409,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     type="checkbox"
                     checked={soilAddon}
                     readOnly
-                    className="w-4 h-4 rounded border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-950 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                    className="w-4 h-4 rounded border-[var(--gl-border)] bg-[var(--gl-bg-muted)] text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] cursor-pointer"
                   />
                   <div>
-                    <span className={`text-xs font-semibold ${soilAddon ? "text-emerald-700 dark:text-emerald-400" : "text-stone-800 dark:text-stone-300"}`}>Bổ sung Phân Trùn Quế bón gốc (+35.000đ)</span>
-                    <p className="text-[10px] text-stone-500 dark:text-stone-500 mt-0.5">Giúp rễ phát triển thần tốc chống thối nhũn ban đầu</p>
+                    <span className={`text-xs font-semibold ${soilAddon ? "text-[var(--gl-accent)]" : "text-[var(--gl-text-primary)]"}`}>Bổ sung Phân Trùn Quế bón gốc (+35.000đ)</span>
+                    <p className="text-[10px] text-[var(--gl-text-muted)] mt-0.5">Giúp rễ phát triển thần tốc chống thối nhũn ban đầu</p>
                   </div>
                 </div>
               </div>
@@ -420,29 +421,33 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           </div>
 
           {/* Quantity selector & Add to cart trigger */}
-          <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-stone-250 dark:border-stone-800/40">
-            <div className="flex items-center bg-stone-100 dark:bg-stone-950 border border-stone-250 dark:border-stone-850 rounded-xl">
+          <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-[var(--gl-border)]">
+            <div className="flex items-center bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] rounded-xl overflow-hidden">
               <button
+                type="button"
+                aria-label="Giảm số lượng"
                 disabled={product.stock <= 0}
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="px-3.5 py-2 hover:bg-stone-200 dark:hover:bg-stone-850 text-stone-500 dark:text-stone-400 hover:text-stone-850 dark:hover:text-stone-100 transition-colors font-semibold text-base cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] transition-colors font-semibold text-base cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 -
               </button>
-              <span className="px-4 py-2 font-mono text-stone-850 dark:text-stone-100 text-sm font-bold">{quantity}</span>
+              <span className="px-4 py-2 font-mono text-[var(--gl-text-primary)] text-sm font-bold select-none min-w-[30px] text-center">{quantity}</span>
               <button
+                type="button"
+                aria-label="Tăng số lượng"
                 disabled={product.stock <= 0}
                 onClick={() => setQuantity(quantity + 1)}
-                className="px-3.5 py-2 hover:bg-stone-200 dark:hover:bg-stone-850 text-stone-500 dark:text-stone-400 hover:text-stone-850 dark:hover:text-stone-100 transition-colors font-semibold text-base cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] transition-colors font-semibold text-base cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
               >
                 +
               </button>
             </div>
 
             <button
+              type="button"
               disabled={product.stock <= 0}
               onClick={(e) => {
-                // Adjust price if extra features are active
                 let finalProduct = { ...product };
                 if (soilAddon) {
                   finalProduct.price += 35000;
@@ -453,10 +458,10 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 }
                 onAddToCart(finalProduct, quantity, e);
               }}
-              className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-8 py-3 font-semibold rounded-xl tracking-tight transition-all cursor-pointer ${
+              className={`flex-1 md:flex-initial min-h-[44px] flex items-center justify-center gap-2 px-8 py-3 font-semibold rounded-xl tracking-tight transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
                 product.stock <= 0
-                  ? "bg-stone-250 dark:bg-stone-850 text-stone-400 dark:text-stone-600 cursor-not-allowed opacity-60"
-                  : "bg-emerald-500 hover:bg-emerald-400 text-stone-950 hover:shadow-sm active:scale-95"
+                  ? "bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)] cursor-not-allowed opacity-60"
+                  : "bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold shadow-sm active:scale-95"
               }`}
             >
               <ShoppingBag className="h-5 w-5" />
@@ -464,6 +469,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </button>
 
             <button
+              type="button"
+              aria-label="Lưu sản phẩm yêu thích"
               onClick={async () => {
                 try {
                   if (isLiked) {
@@ -477,10 +484,10 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   toast.error("Vui lòng đăng nhập để lưu sản phẩm yêu thích.");
                 }
               }}
-              className={`p-3 rounded-xl border transition-all ${
+              className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
                 isLiked
-                  ? "bg-rose-50 dark:bg-rose-950/30 border-rose-500 text-rose-500"
-                  : "bg-stone-100 dark:bg-stone-950 border-stone-250 dark:border-stone-800 text-stone-500 hover:text-rose-500 cursor-pointer"
+                  ? "bg-rose-500/10 border-rose-500 text-rose-500"
+                  : "bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] text-[var(--gl-text-muted)] hover:text-rose-500 cursor-pointer"
               }`}
             >
               <Heart className="h-5 w-5 fill-current" />
@@ -489,28 +496,29 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
           {/* Product Specifications & Logistics FAQ Tab */}
           <div className="pt-6 space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-stone-800 dark:text-stone-100 border-b border-stone-250 dark:border-stone-800 pb-2">Thông Số Kỹ Thuật Sinh Thái</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--gl-text-primary)] border-b border-[var(--gl-border)] pb-2">Thông Số Kỹ Thuật Sinh Thái</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
               {specEntries.map(([key, value]) => (
-                <div key={key} className="flex justify-between p-3 bg-stone-100/50 dark:bg-stone-900/30 rounded-xl border border-stone-200 dark:border-stone-850">
-                  <span className="text-stone-500 dark:text-stone-400 font-semibold">{key}:</span>
-                  <span className="text-stone-800 dark:text-stone-100 font-bold text-right">{value}</span>
+                <div key={key} className="flex justify-between p-3 bg-[var(--gl-bg-surface)] rounded-xl border border-[var(--gl-border)] shadow-xs">
+                  <span className="text-[var(--gl-text-secondary)] font-semibold">{key}:</span>
+                  <span className="text-[var(--gl-text-primary)] font-bold text-right">{value}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* User Reviews (Shopee Flow) */}
+          {/* User Reviews */}
           <div className="pt-8 space-y-6">
-            <div className="flex justify-between items-center border-b border-stone-250 dark:border-stone-800 pb-3">
-              <h3 className="text-base font-bold tracking-tight text-stone-800 dark:text-stone-100 flex items-center gap-2">
-                <MessageSquare className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
+            <div className="flex justify-between items-center border-b border-[var(--gl-border)] pb-3">
+              <h3 className="text-base font-bold tracking-tight text-[var(--gl-text-primary)] flex items-center gap-2">
+                <MessageSquare className="h-4.5 w-4.5 text-[var(--gl-accent)]" />
                 Đánh Giá Từ Khách Hàng ({ratingSummary.totalReviews})
               </h3>
               {currentUser && (
                 <button
+                  type="button"
                   onClick={handleOpenWriteModal}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold rounded-xl text-xs transition-all cursor-pointer shadow-sm"
+                  className="px-4 py-2 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold rounded-xl text-xs transition-all cursor-pointer shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Viết Đánh Giá
                 </button>
@@ -518,18 +526,18 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
 
             {/* Shopee-style Rating Dashboard */}
-            <div className="bg-stone-100/50 dark:bg-stone-950 border border-stone-200 dark:border-stone-850 p-6 rounded-3xl grid grid-cols-1 md:grid-cols-12 gap-6 items-center shadow-sm">
-              <div className="md:col-span-4 text-center md:border-r border-stone-200 dark:border-stone-850 pr-0 md:pr-6 space-y-1">
-                <div className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-                  {averageRating} <span className="text-sm font-normal text-stone-500">/ 5</span>
+            <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl grid grid-cols-1 md:grid-cols-12 gap-6 items-center shadow-sm">
+              <div className="md:col-span-4 text-center md:border-r border-[var(--gl-border)] pr-0 md:pr-6 space-y-1">
+                <div className="text-3xl font-extrabold text-[var(--gl-accent)] font-mono">
+                  {averageRating} <span className="text-sm font-normal text-[var(--gl-text-muted)]">/ 5</span>
                 </div>
                 <div className="flex justify-center gap-1 pt-1.5">
                   {[1, 2, 3, 4, 5].map((star) => {
                     const active = star <= Math.round(Number(averageRating));
-                    return <Star key={star} className={`w-4 h-4 ${active ? "text-amber-400 fill-current" : "text-stone-300 dark:text-stone-800"}`} />;
+                    return <Star key={star} className={`w-4 h-4 ${active ? "text-amber-400 fill-current" : "text-[var(--gl-text-muted)]"}`} />;
                   })}
                 </div>
-                <p className="text-[10px] text-stone-400 dark:text-stone-500 font-mono font-bold">Điểm Đánh Giá Trung Bình</p>
+                <p className="text-[10px] text-[var(--gl-text-muted)] font-mono font-bold uppercase tracking-wider">Điểm Đánh Giá Trung Bình</p>
               </div>
               
               <div className="md:col-span-8 flex flex-wrap gap-2">
@@ -542,15 +550,16 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   { id: "1", label: "1 Sao" }
                 ].map((fTab) => (
                   <button
+                    type="button"
                     key={fTab.id}
                     onClick={() => {
                       setSelectedFilter(fTab.id);
                       setReviewPage(0);
                     }}
-                    className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
+                    className={`px-4 py-2 min-h-[40px] text-xs font-semibold rounded-xl border transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
                       selectedFilter === fTab.id
-                        ? "bg-emerald-500 border-emerald-500 text-stone-950 shadow-sm font-bold"
-                        : "bg-stone-100 dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-stone-600 dark:text-stone-400 hover:text-stone-850 dark:hover:text-stone-100 hover:border-stone-400 dark:hover:border-stone-700"
+                        ? "bg-[var(--gl-accent)] border-[var(--gl-accent)] text-white dark:text-emerald-950 shadow-sm font-bold"
+                        : "bg-[var(--gl-bg-surface)] border-[var(--gl-border)] text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)]"
                     }`}
                   >
                     {fTab.label}
@@ -588,19 +597,21 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 pt-4">
                 <button
+                  type="button"
                   disabled={reviewPage === 0}
                   onClick={() => handlePageChange(reviewPage - 1)}
-                  className="px-3 py-1.5 rounded-lg border border-stone-250 dark:border-stone-850 text-stone-500 dark:text-stone-400 hover:text-stone-850 dark:hover:text-stone-100 disabled:opacity-50 text-xs font-mono transition-all cursor-pointer"
+                  className="px-3 py-1.5 min-w-[40px] min-h-[40px] rounded-xl border border-[var(--gl-border)] text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)] disabled:opacity-50 text-xs font-mono transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Trước
                 </button>
-                <span className="text-xs text-stone-500 dark:text-stone-450 font-mono">
+                <span className="text-xs text-[var(--gl-text-muted)] font-mono">
                   Trang {reviewPage + 1} / {totalPages}
                 </span>
                 <button
+                  type="button"
                   disabled={reviewPage === totalPages - 1}
                   onClick={() => handlePageChange(reviewPage + 1)}
-                  className="px-3 py-1.5 rounded-lg border border-stone-250 dark:border-stone-850 text-stone-500 dark:text-stone-400 hover:text-stone-850 dark:hover:text-stone-100 disabled:opacity-50 text-xs font-mono transition-all cursor-pointer"
+                  className="px-3 py-1.5 min-w-[40px] min-h-[40px] rounded-xl border border-[var(--gl-border)] text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)] disabled:opacity-50 text-xs font-mono transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Sau
                 </button>
@@ -614,45 +625,51 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       {/* Write Review Modal */}
       {isWriteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-          <div className="bg-stone-950 border border-stone-250 dark:border-stone-850 w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-stone-100 uppercase tracking-wider">Viết Đánh Giá Sản Phẩm</h3>
-              <button onClick={() => setIsWriteModalOpen(false)} className="text-stone-450 hover:text-stone-100 cursor-pointer">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-md max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain rounded-2xl p-6 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-[var(--gl-border)] pb-3">
+              <h3 className="text-sm font-bold text-[var(--gl-text-primary)] uppercase tracking-wider">Viết Đánh Giá Sản Phẩm</h3>
+              <button
+                type="button"
+                onClick={() => setIsWriteModalOpen(false)}
+                aria-label="Đóng cửa sổ"
+                className="text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg hover:bg-[var(--gl-bg-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
             
             <form onSubmit={handleCreateReviewSubmit} className="space-y-4 text-xs">
               <div className="space-y-1">
-                <label className="text-stone-400 dark:text-stone-450 block font-semibold">Chọn Số Sao *</label>
+                <label className="text-[var(--gl-text-secondary)] block font-semibold">Chọn Số Sao *</label>
                 <div className="flex gap-1.5">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
+                      aria-label={`${star} sao`}
                       onClick={() => setNewRating(star)}
-                      className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                      className="p-1 hover:scale-110 transition-transform cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-lg"
                     >
-                      <Star className={`w-6 h-6 ${star <= newRating ? "text-amber-400 fill-current" : "text-stone-550 dark:text-stone-700"}`} />
+                      <Star className={`w-6 h-6 ${star <= newRating ? "text-amber-400 fill-current" : "text-[var(--gl-text-muted)]"}`} />
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-stone-450 block font-semibold">Bình luận *</label>
+                <label className="text-[var(--gl-text-secondary)] block font-semibold">Bình luận *</label>
                 <textarea
                   required
                   rows={4}
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder="Hãy chia sẻ cảm nhận của bạn về sản phẩm này..."
-                  className="w-full p-3.5 rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-850 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-450 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs"
+                  className="w-full p-3.5 rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] transition-all text-xs"
                 />
               </div>
 
               {writeError && (
-                <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-[11px] leading-relaxed">
+                <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-[var(--gl-danger)] rounded-lg text-[11px] leading-relaxed">
                   {writeError}
                 </div>
               )}
@@ -661,14 +678,14 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsWriteModalOpen(false)}
-                  className="flex-1 py-2.5 bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 hover:bg-stone-200 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300 rounded-xl font-bold uppercase cursor-pointer transition-all"
+                  className="flex-1 min-h-[44px] py-2.5 bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] rounded-xl font-bold uppercase cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingReview}
-                  className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-stone-950 rounded-xl font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer shadow-sm"
+                  className="flex-1 min-h-[44px] py-2.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 rounded-xl font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   {isSubmittingReview ? "Đang gửi..." : "Gửi Đánh Giá"}
                 </button>
@@ -681,45 +698,51 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       {/* Edit Review Modal */}
       {editingReview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-          <div className="bg-stone-950 border border-stone-250 dark:border-stone-850 w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-stone-100 uppercase tracking-wider">Chỉnh Sửa Đánh Giá</h3>
-              <button onClick={() => setEditingReview(null)} className="text-stone-450 hover:text-stone-100 cursor-pointer">
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-md max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain rounded-2xl p-6 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-[var(--gl-border)] pb-3">
+              <h3 className="text-sm font-bold text-[var(--gl-text-primary)] uppercase tracking-wider">Chỉnh Sửa Đánh Giá</h3>
+              <button
+                type="button"
+                onClick={() => setEditingReview(null)}
+                aria-label="Đóng cửa sổ"
+                className="text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg hover:bg-[var(--gl-bg-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
             
             <form onSubmit={handleUpdateReviewSubmit} className="space-y-4 text-xs">
               <div className="space-y-1">
-                <label className="text-stone-400 dark:text-stone-450 block font-semibold">Chọn Số Sao *</label>
+                <label className="text-[var(--gl-text-secondary)] block font-semibold">Chọn Số Sao *</label>
                 <div className="flex gap-1.5">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
+                      aria-label={`${star} sao`}
                       onClick={() => setEditRating(star)}
-                      className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                      className="p-1 hover:scale-110 transition-transform cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-lg"
                     >
-                      <Star className={`w-6 h-6 ${star <= editRating ? "text-amber-400 fill-current" : "text-stone-550 dark:text-stone-700"}`} />
+                      <Star className={`w-6 h-6 ${star <= editRating ? "text-amber-400 fill-current" : "text-[var(--gl-text-muted)]"}`} />
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-stone-450 block font-semibold">Bình luận *</label>
+                <label className="text-[var(--gl-text-secondary)] block font-semibold">Bình luận *</label>
                 <textarea
                   required
                   rows={4}
                   value={editComment}
                   onChange={(e) => setEditComment(e.target.value)}
                   placeholder="Cập nhật bình luận của bạn..."
-                  className="w-full p-3.5 rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 text-stone-850 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-450 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs"
+                  className="w-full p-3.5 rounded-xl bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none focus:border-[var(--gl-accent)] focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] transition-all text-xs"
                 />
               </div>
 
               {editError && (
-                <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-[11px] leading-relaxed">
+                <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-[var(--gl-danger)] rounded-lg text-[11px] leading-relaxed">
                   {editError}
                 </div>
               )}
@@ -728,14 +751,14 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setEditingReview(null)}
-                  className="flex-1 py-2.5 bg-stone-100 dark:bg-stone-900 border border-stone-250 dark:border-stone-800 hover:bg-stone-200 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300 rounded-xl font-bold uppercase cursor-pointer transition-all"
+                  className="flex-1 min-h-[44px] py-2.5 bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] rounded-xl font-bold uppercase cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isUpdatingReview}
-                  className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-stone-950 rounded-xl font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer shadow-sm"
+                  className="flex-1 min-h-[44px] py-2.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 rounded-xl font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                 >
                   {isUpdatingReview ? "Đang lưu..." : "Cập Nhật"}
                 </button>

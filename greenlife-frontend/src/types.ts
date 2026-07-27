@@ -61,6 +61,7 @@ export interface DiagnosisLog {
   disclaimer?: string;
   expertReviewRecommended?: boolean;
   escalationReason?: string | null;
+  userContext?: string | null;
   recommendedProducts?: any[];
   recommendedServices?: any[];
   provider?: string | null;
@@ -212,19 +213,6 @@ export interface ImportDocumentResponse {
   warnings: string[];
 }
 
-export interface Expert {
-  id: string | number;
-  name: string;
-  title: string;
-  specialty: string[];
-  location: string;
-  avatar: string;
-  phone: string;
-  zaloLink: string;
-  facebookLink: string;
-  bio: string;
-}
-
 export interface StoreOrder {
   id: string;
   customerName: string;
@@ -292,8 +280,11 @@ export interface UserAddress {
   fullname: string;
   phone: string;
   province: string;
-  district: string;
+  provinceCode?: string;
+  district?: string;
   ward: string;
+  communeCode?: string;
+  communeName?: string;
   detail_address: string;
   is_default: boolean;
   is_pickup: boolean;

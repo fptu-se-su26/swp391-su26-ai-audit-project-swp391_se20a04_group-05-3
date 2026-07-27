@@ -1,5 +1,4 @@
-import { Product, Plant } from "../types";
-import { MOCK_PLANTS } from "../data";
+import { Product } from "../types";
 import { HttpClient } from "./httpClient";
 
 export function mapBackendProductToFrontend(item: any): Product {
@@ -102,13 +101,6 @@ export class PlantService {
   }
 
   /**
-   * Retrieves detailed biological profile for custom botanical species
-   */
-  public static async getBotanicalPlants(): Promise<Plant[]> {
-    return MOCK_PLANTS;
-  }
-
-  /**
    * Performs quick eco score audits based on plant categories
    */
   public static auditCarbonOffset(product: Product): number {
@@ -155,6 +147,13 @@ export class PlantService {
    */
   public static async deleteMyStoreProduct(id: string | number): Promise<void> {
     await HttpClient.delete<void>(`/api/store-owner/products/${id}`);
+  }
+
+  /**
+   * Soft deletes a product as an administrator
+   */
+  public static async deleteProductAdmin(id: string | number): Promise<void> {
+    await HttpClient.delete<void>(`/api/admin/products/${id}`);
   }
 }
 export default PlantService;

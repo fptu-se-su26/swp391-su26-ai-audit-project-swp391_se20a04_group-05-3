@@ -105,7 +105,8 @@ public class ChatService {
                 "6. Nếu người dùng hỏi các câu hỏi không liên quan đến GreenLife, làm vườn hay chăm sóc cây cảnh, hãy từ chối một cách lịch sự.\n" +
                 "7. Chỉ đưa ra các lời khuyên chăm sóc cây an toàn. Không hướng dẫn sử dụng hóa chất hay thuốc bảo vệ thực vật độc hại bị cấm.\n" +
                 "8. Nếu người dùng muốn chẩn đoán bệnh cho cây qua hình ảnh, hãy hướng dẫn họ sử dụng tính năng Bác Sĩ Cây AI bằng cách gợi ý hành động nav_ai_diagnosis.\n" +
-                "9. Gợi ý các hành động điều hướng (actionId) từ danh sách sau đây nếu phù hợp với ngữ cảnh cuộc đối thoại:\n" +
+                "9. Khi trình bày thông tin dạng danh sách hoặc các bước hướng dẫn (1., 2., 3., ... hoặc gạch đầu dòng), BẮT BUỘC xuống dòng rõ ràng và để 1 dòng trống giữa các mục để người dùng đọc dễ dàng.\n" +
+                "10. Gợi ý các hành động điều hướng (actionId) từ danh sách sau đây nếu phù hợp với ngữ cảnh cuộc đối thoại:\n" +
                 "   - nav_home: Về Trang Chủ\n" +
                 "   - nav_shop: Đến Cửa Hàng Cây\n" +
                 "   - nav_ai_diagnosis: Dùng Bác Sĩ Cây AI\n" +

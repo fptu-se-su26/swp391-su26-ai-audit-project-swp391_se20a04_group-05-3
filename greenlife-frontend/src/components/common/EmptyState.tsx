@@ -18,20 +18,21 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   action,
 }) => {
   return (
-    <div className="flex flex-col items-center justify-center text-center p-8 py-16 bg-stone-900/10 border border-stone-850 rounded-3xl max-w-lg mx-auto space-y-4 animate-fadeIn">
-      <div className="p-4 bg-emerald-950/40 rounded-2xl border border-emerald-900/20 text-emerald-400">
-        <Icon className="h-10 w-10 stroke-[1.5]" />
+    <div className="flex flex-col items-center justify-center text-center p-6 sm:p-8 py-10 sm:py-12 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl sm:rounded-3xl max-w-lg mx-auto space-y-4">
+      <div className="p-3.5 sm:p-4 bg-[var(--gl-accent-soft)] rounded-2xl border border-[var(--gl-accent)]/20 text-[var(--gl-accent)]">
+        <Icon className="h-8 w-8 sm:h-10 sm:w-10 stroke-[1.5]" />
       </div>
       
-      <div className="space-y-2">
-        <h3 className="text-base font-bold text-white tracking-tight">{title}</h3>
-        <p className="text-xs text-stone-400 max-w-sm mx-auto leading-relaxed">{description}</p>
+      <div className="space-y-1.5 max-w-sm mx-auto">
+        <h3 className="text-base sm:text-lg font-bold text-[var(--gl-text-primary)] tracking-tight">{title}</h3>
+        <p className="text-xs sm:text-sm text-[var(--gl-text-secondary)] leading-relaxed">{description}</p>
       </div>
 
       {action && (
         <button
+          type="button"
           onClick={action.onClick}
-          className="mt-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded-xl cursor-pointer transition-all duration-200 border border-emerald-400/20"
+          className="mt-2 px-5 py-2.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 text-xs font-bold rounded-xl cursor-pointer transition-all duration-200 shadow-sm hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] active:scale-[0.98]"
         >
           {action.label}
         </button>

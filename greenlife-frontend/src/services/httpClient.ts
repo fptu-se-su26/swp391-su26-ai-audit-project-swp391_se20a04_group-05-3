@@ -307,6 +307,21 @@ export class HttpClient {
   public static delete<T = any>(url: string, options?: RequestOptions): Promise<T> {
     return this.request<T>(url, { ...options, method: "DELETE" });
   }
+
+  public static async getBlob(url: string, options?: RequestOptions): Promise<Blob> {
+    const token = AuthService.getAccessToken();
+    const headers: Record<string, string> = {
+      ...(options?.headers as Record<string, string> || {}),
+    };
+    if (token && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const response = await fetch(url, { method: "GET", headers, credentials: "include" });
+    if (!response.ok) {
+      throw new Error(`Tải tệp thất bại: ${response.status}`);
+    }
+    return response.blob();
+  }
 }
 
 export default HttpClient;
