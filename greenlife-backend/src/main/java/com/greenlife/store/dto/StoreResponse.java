@@ -20,6 +20,7 @@ public class StoreResponse {
     private String description;
     private String logoUrl;
     private String verificationDocument;
+    private String businessType;
     private StoreStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

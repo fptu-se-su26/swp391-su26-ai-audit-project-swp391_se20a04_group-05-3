@@ -19,6 +19,25 @@ import java.util.List;
 public class StoreController {
 
     private final StoreService storeService;
+    private final com.greenlife.auth.service.AuthService authService;
+
+    @PostMapping("/otp/send")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<com.greenlife.common.dto.MessageResponse> sendSellerOtp(
+            @Valid @RequestBody com.greenlife.auth.dto.ResendOtpRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return ResponseEntity.ok(authService.sendSellerOtp(request, userDetails.getUsername()));
+    }
+
+    @PostMapping("/otp/verify")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<com.greenlife.common.dto.MessageResponse> verifySellerOtp(
+            @Valid @RequestBody com.greenlife.auth.dto.VerifyOtpRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return ResponseEntity.ok(authService.verifySellerOtp(request, userDetails.getUsername()));
+    }
 
     @PostMapping("/register")
     @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")

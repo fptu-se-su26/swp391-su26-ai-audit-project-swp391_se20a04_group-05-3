@@ -24,8 +24,8 @@ public class LocalFileStorageService implements FileStorageService {
     @Value("${greenlife.upload.dir:./uploads}")
     private String uploadBaseDir;
 
-    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "webp");
-    private static final List<String> ALLOWED_MIME_TYPES = Arrays.asList("image/jpeg", "image/png", "image/webp");
+    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png");
+    private static final List<String> ALLOWED_MIME_TYPES = Arrays.asList("image/jpeg", "image/png");
 
     private Path baseUploadPath;
     private Path diagnosesPath;
@@ -135,13 +135,38 @@ public class LocalFileStorageService implements FileStorageService {
     }
 
     @Override
+    public String storeKycDocument(MultipartFile file) {
+        return storeFile(file, kycPath, "kyc", 5 * 1024 * 1024L);
+    }
+
+    @Override
     public String storeKycDocument(String base64Content) {
         if (base64Content == null || base64Content.trim().isEmpty()) {
             throw new CustomException("Tài liệu KYC không được để trống", HttpStatus.BAD_REQUEST);
         }
 
-        String base64Data = base64Content.trim();
+        String input = base64Content.trim();
 
+        // 1. If input is a valid internal KYC storage key starting with /uploads/kyc/, return as-is without Base64 decoding
+        if (input.startsWith("/uploads/kyc/") || input.startsWith("uploads/kyc/")) {
+            String key = input.startsWith("/") ? input : "/" + input;
+            if (key.contains("..") || key.contains("\\") || key.contains("%2e%2e") || key.contains("?") || key.contains("#")) {
+                throw new CustomException("Đường dẫn tài liệu không hợp lệ", HttpStatus.BAD_REQUEST);
+            }
+            String lower = key.toLowerCase();
+            if (!lower.endsWith(".jpg") && !lower.endsWith(".jpeg") && !lower.endsWith(".png")) {
+                throw new CustomException("Định dạng tệp tài liệu không được hỗ trợ", HttpStatus.BAD_REQUEST);
+            }
+            return key;
+        }
+
+        // Reject blob:, file:, http://, https:// or non-KYC /uploads/ paths
+        if (input.startsWith("blob:") || input.startsWith("file:") || input.startsWith("http://") || input.startsWith("https://")
+                || input.startsWith("/uploads/") || input.startsWith("uploads/")) {
+            throw new CustomException("Không thể xử lý tài liệu xác minh. Vui lòng tải lại ảnh và thử lại.", HttpStatus.BAD_REQUEST);
+        }
+
+        String base64Data = input;
         if (base64Data.startsWith("data:")) {
             int commaIndex = base64Data.indexOf(',');
             if (commaIndex == -1) {
@@ -169,7 +194,7 @@ public class LocalFileStorageService implements FileStorageService {
         }
 
         // 4. Validate magic bytes before ImageIO.read()
-        // Allow ONLY JPEG, PNG, WEBP. Reject SVG, GIF, BMP, TIFF etc.
+        // Allow ONLY JPEG, PNG. Reject SVG, GIF, BMP, TIFF, WEBP etc.
         boolean isJpg = decodedBytes.length >= 2 && 
                         (decodedBytes[0] & 0xFF) == 0xFF && 
                         (decodedBytes[1] & 0xFF) == 0xD8;
@@ -178,39 +203,23 @@ public class LocalFileStorageService implements FileStorageService {
                         (decodedBytes[1] & 0xFF) == 0x50 && 
                         (decodedBytes[2] & 0xFF) == 0x4E && 
                         (decodedBytes[3] & 0xFF) == 0x47;
-        boolean isWebp = decodedBytes.length >= 12 && 
-                         (decodedBytes[0] & 0xFF) == 0x52 && // R
-                         (decodedBytes[1] & 0xFF) == 0x49 && // I
-                         (decodedBytes[2] & 0xFF) == 0x46 && // F
-                         (decodedBytes[3] & 0xFF) == 0x46 && // F
-                         (decodedBytes[8] & 0xFF) == 0x57 && // W
-                         (decodedBytes[9] & 0xFF) == 0x45 && // E
-                         (decodedBytes[10] & 0xFF) == 0x42 && // B
-                         (decodedBytes[11] & 0xFF) == 0x50; // P
 
-        if (!isJpg && !isPng && !isWebp) {
-            throw new CustomException("Định dạng tệp không được hỗ trợ. Chỉ cho phép ảnh JPEG, PNG, WEBP.", HttpStatus.BAD_REQUEST);
+        if (!isJpg && !isPng) {
+            throw new CustomException("Định dạng tệp không được hỗ trợ. Chỉ cho phép ảnh JPEG, PNG.", HttpStatus.BAD_REQUEST);
         }
 
-        String ext = "jpg";
-        if (isPng) {
-            ext = "png";
-        } else if (isWebp) {
-            ext = "webp";
-        }
+        String ext = isPng ? "png" : "jpg";
 
-        // 5. Validate image binary using ImageIO.read() to prevent spoofing (only for JPG and PNG, since standard JDK ImageIO does not support WebP)
-        if (isJpg || isPng) {
-            try (ByteArrayInputStream bais = new ByteArrayInputStream(decodedBytes)) {
-                if (ImageIO.read(bais) == null) {
-                    throw new CustomException("Nội dung ảnh bị lỗi hoặc không hợp lệ", HttpStatus.BAD_REQUEST);
-                }
-            } catch (Exception e) {
-                if (e instanceof CustomException) {
-                    throw (CustomException) e;
-                }
+        // 5. Validate image binary using ImageIO.read() to prevent spoofing
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(decodedBytes)) {
+            if (ImageIO.read(bais) == null) {
                 throw new CustomException("Nội dung ảnh bị lỗi hoặc không hợp lệ", HttpStatus.BAD_REQUEST);
             }
+        } catch (Exception e) {
+            if (e instanceof CustomException) {
+                throw (CustomException) e;
+            }
+            throw new CustomException("Nội dung ảnh bị lỗi hoặc không hợp lệ", HttpStatus.BAD_REQUEST);
         }
 
         // 6. Generate UUID filename (never use client-supplied filename)

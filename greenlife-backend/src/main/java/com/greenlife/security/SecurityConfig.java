@@ -56,11 +56,15 @@ public class SecurityConfig {
                         "/api/auth/verify-reset-otp",
                         "/api/auth/google",
                         "/api/dev/mail-health",
-                        "/uploads/**",
+                        "/uploads/products/**",
+                        "/uploads/avatars/**",
+                        "/uploads/stores/**",
+                        "/uploads/diagnoses/**",
+                        "/uploads/returns/**",
                         "/api/ai/chat",
                         "/actuator/health"
                 ).permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories", "/api/categories/**", "/api/products", "/api/products/**", "/api/reviews/plants/**", "/api/reviews/stores/**", "/api/services", "/api/services/{id}", "/api/blogs", "/api/blogs/{id}", "/api/blogs/slug/**", "/api/blogs/categories").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories", "/api/categories/**", "/api/products", "/api/products/**", "/api/reviews/plants/**", "/api/reviews/stores/**", "/api/services", "/api/services/{id}", "/api/blogs", "/api/blogs/{id}", "/api/blogs/slug/**", "/api/blogs/categories", "/api/administrative/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/payment/vnpay-callback").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/payments/payos/webhook").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

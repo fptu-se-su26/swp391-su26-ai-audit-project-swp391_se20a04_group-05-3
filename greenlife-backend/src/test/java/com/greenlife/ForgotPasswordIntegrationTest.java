@@ -108,7 +108,7 @@ public class ForgotPasswordIntegrationTest {
                 jdbcTemplate.execute("ALTER TABLE user_otps DROP CONSTRAINT chk_otps_purpose;");
             } catch (Exception ignored) {}
             try {
-                jdbcTemplate.execute("ALTER TABLE user_otps ADD CONSTRAINT chk_otps_purpose CHECK (purpose IN ('VERIFICATION', 'PASSWORD_RESET'));");
+                jdbcTemplate.execute("ALTER TABLE user_otps ADD CONSTRAINT chk_otps_purpose CHECK (purpose IN ('VERIFICATION', 'PASSWORD_RESET', 'SELLER_REGISTRATION'));");
             } catch (Exception ignored) {}
         } catch (Exception ignored) {}
 

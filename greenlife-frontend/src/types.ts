@@ -61,11 +61,11 @@ export interface DiagnosisLog {
   disclaimer?: string;
   expertReviewRecommended?: boolean;
   escalationReason?: string | null;
+  userContext?: string | null;
   recommendedProducts?: any[];
   recommendedServices?: any[];
   provider?: string | null;
   model?: string | null;
-  userContext?: string | null;
 }
 
 

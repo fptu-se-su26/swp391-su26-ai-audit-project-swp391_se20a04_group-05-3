@@ -53,4 +53,13 @@ public class StoreProfileController {
         String url = fileStorageService.storeStoreLogo(file);
         return ResponseEntity.ok(java.util.Map.of("url", url));
     }
+
+    @PostMapping("/kyc/upload")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
+    public ResponseEntity<java.util.Map<String, String>> uploadKycDocument(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file
+    ) {
+        String url = fileStorageService.storeKycDocument(file);
+        return ResponseEntity.ok(java.util.Map.of("url", url));
+    }
 }

@@ -27,17 +27,21 @@ public class AddressRequest {
     @Size(max = 255, message = "Địa chỉ nhà tối đa 255 ký tự")
     private String addressLine;
 
-    @NotBlank(message = "Phường/Xã không được để trống")
     @Size(max = 100, message = "Phường/Xã tối đa 100 ký tự")
     private String ward;
 
-    @NotBlank(message = "Quận/Huyện không được để trống")
     @Size(max = 100, message = "Quận/Huyện tối đa 100 ký tự")
     private String district;
 
     @NotBlank(message = "Tỉnh/Thành phố không được để trống")
     @Size(max = 100, message = "Tỉnh/Thành phố tối đa 100 ký tự")
     private String city;
+
+    private String provinceCode;
+
+    private String communeCode;
+
+    private String communeName;
 
     @Builder.Default
     private Boolean isDefault = false;

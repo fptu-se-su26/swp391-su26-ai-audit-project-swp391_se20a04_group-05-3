@@ -57,11 +57,11 @@ export class AIDiagnosisService {
       disclaimer: backend.disclaimer || "",
       expertReviewRecommended: backend.expertReviewRecommended !== undefined ? backend.expertReviewRecommended : false,
       escalationReason: backend.escalationReason || null,
+      userContext: backend.userContext ?? null,
       recommendedProducts: backend.recommendedProducts || [],
       recommendedServices: backend.recommendedServices || [],
       provider: backend.provider || null,
-      model: backend.model || null,
-      userContext: backend.userContext ?? null
+      model: backend.model || null
     };
   }
 
@@ -106,11 +106,8 @@ export class AIDiagnosisService {
     const formData = new FormData();
     formData.append("file", file);
 
-    if (userContext) {
-      const normalizedUserContext = userContext.trim();
-      if (normalizedUserContext.length > 0) {
-        formData.append("userContext", normalizedUserContext);
-      }
+    if (userContext && userContext.trim()) {
+      formData.append("userContext", userContext.trim());
     }
 
     const data = await HttpClient.post("/api/diagnoses", formData, { signal: actualSignal });

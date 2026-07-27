@@ -43,6 +43,7 @@ public class DiagnosisResponse {
     private String escalationReason;
     private Boolean diagnosable;
     private String uncertaintyReason;
+    private String userContext;
 
     private LocalDateTime createdAt;
 }

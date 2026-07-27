@@ -82,7 +82,7 @@ public class AuthLockoutIntegrationTest {
                     "expires_at DATETIME2 NOT NULL," +
                     "created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME()," +
                     "CONSTRAINT fk_otps_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE," +
-                    "CONSTRAINT chk_otps_purpose CHECK (purpose IN ('VERIFICATION', 'PASSWORD_RESET'))" +
+                    "CONSTRAINT chk_otps_purpose CHECK (purpose IN ('VERIFICATION', 'PASSWORD_RESET', 'SELLER_REGISTRATION'))" +
                     ");");
 
             jdbcTemplate.execute("IF OBJECT_ID('refresh_tokens', 'U') IS NULL " +

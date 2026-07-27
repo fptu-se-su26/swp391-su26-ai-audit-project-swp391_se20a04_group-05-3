@@ -43,18 +43,38 @@ public class DiagnosisService {
     @Value("${greenlife.ai.gemini-model:}")
     private String model;
 
+    @Value("${greenlife.ai.daily-diagnosis-limit:5}")
+    private int dailyDiagnosisLimit;
+
 
     @Transactional
     public DiagnosisHistory createDiagnosis(User customer, MultipartFile file, Integer plantId) {
+        return createDiagnosis(customer, file, plantId, null);
+    }
+
+    @Transactional
+    public DiagnosisHistory createDiagnosis(User customer, MultipartFile file, Integer plantId, String userContext) {
         if (customer == null) {
             throw new CustomException("Unauthorized", HttpStatus.UNAUTHORIZED);
         }
 
-        // 1. Daily rate-limiting check (maximum 20 requests per calendar day)
+        // Validate and normalize userContext before saving file or calling Gemini
+        String normalizedUserContext = null;
+        if (userContext != null) {
+            String trimmed = userContext.trim();
+            if (!trimmed.isEmpty()) {
+                if (trimmed.length() > 500) {
+                    throw new CustomException("Mô tả bổ sung vượt quá giới hạn 500 ký tự", HttpStatus.BAD_REQUEST);
+                }
+                normalizedUserContext = trimmed;
+            }
+        }
+
+        // 1. Daily rate-limiting check
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
         long dailyCount = diagnosisHistoryRepository.countByCustomerIdAndCreatedAtAfter(customer.getId(), startOfDay);
-        if (dailyCount >= 20) {
-            throw new CustomException("Vượt quá giới hạn chẩn đoán 20 lượt/ngày", HttpStatus.TOO_MANY_REQUESTS);
+        if (dailyCount >= dailyDiagnosisLimit) {
+            throw new CustomException("Vượt quá giới hạn chẩn đoán " + dailyDiagnosisLimit + " lượt/ngày", HttpStatus.TOO_MANY_REQUESTS);
         }
 
         // 2. Storage quota validation (maximum 200 total images per user)
@@ -75,8 +95,8 @@ public class DiagnosisService {
             // 4. Save image to disk
             relativeUrl = fileStorageService.storeDiagnosisImage(file);
 
-            // 5. Classify image using original filename and bytes
-            DiagnosisResult result = plantDiseaseClassifier.classify(file.getOriginalFilename(), file.getBytes());
+            // 5. Classify image using original filename, bytes, and userContext
+            DiagnosisResult result = plantDiseaseClassifier.classify(file.getOriginalFilename(), file.getBytes(), normalizedUserContext);
 
             // Override with mandatory server disclaimer
             String serverDisclaimer = "Kết quả được AI phân tích từ hình ảnh và chỉ mang tính tham khảo. Tình trạng thực tế có thể cần thêm thông tin hoặc kiểm tra trực tiếp. Để có kết luận và phương án xử lý chính xác hơn, người dùng nên đặt dịch vụ tư vấn với cửa hàng hoặc chuyên gia GreenLife.";
@@ -117,6 +137,7 @@ public class DiagnosisService {
                     .expertReviewRecommended(recommendationResult.isExpertReviewRecommended())
                     .escalationReason(recommendationResult.getEscalationReason())
                     .recommendationCategories(serializeList(result.getRecommendationCategories()))
+                    .userContext(normalizedUserContext)
                     .deleted(false)
                     .build();
 
@@ -341,6 +362,7 @@ public class DiagnosisService {
                 .escalationReason(friendlyEscalation)
                 .diagnosable(history.getDiagnosable())
                 .uncertaintyReason(history.getUncertaintyReason())
+                .userContext(history.getUserContext())
                 .createdAt(history.getCreatedAt())
                 .build();
     }

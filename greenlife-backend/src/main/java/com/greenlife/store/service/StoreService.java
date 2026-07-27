@@ -31,10 +31,11 @@ public class StoreService {
     private final StoreApprovalAuditRepository storeApprovalAuditRepository;
     private final FileStorageService fileStorageService;
     private final RoleRepository roleRepository;
+    private final com.greenlife.auth.service.OtpService otpService;
 
     @Transactional
     public StoreResponse createStore(StoreRequest request, String ownerEmail) {
-        User owner = userRepository.findByEmail(ownerEmail)
+        User owner = userRepository.findByEmailForUpdate(ownerEmail)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
         String currentRole = owner.getRole().getName();
@@ -42,18 +43,37 @@ public class StoreService {
             throw new CustomException("Chỉ khách hàng (CUSTOMER) hoặc chủ cửa hàng (STORE_OWNER) mới có quyền đăng ký cửa hàng", HttpStatus.FORBIDDEN);
         }
 
+        if (request.getShopEmail() == null || request.getShopEmail().isBlank()) {
+            throw new CustomException("Email đối tác không được để trống", HttpStatus.BAD_REQUEST);
+        }
+
         // Check if store already exists
         if (!storeRepository.findByOwnerEmail(ownerEmail).isEmpty()) {
             throw new CustomException("Cửa hàng đã được đăng ký cho tài khoản này", HttpStatus.BAD_REQUEST);
         }
-        String verificationDoc = request.getVerificationDocument();
-        if (verificationDoc != null) {
-            String clean = verificationDoc.trim();
-            checkPathTraversal(clean);
-            if (clean.startsWith("http://") || clean.startsWith("https://") || clean.startsWith("/uploads/")) {
-                // Bypass Base64 processing and store as-is
-            } else {
-                verificationDoc = fileStorageService.storeKycDocument(clean);
+
+        // Consume server-side OTP proof before creating store
+        otpService.consumeSellerRegistrationOtpProof(owner, request.getShopEmail());
+
+        String verificationDoc = processKycUrl(request.getVerificationDocument());
+        String cccdFront = processKycUrl(request.getCccdFrontUrl());
+        String cccdBack = processKycUrl(request.getCccdBackUrl());
+
+        java.util.List<String> storedEvidenceUrls = new java.util.ArrayList<>();
+        if (request.getBusinessEvidenceUrls() != null) {
+            for (String url : request.getBusinessEvidenceUrls()) {
+                String processed = processKycUrl(url);
+                if (processed != null && !processed.isBlank()) {
+                    storedEvidenceUrls.add(processed);
+                }
+            }
+        }
+        String evidenceJson = null;
+        if (!storedEvidenceUrls.isEmpty()) {
+            try {
+                evidenceJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(storedEvidenceUrls);
+            } catch (Exception e) {
+                evidenceJson = "[\"" + String.join("\",\"", storedEvidenceUrls) + "\"]";
             }
         }
 
@@ -66,11 +86,15 @@ public class StoreService {
                 .address(request.getAddress())
                 .description(request.getDescription())
                 .logoUrl(request.getLogoUrl())
-                .verificationDocument(verificationDoc)
+                .verificationDocument(verificationDoc != null ? verificationDoc : cccdFront)
+                .businessType(request.getBusinessType() != null ? request.getBusinessType() : "PHYSICAL_STORE")
+                .cccdFrontUrl(cccdFront)
+                .cccdBackUrl(cccdBack)
+                .businessEvidenceUrls(evidenceJson)
                 .status(StoreStatus.PENDING)
                 .build();
 
-        Store savedStore = storeRepository.save(store);
+        Store savedStore = storeRepository.saveAndFlush(store);
         return mapToStoreResponse(savedStore);
     }
 
@@ -90,18 +114,12 @@ public class StoreService {
                 .findFirst()
                 .orElseThrow(() -> new CustomException("Cửa hàng chưa được đăng ký", HttpStatus.NOT_FOUND));
         String newVerificationDoc = request.getVerificationDocument();
-        if (newVerificationDoc != null) {
-            String clean = newVerificationDoc.trim();
-            checkPathTraversal(clean);
-            if (clean.startsWith("http://") || clean.startsWith("https://") || clean.startsWith("/uploads/")) {
-                // Bypass Base64 processing and store as-is
-            } else {
-                // Safely delete the previous stored KYC file from disk if it was an uploaded kyc file
-                String oldVerificationDoc = store.getVerificationDocument();
-                if (oldVerificationDoc != null && oldVerificationDoc.startsWith("/uploads/kyc/")) {
-                    fileStorageService.deleteFile(oldVerificationDoc);
-                }
-                newVerificationDoc = fileStorageService.storeKycDocument(clean);
+        if (newVerificationDoc != null && !newVerificationDoc.isBlank()) {
+            String oldVerificationDoc = store.getVerificationDocument();
+            newVerificationDoc = processKycUrl(newVerificationDoc);
+            if (oldVerificationDoc != null && oldVerificationDoc.startsWith("/uploads/kyc/")
+                    && !oldVerificationDoc.equals(newVerificationDoc)) {
+                fileStorageService.deleteFile(oldVerificationDoc);
             }
         }
         store.setName(request.getName());
@@ -130,16 +148,16 @@ public class StoreService {
     }
 
     @Transactional(readOnly = true)
-    public List<StoreResponse> getPendingStores() {
+    public List<AdminStoreReviewResponse> getPendingStoresForAdmin() {
         return storeRepository.findByStatus(StoreStatus.PENDING).stream()
-                .map(this::mapToStoreResponse)
+                .map(this::mapToAdminStoreReviewResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<StoreResponse> getApprovedStores() {
+    public List<AdminStoreReviewResponse> getApprovedStoresForAdmin() {
         return storeRepository.findByStatusOrderById(StoreStatus.APPROVED).stream()
-                .map(this::mapToStoreResponse)
+                .map(this::mapToAdminStoreReviewResponse)
                 .collect(Collectors.toList());
     }
 
@@ -228,6 +246,50 @@ public class StoreService {
                 .collect(Collectors.toList());
     }
 
+    private AdminStoreReviewResponse mapToAdminStoreReviewResponse(Store store) {
+        if (store == null) return null;
+        User owner = store.getOwner();
+        return AdminStoreReviewResponse.builder()
+                .id(store.getId())
+                .ownerId(owner != null ? owner.getId() : null)
+                .ownerName(owner != null ? owner.getFullName() : null)
+                .name(store.getName())
+                .phone(store.getPhone())
+                .city(store.getCity())
+                .district(store.getDistrict())
+                .address(store.getAddress())
+                .description(store.getDescription())
+                .logoUrl(store.getLogoUrl())
+                .verificationDocument(store.getVerificationDocument())
+                .businessType(store.getBusinessType())
+                .cccdFrontUrl(store.getCccdFrontUrl())
+                .cccdBackUrl(store.getCccdBackUrl())
+                .businessEvidenceUrls(deserializeEvidenceUrls(store.getBusinessEvidenceUrls()))
+                .status(store.getStatus())
+                .createdAt(store.getCreatedAt())
+                .updatedAt(store.getUpdatedAt())
+                .build();
+    }
+
+    private List<String> deserializeEvidenceUrls(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String clean = raw.trim();
+        if (clean.startsWith("[")) {
+            try {
+                return new com.fasterxml.jackson.databind.ObjectMapper().readValue(
+                    clean,
+                    new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {}
+                );
+            } catch (Exception e) {
+                // Fallback to delimiter parsing if JSON parsing fails
+            }
+        }
+        return java.util.Arrays.stream(clean.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
+
     private StoreResponse mapToStoreResponse(Store store) {
         if (store == null) {
             throw new IllegalArgumentException("Store cannot be null");
@@ -236,6 +298,7 @@ public class StoreService {
         if (owner == null) {
             throw new IllegalStateException("Store owner cannot be null");
         }
+
         return StoreResponse.builder()
                 .id(store.getId())
                 .ownerId(owner.getId())
@@ -248,6 +311,7 @@ public class StoreService {
                 .description(store.getDescription())
                 .logoUrl(store.getLogoUrl())
                 .verificationDocument(store.getVerificationDocument())
+                .businessType(store.getBusinessType())
                 .status(store.getStatus())
                 .createdAt(store.getCreatedAt())
                 .updatedAt(store.getUpdatedAt())
@@ -257,6 +321,47 @@ public class StoreService {
     private void checkPathTraversal(String value) {
         if (value != null && (value.contains("..") || value.contains("\\") || value.contains("%2e%2e"))) {
             throw new CustomException("Đường dẫn tài liệu không hợp lệ (phát hiện ký tự traversal)", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private String processKycUrl(String rawUrl) {
+        if (rawUrl == null || rawUrl.isBlank()) {
+            return null;
+        }
+        String clean = rawUrl.trim();
+        checkPathTraversal(clean);
+
+        if (clean.startsWith("blob:") || clean.startsWith("file:")) {
+            throw new CustomException("Không thể xử lý tài liệu xác minh. Vui lòng tải lại ảnh và thử lại.", HttpStatus.BAD_REQUEST);
+        }
+
+        if (clean.startsWith("/uploads/kyc/") || clean.startsWith("uploads/kyc/")) {
+            String storageKey = clean.startsWith("/") ? clean : "/" + clean;
+            validateKycStorageKey(storageKey);
+            return storageKey;
+        }
+
+        if (clean.startsWith("http://") || clean.startsWith("https://")) {
+            if (clean.contains("/uploads/kyc/")) {
+                int idx = clean.indexOf("/uploads/kyc/");
+                String storageKey = clean.substring(idx);
+                validateKycStorageKey(storageKey);
+                return storageKey;
+            }
+            throw new CustomException("Đường dẫn tài liệu xác minh không hợp lệ", HttpStatus.BAD_REQUEST);
+        }
+
+        return fileStorageService.storeKycDocument(clean);
+    }
+
+    private void validateKycStorageKey(String storageKey) {
+        if (storageKey.contains("..") || storageKey.contains("\\") || storageKey.contains("%2e%2e")
+                || storageKey.contains("?") || storageKey.contains("#")) {
+            throw new CustomException("Đường dẫn tài liệu không hợp lệ (phát hiện ký tự traversal)", HttpStatus.BAD_REQUEST);
+        }
+        String lower = storageKey.toLowerCase();
+        if (!lower.endsWith(".jpg") && !lower.endsWith(".jpeg") && !lower.endsWith(".png")) {
+            throw new CustomException("Định dạng tệp tài liệu không được hỗ trợ", HttpStatus.BAD_REQUEST);
         }
     }
 }

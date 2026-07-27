@@ -186,6 +186,18 @@ public class GlobalExceptionHandler {
                 .body(buildResponse("Hệ thống đang bận hoặc quá tải kết nối cơ sở dữ liệu. Vui lòng thử lại sau giây lát."));
     }
 
+    @ExceptionHandler({
+            org.springframework.dao.DataAccessException.class,
+            jakarta.persistence.PersistenceException.class
+    })
+    public ResponseEntity<ApiErrorResponse> handleDatabaseException(Exception ex) {
+        String uri = request != null ? request.getRequestURI() : "";
+        String message = (uri != null && uri.contains("/api/addresses"))
+                ? "Không thể lưu địa chỉ. Vui lòng thử lại sau."
+                : "Không thể xử lý yêu cầu dữ liệu. Vui lòng thử lại sau.";
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(buildResponse(message));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiErrorResponse> handleRuntimeException(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(buildResponse("Đã xảy ra lỗi thực thi: " + ex.getMessage()));

@@ -231,4 +231,31 @@ class GeminiProviderServiceTest {
         assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatus());
         assertFalse(exception.getMessage().contains("test-secret-key-123"));
     }
+
+    @Test
+    void testClassifyImage_WithUserContext_IncludesContextInPrompt() throws Exception {
+        String mockGeminiResponse = "{\n" +
+                "  \"candidates\": [{\n" +
+                "    \"content\": {\n" +
+                "      \"parts\": [{\n" +
+                "        \"text\": \"{\\n  \\\"plantName\\\": \\\"Cây Sen Đá\\\",\\n  \\\"diseaseName\\\": \\\"Thối gốc rễ\\\",\\n  \\\"confidenceScore\\\": 92.50,\\n  \\\"severity\\\": \\\"HIGH\\\",\\n  \\\"result\\\":\\\"Thối rễ do úng nước\\\",\\n  \\\"recommendation\\\":\\\"Cách ly cây bệnh\\\",\\n  \\\"observedSymptoms\\\":\\\"Thân úa đen\\\",\\n  \\\"possibleCauses\\\":\\\"Nấm tấn công\\\",\\n  \\\"alternativeDiagnoses\\\":[],\\n  \\\"treatmentSteps\\\":[\\\"Phơi khô rễ\\\"],\\n  \\\"preventionSteps\\\":[\\\"Thay đất\\\"],\\n  \\\"urgentWarning\\\":\\\"Cảnh báo\\\",\\n  \\\"disclaimer\\\":\\\"Tham khảo\\\",\\n  \\\"keywords\\\":[\\\"nấm\\\"]\\n}\"\n" +
+                "      }]\n" +
+                "    }\n" +
+                "  }]\n" +
+                "}";
+
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"))
+                .andExpect(method(org.springframework.http.HttpMethod.POST))
+                .andExpect(header("x-goog-api-key", "test-secret-key-123"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Cây bị héo sau 3 ngày mưa")))
+                .andRespond(withSuccess(mockGeminiResponse, MediaType.APPLICATION_JSON));
+
+        byte[] dummyBytes = new byte[]{1, 2, 3};
+        DiagnosisResult result = service.classifyImage(dummyBytes, "image/png", "Cây bị héo sau 3 ngày mưa");
+
+        assertNotNull(result);
+        assertEquals("Cây Sen Đá", result.getPlantName());
+
+        mockServer.verify();
+    }
 }

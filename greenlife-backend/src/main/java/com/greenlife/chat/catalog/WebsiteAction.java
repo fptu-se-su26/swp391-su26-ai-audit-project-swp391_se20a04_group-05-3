@@ -50,6 +50,12 @@ public enum WebsiteAction {
     public static boolean isValidPage(String page) {
         if (page == null) return false;
         String trimmed = page.trim();
+        if (trimmed.startsWith("/")) {
+            trimmed = trimmed.substring(1).trim();
+        }
+        if (trimmed.isEmpty() || trimmed.equalsIgnoreCase("home")) {
+            return true;
+        }
         for (WebsiteAction action : values()) {
             if (action.currentPage.equalsIgnoreCase(trimmed)) {
                 return true;

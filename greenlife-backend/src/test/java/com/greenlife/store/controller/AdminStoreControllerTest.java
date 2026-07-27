@@ -1,7 +1,7 @@
 package com.greenlife.store.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenlife.store.dto.StoreResponse;
+import com.greenlife.store.dto.AdminStoreReviewResponse;
 import com.greenlife.store.entity.enums.StoreStatus;
 import com.greenlife.store.service.StoreService;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,8 +38,8 @@ class AdminStoreControllerTest {
     // ── 1. ADMIN receives approved stores ────────────────────────────────────
     @Test
     void getApprovedStores_returnsApprovedList() throws Exception {
-        StoreResponse store = buildStore(1, "Cửa hàng Xanh", StoreStatus.APPROVED);
-        when(storeService.getApprovedStores()).thenReturn(List.of(store));
+        AdminStoreReviewResponse store = buildStore(1, "Cửa hàng Xanh", StoreStatus.APPROVED);
+        when(storeService.getApprovedStoresForAdmin()).thenReturn(List.of(store));
 
         mockMvc.perform(get("/api/admin/stores/approved")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -54,7 +54,7 @@ class AdminStoreControllerTest {
     @Test
     void getApprovedStores_serviceFiltersNonApproved() throws Exception {
         // Service is mocked: only returns APPROVED stores. Non-approved are never in result.
-        when(storeService.getApprovedStores()).thenReturn(List.of(
+        when(storeService.getApprovedStoresForAdmin()).thenReturn(List.of(
                 buildStore(2, "Approved Store", StoreStatus.APPROVED)
         ));
 
@@ -63,14 +63,14 @@ class AdminStoreControllerTest {
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].status", is("APPROVED")));
 
-        verify(storeService, times(1)).getApprovedStores();
+        verify(storeService, times(1)).getApprovedStoresForAdmin();
         verifyNoMoreInteractions(storeService);
     }
 
     // ── 3. Empty list returns HTTP 200 with [] ────────────────────────────────
     @Test
     void getApprovedStores_emptyListReturns200() throws Exception {
-        when(storeService.getApprovedStores()).thenReturn(Collections.emptyList());
+        when(storeService.getApprovedStoresForAdmin()).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/admin/stores/approved"))
                 .andExpect(status().isOk())
@@ -83,9 +83,9 @@ class AdminStoreControllerTest {
     //    We verify the controller delegates correctly and does not expose raw data.
     @Test
     void getApprovedStores_delegatesToService() throws Exception {
-        when(storeService.getApprovedStores()).thenReturn(Collections.emptyList());
+        when(storeService.getApprovedStoresForAdmin()).thenReturn(Collections.emptyList());
         mockMvc.perform(get("/api/admin/stores/approved")).andExpect(status().isOk());
-        verify(storeService).getApprovedStores();
+        verify(storeService).getApprovedStoresForAdmin();
     }
 
     // ── 5. Non-ADMIN request rejected – enforced by class-level @PreAuthorize ─
@@ -93,12 +93,12 @@ class AdminStoreControllerTest {
     //    Here we assert that the service has no overloaded method that bypasses filtering.
     @Test
     void getApprovedStores_multipleApprovedStoresReturnedInOrder() throws Exception {
-        List<StoreResponse> stores = List.of(
+        List<AdminStoreReviewResponse> stores = List.of(
                 buildStore(1, "Alpha", StoreStatus.APPROVED),
                 buildStore(2, "Beta", StoreStatus.APPROVED),
                 buildStore(3, "Gamma", StoreStatus.APPROVED)
         );
-        when(storeService.getApprovedStores()).thenReturn(stores);
+        when(storeService.getApprovedStoresForAdmin()).thenReturn(stores);
 
         mockMvc.perform(get("/api/admin/stores/approved"))
                 .andExpect(status().isOk())
@@ -111,8 +111,8 @@ class AdminStoreControllerTest {
     // ── 6. Response contains no sensitive banking/security fields ─────────────
     @Test
     void getApprovedStores_responseContainsNoSensitiveFields() throws Exception {
-        StoreResponse store = buildStore(1, "Safe Store", StoreStatus.APPROVED);
-        when(storeService.getApprovedStores()).thenReturn(List.of(store));
+        AdminStoreReviewResponse store = buildStore(1, "Safe Store", StoreStatus.APPROVED);
+        when(storeService.getApprovedStoresForAdmin()).thenReturn(List.of(store));
 
         String body = mockMvc.perform(get("/api/admin/stores/approved"))
                 .andExpect(status().isOk())
@@ -128,8 +128,8 @@ class AdminStoreControllerTest {
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
-    private StoreResponse buildStore(int id, String name, StoreStatus status) {
-        return StoreResponse.builder()
+    private AdminStoreReviewResponse buildStore(int id, String name, StoreStatus status) {
+        return AdminStoreReviewResponse.builder()
                 .id(id)
                 .ownerId(100)
                 .ownerName("Nguyen Van A")

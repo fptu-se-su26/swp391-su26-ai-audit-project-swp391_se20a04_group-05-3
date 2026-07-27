@@ -24,7 +24,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
   onAddDiagnosisLog,
 }) => {
   const { setCurrentPage } = useAppContext();
-  const { logs: hookLogs, diagnose, deleteRecord, isDiagnosing } = useDiagnosis();
+  const { logs: hookLogs, diagnose, deleteRecord, isDiagnosing, userContext, setUserContext } = useDiagnosis();
 
   // Use hook logs if present, otherwise fall back to propLogs
   const logs = hookLogs && hookLogs.length > 0 ? hookLogs : propLogs;
@@ -38,7 +38,6 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
   const isScanning = isLocalLoading || isDiagnosing;
 
   const [activeReport, setActiveReport] = useState<any | null>(null);
-  const [userContext, setUserContext] = useState("");
   const [warningMessage, setWarningMessage] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -296,10 +295,7 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
                 <div className="space-y-1">
                   <p className="text-xs font-semibold text-[var(--gl-text-primary)]">Kéo thả ảnh cây vào đây</p>
                   <p className="text-[11px] text-[var(--gl-text-secondary)]">hoặc nhấn để chọn ảnh</p>
-                  <p className="text-[10px] text-[var(--gl-text-muted)] font-mono pt-1">PNG, JPG (tối đa 10MB)</p>
-                </div>
-                <div className="p-2.5 bg-[var(--gl-accent-soft)]/30 border border-[var(--gl-accent)]/20 rounded-xl text-[10px] text-[var(--gl-accent)] font-medium">
-                  💡 Nên chụp đủ sáng, rõ lá hoặc phần cây bị bệnh.
+                  <p className="text-[10px] text-[var(--gl-text-muted)] font-mono pt-1">PNG, JPG</p>
                 </div>
               </div>
             )}
@@ -311,6 +307,20 @@ export const AIDiagnosisView: React.FC<AIDiagnosisViewProps> = ({
               accept="image/*"
               className="hidden"
             />
+          </div>
+
+          {/* Lời khuyên khi chụp hoặc tải ảnh */}
+          <div className="p-4 bg-[var(--gl-accent-soft)]/20 border border-[var(--gl-accent)]/25 rounded-2xl space-y-2.5 text-xs text-[var(--gl-text-secondary)] shadow-xs">
+            <div className="flex items-center gap-2 font-semibold text-[var(--gl-accent)] text-xs">
+              <Sparkles className="w-4 h-4 shrink-0" />
+              <span>Lời khuyên khi chụp &amp; tải ảnh cho AI:</span>
+            </div>
+            <ul className="space-y-1.5 list-disc list-inside text-[11px] leading-relaxed text-[var(--gl-text-secondary)] pl-0.5">
+              <li><strong>Chụp cận cảnh:</strong> Tập trung vào vùng lá/thân bị bệnh, đảm bảo đủ sáng, rõ nét, không bị rung hoặc mờ.</li>
+              <li><strong>Không cần độ phân giải quá cao:</strong> Nếu điện thoại đang ở chế độ RAW hoặc độ nét tối đa, hãy chuyển về chế độ ảnh chuẩn để tránh làm ảnh hưởng tốc độ xử lý.</li>
+              <li><strong>Dung lượng tối ưu:</strong> Ưu tiên ảnh <strong>1–8MB</strong> giúp tải lên nhanh chóng và AI hoạt động ổn định.</li>
+              <li><strong>Góc chụp:</strong> Tránh chụp toàn cảnh cả chậu cây từ xa vì AI khó nhận diện được tổn thương hoặc vùng bệnh nhỏ.</li>
+            </ul>
           </div>
 
           {/* Additional User Context Input */}
