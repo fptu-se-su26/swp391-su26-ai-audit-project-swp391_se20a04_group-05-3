@@ -65,6 +65,7 @@ export interface DiagnosisLog {
   recommendedServices?: any[];
   provider?: string | null;
   model?: string | null;
+  userContext?: string | null;
 }
 
 

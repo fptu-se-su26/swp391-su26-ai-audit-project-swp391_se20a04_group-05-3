@@ -60,7 +60,8 @@ export class AIDiagnosisService {
       recommendedProducts: backend.recommendedProducts || [],
       recommendedServices: backend.recommendedServices || [],
       provider: backend.provider || null,
-      model: backend.model || null
+      model: backend.model || null,
+      userContext: backend.userContext ?? null
     };
   }
 
@@ -83,14 +84,36 @@ export class AIDiagnosisService {
   /**
    * Evaluates plant photo uploading, producing health score and pathology diagnosis
    */
+  public static async diagnosePlantLeaf(file: File | Blob, signal?: AbortSignal): Promise<DiagnosisLog>;
+  public static async diagnosePlantLeaf(file: File | Blob, userContext?: string, signal?: AbortSignal): Promise<DiagnosisLog>;
   public static async diagnosePlantLeaf(
     file: File | Blob,
+    userContextOrSignal?: string | AbortSignal,
     signal?: AbortSignal
   ): Promise<DiagnosisLog> {
+    let userContext: string | undefined;
+    let actualSignal: AbortSignal | undefined = signal;
+
+    if (typeof userContextOrSignal === "string") {
+      userContext = userContextOrSignal;
+    } else if (
+      userContextOrSignal instanceof AbortSignal ||
+      (userContextOrSignal && typeof userContextOrSignal === "object" && "aborted" in userContextOrSignal)
+    ) {
+      actualSignal = userContextOrSignal as AbortSignal;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
-    const data = await HttpClient.post("/api/diagnoses", formData, { signal });
+    if (userContext) {
+      const normalizedUserContext = userContext.trim();
+      if (normalizedUserContext.length > 0) {
+        formData.append("userContext", normalizedUserContext);
+      }
+    }
+
+    const data = await HttpClient.post("/api/diagnoses", formData, { signal: actualSignal });
     return this.mapBackendToDiagnosisLog(data);
   }
 

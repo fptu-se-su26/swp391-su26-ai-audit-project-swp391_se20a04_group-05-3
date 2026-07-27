@@ -94,6 +94,35 @@ test.describe("AI Diagnosis Flow", () => {
   });
 
   // -------------------------------------------------------------------------
+  test("TC-AI-07: Additional user context textarea field validation", async ({ page }) => {
+    await goToDiagnosisPage(page);
+
+    const userContextLabel = page.getByText(/thông tin bổ sung/i);
+    await expect(userContextLabel).toBeVisible();
+
+    const textarea = page.locator("textarea#userContextInput");
+    await expect(textarea).toBeVisible();
+    await expect(textarea).toHaveAttribute("maxlength", "500");
+
+    // Verify character counter initial state
+    await expect(page.getByText("0/500")).toBeVisible();
+
+    // Type text and verify character counter updates
+    const testText = "Cây bị héo lá sau khi tưới nước quá nhiều.";
+    await textarea.fill(testText);
+    await expect(page.getByText(`${testText.length}/500`)).toBeVisible();
+
+    // Verify 500 character boundary limit
+    await textarea.fill("");
+
+    const overLimitText = "a".repeat(501);
+    await textarea.pressSequentially(overLimitText);
+
+    await expect(textarea).toHaveValue("a".repeat(500));
+    await expect(page.getByText("500/500")).toBeVisible();
+  });
+
+  // -------------------------------------------------------------------------
   test("TC-AI-06: Product recommendations appear after diagnosis", async ({ page }) => {
     // This test requires actual AI backend — marked as slow test
     test.slow();
