@@ -30,12 +30,12 @@ class GeminiPlantDiseaseClassifierTest {
                 .diseaseName("Cây khỏe mạnh")
                 .build();
 
-        when(geminiProviderService.classifyImage(any(), any())).thenReturn(mockResult);
+        when(geminiProviderService.classifyImage(any(), any(), any())).thenReturn(mockResult);
 
         DiagnosisResult result = classifier.classify("test.jpg", jpegBytes);
         assertNotNull(result);
         assertEquals("Cây khỏe mạnh", result.getDiseaseName());
-        verify(geminiProviderService, times(1)).classifyImage(jpegBytes, "image/jpeg");
+        verify(geminiProviderService, times(1)).classifyImage(jpegBytes, "image/jpeg", null);
     }
 
     @Test
@@ -45,12 +45,12 @@ class GeminiPlantDiseaseClassifierTest {
                 .diseaseName("Thối rễ")
                 .build();
 
-        when(geminiProviderService.classifyImage(any(), any())).thenReturn(mockResult);
+        when(geminiProviderService.classifyImage(any(), any(), any())).thenReturn(mockResult);
 
         DiagnosisResult result = classifier.classify("test.png", pngBytes);
         assertNotNull(result);
         assertEquals("Thối rễ", result.getDiseaseName());
-        verify(geminiProviderService, times(1)).classifyImage(pngBytes, "image/png");
+        verify(geminiProviderService, times(1)).classifyImage(pngBytes, "image/png", null);
     }
 
     @Test
@@ -69,12 +69,27 @@ class GeminiPlantDiseaseClassifierTest {
                 .diseaseName("Đốm lá")
                 .build();
 
-        when(geminiProviderService.classifyImage(any(), any())).thenReturn(mockResult);
+        when(geminiProviderService.classifyImage(any(), any(), any())).thenReturn(mockResult);
 
         DiagnosisResult result = classifier.classify("test.webp", webpBytes);
         assertNotNull(result);
         assertEquals("Đốm lá", result.getDiseaseName());
-        verify(geminiProviderService, times(1)).classifyImage(webpBytes, "image/webp");
+        verify(geminiProviderService, times(1)).classifyImage(webpBytes, "image/webp", null);
+    }
+
+    @Test
+    void testClassify_WithUserContext_ForwardsContext() {
+        byte[] pngBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+        DiagnosisResult mockResult = DiagnosisResult.builder()
+                .diseaseName("Thối rễ")
+                .build();
+
+        when(geminiProviderService.classifyImage(any(), any(), any())).thenReturn(mockResult);
+
+        DiagnosisResult result = classifier.classify("test.png", pngBytes, "Cây héo lá");
+        assertNotNull(result);
+        assertEquals("Thối rễ", result.getDiseaseName());
+        verify(geminiProviderService, times(1)).classifyImage(pngBytes, "image/png", "Cây héo lá");
     }
 
     @Test

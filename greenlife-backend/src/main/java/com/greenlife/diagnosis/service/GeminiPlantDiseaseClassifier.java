@@ -15,6 +15,11 @@ public class GeminiPlantDiseaseClassifier implements PlantDiseaseClassifier {
 
     @Override
     public DiagnosisResult classify(String originalFilename, byte[] fileBytes) {
+        return classify(originalFilename, fileBytes, null);
+    }
+
+    @Override
+    public DiagnosisResult classify(String originalFilename, byte[] fileBytes, String userContext) {
         if (fileBytes == null || fileBytes.length == 0) {
             throw new CustomException("Tệp tin trống", HttpStatus.BAD_REQUEST);
         }
@@ -29,7 +34,7 @@ public class GeminiPlantDiseaseClassifier implements PlantDiseaseClassifier {
             throw new CustomException("Phần mở rộng tệp tin không khớp với nội dung hình ảnh thực tế", HttpStatus.BAD_REQUEST);
         }
 
-        return geminiProviderService.classifyImage(fileBytes, detectedMime);
+        return geminiProviderService.classifyImage(fileBytes, detectedMime, userContext);
     }
 
     private String detectMimeType(byte[] bytes) {

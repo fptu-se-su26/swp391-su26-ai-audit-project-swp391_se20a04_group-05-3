@@ -101,6 +101,9 @@ public class DiagnosisHistory {
     @Column(name = "recommendation_categories", columnDefinition = "NVARCHAR(MAX)")
     private String recommendationCategories;
 
+    @Column(name = "user_context", length = 500)
+    private String userContext;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
