@@ -51,6 +51,7 @@ import { EmptyState } from "../common/EmptyState";
 import { getMediaUrl } from "../../utils/mediaUrl";
 import { StoreServicesManagement } from "./StoreServicesManagement";
 import { AuthorBlogWorkspace } from "../blog/AuthorBlogWorkspace";
+import AdministrativeService, { AdministrativeProvinceDTO, AdministrativeCommuneDTO } from "../../services/administrativeService";
 
 const getAuthToken = (): string | null => {
   return AuthService.getAccessToken();
@@ -348,6 +349,100 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   const hasDisplayableLogo = Boolean(storeLogoPreview || storeLogoUrl) && !storeLogoLoadError;
+
+  // Administrative Location States for Store settings
+  const [provincesList, setProvincesList] = useState<AdministrativeProvinceDTO[]>([]);
+  const [communesList, setCommunesList] = useState<AdministrativeCommuneDTO[]>([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingCommunes, setLoadingCommunes] = useState(false);
+  const [adminAddressError, setAdminAddressError] = useState<string | null>(null);
+  const communeReqSeqRef = useRef(0);
+
+  // Fetch provinces on mount
+  useEffect(() => {
+    let isMounted = true;
+    const fetchProvinces = async () => {
+      setLoadingProvinces(true);
+      setAdminAddressError(null);
+      try {
+        const data = await AdministrativeService.getProvinces();
+        if (isMounted) {
+          setProvincesList(data || []);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setAdminAddressError("Không thể tải dữ liệu địa giới hành chính. Vui lòng thử lại.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingProvinces(false);
+        }
+      }
+    };
+    fetchProvinces();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Fetch communes whenever storeCity or provincesList changes (initial load or city selection)
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!storeCity || provincesList.length === 0) {
+      communeReqSeqRef.current++;
+      setLoadingCommunes(false);
+      setCommunesList([]);
+      return;
+    }
+
+    const matchedProv = provincesList.find(
+      (p) => p.name.trim().toLowerCase() === storeCity.trim().toLowerCase()
+    );
+
+    if (matchedProv) {
+      const currentSeq = ++communeReqSeqRef.current;
+      setAdminAddressError(null);
+      setLoadingCommunes(true);
+
+      AdministrativeService.getCommunesByProvince(matchedProv.id)
+        .then((communes) => {
+          if (isMounted && communeReqSeqRef.current === currentSeq) {
+            setCommunesList(communes || []);
+            setAdminAddressError(null);
+          }
+        })
+        .catch(() => {
+          if (isMounted && communeReqSeqRef.current === currentSeq) {
+            setAdminAddressError("Không thể tải dữ liệu địa giới hành chính. Vui lòng thử lại.");
+          }
+        })
+        .finally(() => {
+          if (isMounted && communeReqSeqRef.current === currentSeq) {
+            setLoadingCommunes(false);
+          }
+        });
+    } else {
+      communeReqSeqRef.current++;
+      setLoadingCommunes(false);
+      setCommunesList([]);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [storeCity, provincesList]);
+
+  const handleCitySelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    communeReqSeqRef.current++;
+    setLoadingCommunes(false);
+    setAdminAddressError(null);
+
+    const selectedCity = e.target.value;
+    setStoreCity(selectedCity);
+    setStoreDistrict("");
+    setCommunesList([]);
+  };
 
   // Sync form states when myStore changes
   React.useEffect(() => {
@@ -1859,34 +1954,74 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
               />
             </div>
 
+            {adminAddressError && (
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl text-xs flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{adminAddressError}</span>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Tỉnh / Thành phố */}
               <div className="space-y-1.5">
                 <label className="text-[var(--gl-text-primary)] font-medium block text-sm">
                   Tỉnh / Thành phố <span className="text-rose-500">*</span>:
                 </label>
                 <select
                   value={storeCity}
-                  onChange={(e) => setStoreCity(e.target.value)}
-                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-4 text-sm cursor-pointer"
+                  onChange={handleCitySelectChange}
+                  disabled={loadingProvinces}
+                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-4 text-sm cursor-pointer disabled:opacity-60"
+                  required
                 >
-                  <option value="Đà Nẵng" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Đà Nẵng</option>
-                  <option value="Hà Nội" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Hà Nội</option>
-                  <option value="Lâm Đồng" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Lâm Đồng</option>
-                  <option value="Hồ Chí Minh" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Hồ Chí Minh</option>
+                  <option value="" disabled className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-muted)]">
+                    {loadingProvinces ? "Đang tải danh sách Tỉnh / Thành phố..." : "-- Chọn Tỉnh / Thành phố --"}
+                  </option>
+                  {storeCity && !provincesList.some((p) => p.name.trim().toLowerCase() === storeCity.trim().toLowerCase()) && (
+                    <option value={storeCity} className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">
+                      {storeCity}
+                    </option>
+                  )}
+                  {provincesList.map((prov) => (
+                    <option key={prov.id} value={prov.name} className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">
+                      {prov.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
+              {/* Xã / Phường / Đặc khu */}
               <div className="space-y-1.5">
                 <label className="text-[var(--gl-text-primary)] font-medium block text-sm">
-                  Quận / Huyện <span className="text-rose-500">*</span>:
+                  Xã / Phường / Đặc khu <span className="text-rose-500">*</span>:
                 </label>
-                <input
-                  type="text"
+                <select
                   value={storeDistrict}
                   onChange={(e) => setStoreDistrict(e.target.value)}
-                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-4 text-sm placeholder:text-[var(--gl-text-muted)]"
+                  disabled={!storeCity || loadingCommunes}
+                  className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2.5 px-4 text-sm cursor-pointer disabled:opacity-60"
                   required
-                />
+                >
+                  <option value="" disabled className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-muted)]">
+                    {!storeCity
+                      ? "-- Vui lòng chọn Tỉnh / Thành phố trước --"
+                      : loadingCommunes
+                      ? "Đang tải danh sách Xã / Phường..."
+                      : communesList.length === 0
+                      ? "Dữ liệu Xã / Phường chưa sẵn có"
+                      : "-- Chọn Xã / Phường / Đặc khu --"}
+                  </option>
+                  {storeDistrict && !communesList.some((c) => c.displayName.trim().toLowerCase() === storeDistrict.trim().toLowerCase() || c.name.trim().toLowerCase() === storeDistrict.trim().toLowerCase()) && (
+                    <option value={storeDistrict} className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">
+                      {storeDistrict}
+                    </option>
+                  )}
+                  {communesList.map((c) => (
+                    <option key={c.code} value={c.displayName} className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">
+                      {c.displayName}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
