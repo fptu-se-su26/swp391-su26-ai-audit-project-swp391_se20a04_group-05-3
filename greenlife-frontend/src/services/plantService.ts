@@ -59,7 +59,8 @@ export class PlantService {
   public static async getProducts(
     search?: string,
     category?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    storeId?: number
   ): Promise<Product[]> {
     const queryParams: Record<string, string> = {
       size: "100" // Ensure we fetch enough products for the grid
@@ -76,7 +77,13 @@ export class PlantService {
         queryParams.category = "phan-bon";
       } else if (category === "smarthome") {
         queryParams.category = "thiet-bi-thong-minh";
+      } else {
+        queryParams.category = category;
       }
+    }
+
+    if (storeId !== undefined && storeId !== null && Number.isInteger(storeId) && storeId > 0) {
+      queryParams.storeId = String(storeId);
     }
 
     const queryString = new URLSearchParams(queryParams).toString();
