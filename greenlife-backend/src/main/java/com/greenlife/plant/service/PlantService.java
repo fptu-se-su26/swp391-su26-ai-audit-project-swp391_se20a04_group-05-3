@@ -275,6 +275,7 @@ public class PlantService {
         List<Plant> plants = plantRepository.findByStoreId(store.getId());
         Map<Integer, PromotionPriceQuote> quotesMap = getQuotesMapForPlants(plants);
         return plants.stream()
+                .filter(plant -> plant.getStatus() != PlantStatus.INACTIVE)
                 .map(plant -> mapToPlantResponseWithQuote(plant, quotesMap.get(plant.getId())))
                 .collect(Collectors.toList());
     }
