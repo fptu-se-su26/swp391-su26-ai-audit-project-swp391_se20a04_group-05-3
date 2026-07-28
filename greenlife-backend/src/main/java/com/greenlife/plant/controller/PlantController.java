@@ -23,9 +23,10 @@ public class PlantController {
     public ResponseEntity<Page<PlantResponse>> getProducts(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer storeId,
             @PageableDefault(size = 10) Pageable pageable
     ) {
-        return ResponseEntity.ok(plantService.getActivePlants(search, category, pageable));
+        return ResponseEntity.ok(plantService.getActivePlants(search, category, storeId, pageable));
     }
 
     @GetMapping("/products/{id}")
