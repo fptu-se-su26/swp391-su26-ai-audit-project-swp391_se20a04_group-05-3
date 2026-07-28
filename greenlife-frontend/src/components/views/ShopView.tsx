@@ -17,7 +17,7 @@ interface ShopViewProps {
   initialSearch?: string;
 }
 
-type CategoryFilter = "all" | "plants" | "care" | "nutrients" | "smarthome";
+type CategoryFilter = "all" | "cay-trong-nha" | "phu-kien" | "phan-bon" | "thiet-bi-thong-minh";
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating" | "eco";
 
 export const ShopView: React.FC<ShopViewProps> = ({
@@ -67,10 +67,10 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
   const categories = [
     { id: "all", label: "Tất Cả" },
-    { id: "plants", label: "Cây Xanh Bản Địa" },
-    { id: "care", label: "Trị Bệnh Sinh Học" },
-    { id: "nutrients", label: "Dinh Dưỡng Hữu Cơ" },
-    { id: "smarthome", label: "IoT Smart Home" },
+    { id: "cay-trong-nha", label: "Cây Xanh Bản Địa" },
+    { id: "phu-kien", label: "Trị Bệnh Sinh Học" },
+    { id: "phan-bon", label: "Dinh Dưỡng Hữu Cơ" },
+    { id: "thiet-bi-thong-minh", label: "IoT Smart Home" },
   ];
 
   const filteredProducts = useMemo(() => {
