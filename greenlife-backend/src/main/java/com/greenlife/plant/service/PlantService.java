@@ -67,11 +67,19 @@ public class PlantService {
     @Transactional(readOnly = true)
     public Page<PlantResponse> getActivePlants(String search, String category, Integer storeId, Pageable pageable) {
         String categoryParam = (category != null && !category.trim().isEmpty() && !category.equalsIgnoreCase("all")) ? category.trim() : null;
-        String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        String searchParam = null;
+        if (search != null && !search.trim().isEmpty()) {
+            searchParam = java.text.Normalizer.normalize(search.trim(), java.text.Normalizer.Form.NFC);
+        }
 
-        Page<Plant> plantsPage = (storeId == null)
-                ? plantRepository.findActiveAndOutOfStockPlants(searchParam, categoryParam, pageable)
-                : plantRepository.findActiveAndOutOfStockPlantsByStore(searchParam, categoryParam, storeId, pageable);
+        Page<Plant> plantsPage;
+        if (storeId != null) {
+            plantsPage = plantRepository.findActiveAndOutOfStockPlantsByStore(searchParam, categoryParam, storeId, pageable);
+        } else if (searchParam != null) {
+            plantsPage = plantRepository.findActiveAndOutOfStockPlantsByName(searchParam, categoryParam, pageable);
+        } else {
+            plantsPage = plantRepository.findActiveAndOutOfStockPlants(null, categoryParam, pageable);
+        }
 
         List<Plant> plants = plantsPage.getContent();
         Map<Integer, PromotionPriceQuote> quotesMap = getQuotesMapForPlants(plants);
