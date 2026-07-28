@@ -13,6 +13,10 @@ import com.greenlife.store.repository.StoreRepository;
 import com.greenlife.user.repository.UserRepository;
 import com.greenlife.user.entity.Role;
 import com.greenlife.user.repository.RoleRepository;
+import com.greenlife.notification.entity.Notification;
+import com.greenlife.notification.entity.enums.NotificationReferenceType;
+import com.greenlife.notification.entity.enums.NotificationType;
+import com.greenlife.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -32,6 +36,7 @@ public class StoreService {
     private final FileStorageService fileStorageService;
     private final RoleRepository roleRepository;
     private final com.greenlife.auth.service.OtpService otpService;
+    private final NotificationRepository notificationRepository;
 
     @Transactional
     public StoreResponse createStore(StoreRequest request, String ownerEmail) {
@@ -202,6 +207,20 @@ public class StoreService {
             userRepository.save(owner);
         }
 
+        if (savedStore.getOwner() != null) {
+            Notification notification = Notification.builder()
+                    .user(savedStore.getOwner())
+                    .type(NotificationType.STORE_APPROVED)
+                    .title("Cửa hàng đã được phê duyệt")
+                    .message("Cửa hàng " + savedStore.getName() + " đã được phê duyệt. Bạn có thể bắt đầu quản lý và niêm yết sản phẩm.")
+                    .referenceType(NotificationReferenceType.STORE)
+                    .referenceId(savedStore.getId())
+                    .isRead(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notification);
+        }
+
         return mapToStoreResponse(savedStore);
     }
 
@@ -222,7 +241,7 @@ public class StoreService {
                 .admin(admin)
                 .oldStatus(store.getStatus())
                 .newStatus(StoreStatus.REJECTED)
-                .reason(request.getReason())
+                .reason(request != null ? request.getReason() : null)
                 .createdAt(LocalDateTime.now())
                 .build();
         storeApprovalAuditRepository.save(audit);
@@ -230,6 +249,29 @@ public class StoreService {
         store.setStatus(StoreStatus.REJECTED);
         store.setUpdatedAt(LocalDateTime.now());
         Store savedStore = storeRepository.save(store);
+
+        if (savedStore.getOwner() != null) {
+            String rawReason = request != null ? request.getReason() : null;
+            String message;
+            if (rawReason != null && !rawReason.trim().isEmpty()) {
+                message = "Cửa hàng " + savedStore.getName() + " chưa được phê duyệt. Lý do: " + rawReason.trim();
+            } else {
+                message = "Cửa hàng " + savedStore.getName() + " chưa được phê duyệt. Vui lòng kiểm tra lại thông tin đăng ký.";
+            }
+
+            Notification notification = Notification.builder()
+                    .user(savedStore.getOwner())
+                    .type(NotificationType.STORE_REJECTED)
+                    .title("Yêu cầu đăng ký cửa hàng bị từ chối")
+                    .message(message)
+                    .referenceType(NotificationReferenceType.STORE)
+                    .referenceId(savedStore.getId())
+                    .isRead(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notification);
+        }
+
         return mapToStoreResponse(savedStore);
     }
 
