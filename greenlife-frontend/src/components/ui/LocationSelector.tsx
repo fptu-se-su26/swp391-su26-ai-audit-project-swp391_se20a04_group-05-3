@@ -3,6 +3,7 @@ import { MapPin, Navigation, ChevronDown, ChevronUp, Store, CheckCircle2, Refres
 import { useAppContext } from "../../context/AppContext";
 import AdministrativeService, { AdministrativeProvinceDTO, AdministrativeCommuneDTO } from "../../services/administrativeService";
 import { PublicStore, EcoStore } from "../../types";
+import { getMediaUrl } from "../../utils/mediaUrl";
 
 export interface LocationSelectorProps {
   className?: string;
@@ -10,6 +11,35 @@ export interface LocationSelectorProps {
   selectedStoreId?: string | number | null;
   onSelectStore?: (id: string) => void;
 }
+
+/** Small 32×32 store logo with declarative React fallback — no DOM manipulation. */
+const StoreLogoThumb: React.FC<{ logoUrl?: string; name: string }> = ({ logoUrl, name }) => {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [logoUrl]);
+
+  const resolvedUrl = logoUrl ? getMediaUrl(logoUrl, "") : "";
+
+  if (!resolvedUrl || failed) {
+    return (
+      <div className="w-8 h-8 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-bg-muted)] flex items-center justify-center shrink-0">
+        <Store className="w-4 h-4 text-[var(--gl-text-muted)]" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={resolvedUrl}
+      alt={name}
+      loading="lazy"
+      className="w-8 h-8 rounded-lg object-cover border border-[var(--gl-border)] shrink-0"
+      onError={() => setFailed(true)}
+    />
+  );
+};
 
 const normalizeLocationString = (str?: string | null): string => {
   if (!str) return "";
@@ -368,13 +398,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
                       >
                         <div className="flex justify-between items-start gap-2.5">
                           <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                            {store.logoUrl && (
-                              <img
-                                src={store.logoUrl}
-                                alt={store.name}
-                                className="w-8 h-8 rounded-lg object-cover border border-[var(--gl-border)] shrink-0"
-                              />
-                            )}
+                            <StoreLogoThumb logoUrl={store.logoUrl} name={store.name} />
                             <div className="space-y-0.5 min-w-0 flex-1">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <h6 className="text-xs font-bold leading-snug text-[var(--gl-text-primary)] truncate">
