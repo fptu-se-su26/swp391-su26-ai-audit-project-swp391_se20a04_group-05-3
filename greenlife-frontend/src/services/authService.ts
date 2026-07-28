@@ -235,6 +235,32 @@ export class AuthService {
   }
 
   /**
+   * Authenticated multipart upload for store logo
+   */
+  public static async uploadStoreLogo(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const data = await HttpClient.post<{ url: string }>("/api/store/profile/logo/upload", formData);
+    return data.url;
+  }
+
+  /**
+   * Authenticated update for store profile
+   */
+  public static async updateStoreProfile(details: {
+    name: string;
+    phone?: string;
+    city?: string;
+    district?: string;
+    address: string;
+    description?: string;
+    logoUrl?: string;
+  }): Promise<StoreResponse> {
+    const data = await HttpClient.put<StoreResponse>("/api/store/profile", details);
+    return data;
+  }
+
+  /**
    * Request forgot password OTP
    */
   public static async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {

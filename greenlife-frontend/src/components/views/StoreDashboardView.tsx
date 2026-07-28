@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { logger } from "../../utils/logger";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { 
@@ -31,6 +31,7 @@ import {
   ChevronLeft,
   UploadCloud,
   BookOpen,
+  Store,
   X
 } from "lucide-react";
 import { StoreOrder, Product, BlogPost } from "../../types";
@@ -338,7 +339,15 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
   const [storeServiceArea, setStoreServiceArea] = useState(myStore?.serviceArea || "Bán kính 10km");
   const [storeLat, setStoreLat] = useState(myStore?.latitude || 16.0);
   const [storeLng, setStoreLng] = useState(myStore?.longitude || 108.0);
+  const [storeLogoUrl, setStoreLogoUrl] = useState(myStore?.logoUrl || "");
+  const [storeLogoFile, setStoreLogoFile] = useState<File | null>(null);
+  const [storeLogoPreview, setStoreLogoPreview] = useState("");
+  const [storeLogoLoadError, setStoreLogoLoadError] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+
+  const hasDisplayableLogo = Boolean(storeLogoPreview || storeLogoUrl) && !storeLogoLoadError;
 
   // Sync form states when myStore changes
   React.useEffect(() => {
@@ -350,26 +359,119 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       setStoreServiceArea(myStore.serviceArea || "Bán kính 10km");
       setStoreLat(myStore.latitude || 16.0);
       setStoreLng(myStore.longitude || 108.0);
+      setStoreLogoUrl(myStore.logoUrl || "");
+      setStoreLogoLoadError(false);
     }
   }, [myStore]);
 
-  const handleStoreSettingsSubmit = useCallback((e: React.FormEvent) => {
+  // Clean up object URL preview on unmount or preview change
+  useEffect(() => {
+    return () => {
+      if (storeLogoPreview && storeLogoPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(storeLogoPreview);
+      }
+    };
+  }, [storeLogoPreview]);
+
+  // Reset image load error when a new preview or logoUrl is set
+  useEffect(() => {
+    if (storeLogoPreview || storeLogoUrl) {
+      setStoreLogoLoadError(false);
+    }
+  }, [storeLogoPreview, storeLogoUrl]);
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/png"];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Định dạng logo không được hỗ trợ. Vui lòng chọn JPG hoặc PNG.");
+      e.target.value = "";
+      return;
+    }
+
+    const maxSize = 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("Logo vượt quá giới hạn 2 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    if (storeLogoPreview && storeLogoPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(storeLogoPreview);
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setStoreLogoFile(file);
+    setStoreLogoPreview(objectUrl);
+    setStoreLogoLoadError(false);
+  };
+
+  const handleStoreSettingsSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!myStore) return;
+    if (logoUploading) return;
 
-    updateStoreInfo(myStore.id, {
-      name: storeName,
-      city: storeCity,
-      district: storeDistrict,
-      address: storeAddress,
-      serviceArea: storeServiceArea,
-      latitude: Number(storeLat),
-      longitude: Number(storeLng)
-    });
+    setLogoUploading(true);
+    let finalLogoUrl = storeLogoUrl;
 
-    setSettingsSuccess(true);
-    setTimeout(() => setSettingsSuccess(false), 3000);
-  }, [myStore, storeName, storeCity, storeDistrict, storeAddress, storeServiceArea, storeLat, storeLng, updateStoreInfo]);
+    try {
+      if (storeLogoFile) {
+        try {
+          finalLogoUrl = await AuthService.uploadStoreLogo(storeLogoFile);
+        } catch (err: any) {
+          logger.error("Lỗi upload logo cửa hàng:", err);
+          toast.error("Không thể tải logo cửa hàng. Vui lòng thử lại.");
+          setLogoUploading(false);
+          return;
+        }
+      }
+
+      const payloadLogoUrl = finalLogoUrl || myStore.logoUrl || "";
+
+      await AuthService.updateStoreProfile({
+        name: storeName,
+        phone: myStore.phone || "",
+        city: storeCity,
+        district: storeDistrict,
+        address: storeAddress,
+        description: myStore.description || "",
+        logoUrl: payloadLogoUrl
+      });
+
+      toast.success("Cập nhật cấu hình đối tác thành công!");
+      setStoreLogoUrl(payloadLogoUrl);
+      setStoreLogoFile(null);
+      if (storeLogoPreview && storeLogoPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(storeLogoPreview);
+      }
+      setStoreLogoPreview("");
+      setStoreLogoLoadError(false);
+      if (logoFileInputRef.current) {
+        logoFileInputRef.current.value = "";
+      }
+
+      updateStoreInfo(myStore.id, {
+        name: storeName,
+        city: storeCity,
+        district: storeDistrict,
+        address: storeAddress,
+        serviceArea: storeServiceArea,
+        latitude: Number(storeLat),
+        longitude: Number(storeLng),
+        logoUrl: payloadLogoUrl
+      });
+
+      setSettingsSuccess(true);
+      setTimeout(() => setSettingsSuccess(false), 3000);
+    } catch (err: any) {
+      logger.error("Lỗi cập nhật cấu hình đối tác:", err);
+      toast.error("Không thể cập nhật cấu hình đối tác. Vui lòng thử lại.");
+    } finally {
+      setLogoUploading(false);
+    }
+  }, [myStore, storeName, storeCity, storeDistrict, storeAddress, storeServiceArea, storeLat, storeLng, storeLogoUrl, storeLogoFile, storeLogoPreview, logoUploading, updateStoreInfo]);
 
   const handleAddNewProductSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1697,6 +1799,47 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
           )}
 
           <form onSubmit={handleStoreSettingsSubmit} className="space-y-5 text-sm">
+            {/* Logo cửa hàng */}
+            <div className="space-y-1.5">
+              <label className="text-[var(--gl-text-primary)] font-medium block text-sm">
+                Logo cửa hàng
+              </label>
+              <p className="text-xs text-[var(--gl-text-muted)]">JPG hoặc PNG, tối đa 2 MB.</p>
+              <div className="flex items-center gap-4 pt-1">
+                {hasDisplayableLogo ? (
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-[var(--gl-border)] bg-[var(--gl-bg-muted)] flex items-center justify-center shadow-xs shrink-0">
+                    <img
+                      src={storeLogoPreview || getMediaUrl(storeLogoUrl)}
+                      alt="Logo cửa hàng"
+                      className="w-full h-full object-cover"
+                      onError={() => setStoreLogoLoadError(true)}
+                    />
+                    {logoUploading && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-xs text-white font-semibold">
+                        ...
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-xl border border-dashed border-[var(--gl-border)] flex items-center justify-center text-[var(--gl-text-muted)] bg-[var(--gl-bg-muted)] shrink-0">
+                    <Store className="w-6 h-6 text-[var(--gl-text-muted)]" />
+                  </div>
+                )}
+                <label className={`min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] text-[var(--gl-text-primary)] px-3.5 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 focus-within:ring-2 focus-within:ring-[var(--gl-focus-ring)] ${logoUploading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
+                  <UploadCloud className="w-4 h-4 text-[var(--gl-text-muted)]" />
+                  {logoUploading ? "Đang tải logo..." : hasDisplayableLogo ? "Thay logo" : "Chọn logo"}
+                  <input
+                    ref={logoFileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                    onChange={handleLogoFileChange}
+                    className="hidden"
+                    disabled={logoUploading}
+                  />
+                </label>
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-[var(--gl-text-primary)] font-medium block text-sm">
                 Tên cửa hàng <span className="text-rose-500">*</span>:
@@ -1803,10 +1946,11 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
             <button
               type="submit"
-              className="w-full min-h-[44px] py-3 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+              disabled={logoUploading}
+              className={`w-full min-h-[44px] py-3 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${logoUploading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
               <Save className="h-4 w-4" />
-              Cập Nhật Cấu Hình Đối Tác
+              {logoUploading ? "Đang cập nhật..." : "Cập Nhật Cấu Hình Đối Tác"}
             </button>
           </form>
         </div>
