@@ -1,14 +1,20 @@
-import React, { useState, useEffect } from "react";
-import { MapPin, Navigation, ChevronDown, ChevronUp, Store, CheckCircle2 } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { MapPin, Navigation, ChevronDown, ChevronUp, Store, CheckCircle2, RefreshCw } from "lucide-react";
 import { useAppContext } from "../../context/AppContext";
 import AdministrativeService, { AdministrativeProvinceDTO, AdministrativeCommuneDTO } from "../../services/administrativeService";
+import { PublicStore, EcoStore } from "../../types";
 
 export interface LocationSelectorProps {
   className?: string;
-  stores?: Array<{ id: string | number; name: string; address: string; serviceArea?: string; city?: string; district?: string }>;
+  stores?: Array<PublicStore | EcoStore | { id: string | number; name: string; address: string; city?: string; district?: string; logoUrl?: string }>;
   selectedStoreId?: string | number | null;
   onSelectStore?: (id: string) => void;
 }
+
+const normalizeLocationString = (str?: string | null): string => {
+  if (!str) return "";
+  return str.trim().toLowerCase();
+};
 
 export const LocationSelector: React.FC<LocationSelectorProps> = ({
   className = "",
@@ -19,7 +25,10 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
   const {
     userLocation,
     setUserLocation,
-    stores: contextStores,
+    publicStores,
+    publicStoresLoading,
+    publicStoresError,
+    reloadPublicStores,
     selectedStoreId: contextSelectedStoreId,
     setSelectedStoreId: contextSetSelectedStoreId
   } = useAppContext();
@@ -65,8 +74,8 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
     return () => { isMounted = false; };
   }, [userLocation.city, provincesList]);
 
-  // Use props if provided, otherwise context
-  const stores = propStores || contextStores || [];
+  // Use props if provided, otherwise context publicStores
+  const storesList = propStores || publicStores || [];
   const activeSelectedStoreId = propSelectedStoreId !== undefined
     ? (propSelectedStoreId !== null ? String(propSelectedStoreId) : null)
     : contextSelectedStoreId;
@@ -118,13 +127,37 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
     });
   };
 
-  // Filter stores for the selected city
-  const cityStores = stores.filter(s => !s.city || s.city === userLocation.city);
-  const selectedStore = stores.find(s => String(s.id) === activeSelectedStoreId);
+  // Filter stores for the selected city with normalized comparison
+  const cityStores = useMemo(() => {
+    const normUserCity = normalizeLocationString(userLocation.city);
+    if (!normUserCity) return [];
+
+    const matchedCity = storesList.filter((s) => {
+      if (!s.city) return false;
+      return normalizeLocationString(s.city) === normUserCity;
+    });
+
+    const normUserDistrict = normalizeLocationString(userLocation.district);
+    if (normUserDistrict) {
+      return [...matchedCity].sort((a, b) => {
+        const aMatch = a.district && normalizeLocationString(a.district) === normUserDistrict ? 1 : 0;
+        const bMatch = b.district && normalizeLocationString(b.district) === normUserDistrict ? 1 : 0;
+        return bMatch - aMatch;
+      });
+    }
+
+    return matchedCity;
+  }, [storesList, userLocation.city, userLocation.district]);
+
+  const selectedStore = storesList.find(s => String(s.id) === activeSelectedStoreId);
 
   const displayLocation = userLocation.district
-    ? `Quận ${userLocation.district}, ${userLocation.city}`
+    ? `${userLocation.district}, ${userLocation.city}`
     : userLocation.city || "Chưa chọn vị trí";
+
+  const isUsingContextStores = !propStores;
+  const isLoading = isUsingContextStores && publicStoresLoading;
+  const hasError = isUsingContextStores && !!publicStoresError;
 
   return (
     <div className={`bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl shadow-xs transition-all duration-250 ease-in-out ${className}`}>
@@ -274,22 +307,45 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
                     Danh sách nhà vườn sẵn sàng cung ứng.
                   </p>
                 </div>
-                {cityStores.length > 0 && (
+                {!isLoading && !hasError && cityStores.length > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-[var(--gl-bg-surface)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20 shrink-0">
                     {cityStores.length} nhà vườn
                   </span>
                 )}
               </div>
 
-              {cityStores.length === 0 ? (
-                /* Soft Empty State Card (Height ~140-180px) */
+              {isLoading ? (
+                /* Loading State Card */
+                <div className="min-h-[150px] max-h-[180px] flex flex-col items-center justify-center text-center p-4 rounded-xl border border-dashed border-[var(--gl-border)] bg-[var(--gl-bg-muted)]/50 space-y-2">
+                  <div className="w-5 h-5 border-2 border-[var(--gl-accent)] border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-xs font-semibold text-[var(--gl-text-secondary)]">
+                    Đang tải danh sách nhà vườn...
+                  </p>
+                </div>
+              ) : hasError ? (
+                /* Error State Card */
+                <div className="min-h-[150px] max-h-[180px] flex flex-col items-center justify-center text-center p-4 rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20 space-y-2">
+                  <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+                    Không thể tải danh sách nhà vườn. Vui lòng thử lại.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => reloadPublicStores()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--gl-accent)] text-white hover:opacity-90 transition-opacity cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+                    <span>Thử lại</span>
+                  </button>
+                </div>
+              ) : cityStores.length === 0 ? (
+                /* Empty State Card */
                 <div className="min-h-[150px] max-h-[180px] flex flex-col items-center justify-center text-center p-4 rounded-xl border border-dashed border-[var(--gl-border)] bg-[var(--gl-bg-muted)]/50 space-y-2">
                   <Store className="w-7 h-7 text-[var(--gl-text-muted)]" />
                   <div className="space-y-1">
                     <h6 className="font-bold text-xs text-[var(--gl-text-primary)]">
-                      Chưa có nhà vườn tại khu vực này
+                      Chưa có nhà vườn được duyệt tại khu vực này.
                     </h6>
-                    <p className="text-[11px] text-[var(--gl-text-muted)] max-w-xs leading-relaxed">
+                    <p className="text-xs text-[var(--gl-text-muted)] max-w-xs leading-relaxed">
                       Bạn vẫn có thể xem sản phẩm trên toàn hệ thống hoặc thử chọn khu vực khác.
                     </p>
                   </div>
@@ -299,6 +355,7 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
                 <div className="space-y-2.5 max-h-[250px] overflow-y-auto pr-1">
                   {cityStores.map((store) => {
                     const isSelected = activeSelectedStoreId === String(store.id);
+                    const isVerified = isUsingContextStores || Boolean((store as EcoStore).verified === true);
                     return (
                       <div
                         key={store.id}
@@ -310,21 +367,32 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
                         }`}
                       >
                         <div className="flex justify-between items-start gap-2.5">
-                          <div className="space-y-1 min-w-0 flex-1">
-                            <h6 className="text-xs font-bold leading-snug text-[var(--gl-text-primary)] truncate">
-                              {store.name}
-                            </h6>
-                            <p className="text-[11px] text-[var(--gl-text-secondary)] truncate">
-                              {store.address}
-                            </p>
-                            {store.serviceArea && (
-                              <p className="text-[10px] text-[var(--gl-text-muted)] font-mono">
-                                Khu vực: <span className="text-[var(--gl-accent)]">{store.serviceArea}</span>
-                              </p>
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            {store.logoUrl && (
+                              <img
+                                src={store.logoUrl}
+                                alt={store.name}
+                                className="w-8 h-8 rounded-lg object-cover border border-[var(--gl-border)] shrink-0"
+                              />
                             )}
+                            <div className="space-y-0.5 min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h6 className="text-xs font-bold leading-snug text-[var(--gl-text-primary)] truncate">
+                                  {store.name}
+                                </h6>
+                                {isVerified && (
+                                  <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
+                                    Đã xác minh
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-[var(--gl-text-secondary)] truncate">
+                                {store.address}
+                              </p>
+                            </div>
                           </div>
                           <span
-                            className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold shrink-0 inline-flex items-center gap-1 ${
+                            className={`px-2 py-0.5 rounded text-xs font-mono font-bold shrink-0 inline-flex items-center gap-1 ${
                               isSelected
                                 ? "bg-[var(--gl-accent)] text-white dark:text-emerald-950"
                                 : "bg-[var(--gl-bg-muted)] text-[var(--gl-text-muted)]"

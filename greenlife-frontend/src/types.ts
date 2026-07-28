@@ -312,6 +312,16 @@ export interface EcoStore {
   serviceArea?: string;
 }
 
+export interface PublicStore {
+  id: number;
+  name: string;
+  city?: string;
+  district?: string;
+  address: string;
+  description?: string;
+  logoUrl?: string;
+}
+
 export interface Plant {
   id: string;
   commonName: string;
