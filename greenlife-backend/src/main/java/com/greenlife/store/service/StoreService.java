@@ -161,6 +161,13 @@ public class StoreService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<PublicStoreResponse> getPublicApprovedStores() {
+        return storeRepository.findByStatusOrderById(StoreStatus.APPROVED).stream()
+                .map(this::mapToPublicStoreResponse)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public StoreResponse approveStore(Integer storeId, ApproveStoreRequest request, String adminEmail) {
         Store store = storeRepository.findById(storeId)
@@ -315,6 +322,19 @@ public class StoreService {
                 .status(store.getStatus())
                 .createdAt(store.getCreatedAt())
                 .updatedAt(store.getUpdatedAt())
+                .build();
+    }
+
+    private PublicStoreResponse mapToPublicStoreResponse(Store store) {
+        if (store == null) return null;
+        return PublicStoreResponse.builder()
+                .id(store.getId())
+                .name(store.getName())
+                .city(store.getCity())
+                .district(store.getDistrict())
+                .address(store.getAddress())
+                .description(store.getDescription())
+                .logoUrl(store.getLogoUrl())
                 .build();
     }
 
