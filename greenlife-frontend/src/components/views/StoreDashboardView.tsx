@@ -95,7 +95,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
   products,
   onAddProduct,
 }) => {
-  const { stores, updateStoreInfo, currentUser, storeActiveTab, setStoreActiveTab, blogPosts, refreshArticles, loadProducts } = useAppContext();
+  const { stores, updateStoreInfo, currentUser, storeActiveTab, setStoreActiveTab, blogPosts, refreshArticles, loadProducts, reloadPublicStores } = useAppContext();
 
   // Active tab state connected directly to global context
   const activeTab = storeActiveTab;
@@ -463,6 +463,12 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
         logoUrl: payloadLogoUrl
       });
 
+      // Refresh public store list so the new logo is visible immediately in LocationSelector.
+      // Fire-and-forget: a failure here does not affect the profile update success.
+      reloadPublicStores().catch((err) => {
+        logger.error("Không thể làm mới danh sách cửa hàng công khai:", err);
+      });
+
       setSettingsSuccess(true);
       setTimeout(() => setSettingsSuccess(false), 3000);
     } catch (err: any) {
@@ -471,7 +477,7 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
     } finally {
       setLogoUploading(false);
     }
-  }, [myStore, storeName, storeCity, storeDistrict, storeAddress, storeServiceArea, storeLat, storeLng, storeLogoUrl, storeLogoFile, storeLogoPreview, logoUploading, updateStoreInfo]);
+  }, [myStore, storeName, storeCity, storeDistrict, storeAddress, storeServiceArea, storeLat, storeLng, storeLogoUrl, storeLogoFile, storeLogoPreview, logoUploading, updateStoreInfo, reloadPublicStores]);
 
   const handleAddNewProductSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
