@@ -55,4 +55,9 @@ public class StoreController {
     ) {
         return ResponseEntity.ok(storeService.getStoresByOwner(userDetails.getUsername()));
     }
+
+    @GetMapping("/public")
+    public ResponseEntity<List<com.greenlife.store.dto.PublicStoreResponse>> getPublicApprovedStores() {
+        return ResponseEntity.ok(storeService.getPublicApprovedStores());
+    }
 }
