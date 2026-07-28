@@ -29,7 +29,19 @@ public interface PlantRepository extends JpaRepository<Plant, Integer> {
            "WHERE p.status IN (com.greenlife.plant.entity.enums.PlantStatus.ACTIVE, com.greenlife.plant.entity.enums.PlantStatus.OUT_OF_STOCK) " +
            "AND s.status = com.greenlife.store.entity.enums.StoreStatus.APPROVED " +
            "AND (:category IS NULL OR c.slug = :category) " +
-           "AND (:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Plant> findActiveAndOutOfStockPlantsByName(
+            @Param("search") String search,
+            @Param("category") String category,
+            Pageable pageable);
+
+    @Query("SELECT p FROM Plant p " +
+           "LEFT JOIN p.category c " +
+           "JOIN p.store s " +
+           "WHERE p.status IN (com.greenlife.plant.entity.enums.PlantStatus.ACTIVE, com.greenlife.plant.entity.enums.PlantStatus.OUT_OF_STOCK) " +
+           "AND s.status = com.greenlife.store.entity.enums.StoreStatus.APPROVED " +
+           "AND (:category IS NULL OR c.slug = :category) " +
+           "AND (:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "AND s.id = :storeId")
     Page<Plant> findActiveAndOutOfStockPlantsByStore(
             @Param("search") String search,
