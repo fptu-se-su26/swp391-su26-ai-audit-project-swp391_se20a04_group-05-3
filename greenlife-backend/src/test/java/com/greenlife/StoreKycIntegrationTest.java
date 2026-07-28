@@ -307,6 +307,55 @@ public class StoreKycIntegrationTest {
     }
 
     @Test
+    void testUpdateProfileWithoutVerificationDocumentPreservesExistingKyc() throws Exception {
+        String token = jwtService.generateToken(ownerUser);
+
+        // 1. Register with initial verification document
+        StoreRequest registerRequest = createBasicRequest()
+                .verificationDocument(VALID_PNG_BASE64)
+                .build();
+
+        MvcResult regResult = mockMvc.perform(post("/api/stores/register")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerRequest)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String regSavedPath = objectMapper.readTree(regResult.getResponse().getContentAsString()).get("verificationDocument").asText();
+        filesToDelete.add(regSavedPath);
+        assertTrue(regSavedPath.startsWith("/uploads/kyc/"), "KYC path should start with /uploads/kyc/");
+
+        // 2. Update profile with verificationDocument = null & new logoUrl
+        StoreRequest updateNullKyc = createBasicRequest()
+                .logoUrl("/uploads/stores/logos/new-logo.png")
+                .verificationDocument(null)
+                .build();
+
+        mockMvc.perform(put("/api/store/profile")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateNullKyc)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verificationDocument", is(regSavedPath)))
+                .andExpect(jsonPath("$.logoUrl", is("/uploads/stores/logos/new-logo.png")));
+
+        // 3. Update profile with verificationDocument = "" (blank string)
+        StoreRequest updateBlankKyc = createBasicRequest()
+                .logoUrl("/uploads/stores/logos/another-logo.png")
+                .verificationDocument("")
+                .build();
+
+        mockMvc.perform(put("/api/store/profile")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateBlankKyc)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verificationDocument", is(regSavedPath)))
+                .andExpect(jsonPath("$.logoUrl", is("/uploads/stores/logos/another-logo.png")));
+    }
+
+    @Test
     void testPathTraversalAttemptRejection() throws Exception {
         String token = jwtService.generateToken(ownerUser);
         
