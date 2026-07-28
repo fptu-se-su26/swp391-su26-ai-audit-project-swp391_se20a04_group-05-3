@@ -271,11 +271,17 @@ export const Navigation: React.FC<NavigationProps> = ({
         }`}
       >
         {/* ── ROW 1: Logo (Col 1) | Desktop Nav (Col 2) | Actions (Col 3) ─────────────── */}
-        <div className="w-full px-4 sm:px-6 md:px-8 2xl:px-12 h-[76px] lg:h-[96px] xl:h-[100px] grid grid-cols-[auto_1fr_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
+        <div className={`w-full px-4 sm:px-6 md:px-8 2xl:px-12 items-center gap-x-4 ${
+          isStoreOwner
+            ? "h-[76px] lg:h-[120px] lg:py-0 grid grid-cols-[auto_1fr_auto] lg:grid-cols-[auto_1fr] lg:grid-rows-[72px_48px] lg:gap-y-0"
+            : "h-[76px] lg:h-[96px] xl:h-[100px] grid grid-cols-[auto_1fr_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-y-2"
+        }`}>
 
           {/* Logo (Left - Col 1) */}
           <div 
-            className="flex items-center gap-3 cursor-pointer group shrink-0 logo-container justify-self-start"
+            className={`flex items-center gap-3 cursor-pointer group shrink-0 logo-container justify-self-start ${
+              isStoreOwner ? "lg:col-start-1 lg:row-start-1" : ""
+            }`}
             onClick={() => handleNavClick(isAdmin ? "overview" : isStoreOwner ? "overview" : "home")}
           >
             <div className="relative flex items-center justify-center w-[48px] h-[48px] lg:w-[64px] lg:h-[64px] xl:w-[68px] xl:h-[68px] p-2 bg-[var(--gl-accent-soft)] rounded-2xl border border-[var(--gl-accent)]/25 group-hover:border-[var(--gl-accent)]/60 group-hover:bg-[var(--gl-accent-soft)] transition-all shadow-sm shrink-0">
@@ -291,7 +297,11 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
 
           {/* Desktop Navigation Wrapper (Col 2 - Center, min-w-0) */}
-          <div className="min-w-0 flex items-center justify-center">
+          <div className={`min-w-0 flex items-center ${
+            isStoreOwner
+              ? "lg:col-span-2 lg:row-start-2 lg:w-full lg:h-full lg:justify-start lg:border-t lg:border-[var(--gl-border-subtle)]"
+              : "justify-center"
+          }`}>
             <nav
               className={`hidden lg:flex items-center gap-1.5 overflow-x-auto whitespace-nowrap py-1 max-w-full gl-nav-scroll ${
                 isAdmin || isStoreOwner ? "justify-start" : "justify-center"
@@ -325,7 +335,9 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
             
           {/* Quick Actions & Mobile Controls (Col 3 - Right, shrink-0) */}
-          <div className="flex items-center justify-end gap-2 shrink-0">
+          <div className={`flex items-center justify-end gap-2 shrink-0 ${
+            isStoreOwner ? "lg:col-start-2 lg:row-start-1 justify-self-end" : ""
+          }`}>
             {/* Desktop Quick Actions */}
             <div className="hidden md:flex items-center gap-2 shrink-0">
 
@@ -922,7 +934,9 @@ export const Navigation: React.FC<NavigationProps> = ({
       </header>
 
       {/* Fixed Header Height Spacer to prevent content overlap */}
-      <div className="w-full h-[104px] lg:h-[124px] xl:h-[128px] shrink-0 pointer-events-none" aria-hidden="true" />
+      <div className={`w-full shrink-0 pointer-events-none ${
+        isStoreOwner ? "h-[104px] lg:h-[148px] xl:h-[148px]" : "h-[104px] lg:h-[124px] xl:h-[128px]"
+      }`} aria-hidden="true" />
     </>
   );
 };

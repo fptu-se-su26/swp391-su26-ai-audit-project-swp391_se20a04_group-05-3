@@ -192,6 +192,11 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
 
+  // Review summary state — sourced from real API, initialized at 0 (not default 5.0)
+  const [reviewSummary, setReviewSummary] = useState<RatingSummaryResponse>({ averageRating: 0, totalReviews: 0 });
+  const [reviewSummaryError, setReviewSummaryError] = useState(false);
+  const [loadingReviewSummary, setLoadingReviewSummary] = useState(true);
+
   const fetchMyProducts = useCallback(async () => {
     setLoadingProducts(true);
     try {
@@ -296,6 +301,34 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       controller.abort();
     };
   }, [currentUser?.id, fetchStoreOrders, loadProducts, fetchMyProducts]);
+
+  // Fetch real review summary when store ID is known
+  useEffect(() => {
+    if (!myStore?.id) {
+      setLoadingReviewSummary(false);
+      return;
+    }
+    const controller = new AbortController();
+    setLoadingReviewSummary(true);
+    setReviewSummaryError(false);
+    ReviewService.getStoreRatingSummary(Number(myStore.id), controller.signal)
+      .then((res) => {
+        setReviewSummary(res);
+        setReviewSummaryError(false);
+      })
+      .catch((err: any) => {
+        if (err.name !== "AbortError") {
+          logger.error("Lỗi tải tóm tắt đánh giá:", err);
+          setReviewSummaryError(true);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoadingReviewSummary(false);
+        }
+      });
+    return () => controller.abort();
+  }, [myStore?.id]);
 
   // Form states for Store settings
   const [storeName, setStoreName] = useState(myStore?.name || "");
@@ -732,14 +765,26 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       badge: "Sản Phẩm"
     },
     { 
-      title: myStore?.rating ? `${myStore.rating} ★` : "Chưa có đánh giá",
-      desc: "Đánh Giá Cửa Hàng",
+      title: loadingReviewSummary
+        ? "Đang tải đánh giá..."
+        : reviewSummaryError
+          ? "Chưa thể tải đánh giá"
+          : reviewSummary.totalReviews === 0
+            ? "Chưa có đánh giá"
+            : `${reviewSummary.averageRating.toFixed(1)} ★`,
+      desc: loadingReviewSummary
+        ? "Đang xử lý dữ liệu"
+        : reviewSummaryError
+          ? "Không thể kết nối"
+          : reviewSummary.totalReviews === 0
+            ? "0 lượt đánh giá"
+            : `${reviewSummary.totalReviews} lượt đánh giá`,
       icon: Star,
       color: "text-yellow-500 dark:text-yellow-450",
       bg: "bg-yellow-500/5 dark:bg-yellow-500/5 border-yellow-500/20",
       badge: "Đánh Giá"
     }
-  ], [totalRevenue, newOrdersCount, shippingOrdersCount, completedOrdersCount, myProducts.length, myStore?.rating]);
+  ], [totalRevenue, newOrdersCount, shippingOrdersCount, completedOrdersCount, myProducts.length, reviewSummary, reviewSummaryError, loadingReviewSummary]);
 
   if (loadingStore) {
     return (
@@ -1774,7 +1819,12 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
 
       {/* 6. REVIEWS TAB */}
       {activeTab === "reviews" && (
-        <StoreReviewsSection myStore={myStore} />
+        <StoreReviewsSection
+          myStore={myStore}
+          externalSummary={reviewSummary}
+          summaryError={reviewSummaryError}
+          loadingSummary={loadingReviewSummary}
+        />
       )}
 
       {/* 7. SERVICES TAB */}
@@ -2702,22 +2752,25 @@ const BlogManagerSection: React.FC<BlogManagerSectionProps> = ({
 
 interface StoreReviewsSectionProps {
   myStore: any;
+  externalSummary: RatingSummaryResponse;
+  summaryError: boolean;
+  loadingSummary: boolean;
 }
 
-const StoreReviewsSection: React.FC<StoreReviewsSectionProps> = ({ myStore }) => {
+const StoreReviewsSection: React.FC<StoreReviewsSectionProps> = ({
+  myStore,
+  externalSummary,
+  summaryError,
+  loadingSummary
+}) => {
   const [reviews, setReviews] = useState<ReviewResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState<RatingSummaryResponse>({ averageRating: 5.0, totalReviews: 0 });
+  const summary = externalSummary;
   const [distribution, setDistribution] = useState<Record<number, number>>({ 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 });
 
   const loadData = async (signal?: AbortSignal) => {
     setLoading(true);
     try {
-      if (myStore?.id) {
-        const sumRes = await ReviewService.getStoreRatingSummary(Number(myStore.id), signal);
-        setSummary(sumRes);
-      }
-      
       const res = await ReviewService.getStoreOwnerReviews(0, 100, signal);
       setReviews(res.content);
 
@@ -2752,23 +2805,48 @@ const StoreReviewsSection: React.FC<StoreReviewsSectionProps> = ({ myStore }) =>
       <div className="lg:col-span-5 space-y-6">
         <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl text-center space-y-2.5 flex flex-col justify-center shadow-xs">
           <span className="text-[var(--gl-text-muted)] font-mono text-xs uppercase font-bold tracking-wider">Đánh Giá Trung Bình</span>
-          <div className="text-4xl font-extrabold text-[var(--gl-accent)] font-mono">
-            {summary.averageRating.toFixed(1)} <span className="text-sm font-normal text-[var(--gl-text-muted)]">/ 5</span>
-          </div>
-          <div className="flex justify-center gap-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                className={`w-4.5 h-4.5 ${star <= Math.round(summary.averageRating) ? "text-amber-500 fill-amber-500" : "text-[var(--gl-border)]"}`}
-              />
-            ))}
-          </div>
-          <p className="text-xs text-[var(--gl-text-muted)] font-mono">Từ tổng số {summary.totalReviews} lượt đánh giá</p>
+          {loadingSummary ? (
+            <div className="py-4 text-xs font-semibold text-[var(--gl-text-muted)] animate-pulse font-sans">
+              Đang tải đánh giá...
+            </div>
+          ) : summaryError ? (
+            <div className="py-4 text-xs font-semibold text-[var(--gl-danger)] font-sans">
+              Không thể tải dữ liệu tổng hợp đánh giá.
+            </div>
+          ) : summary.totalReviews === 0 ? (
+            <div className="space-y-1 py-2">
+              <div className="text-xl font-bold text-[var(--gl-text-muted)] font-sans">Chưa có đánh giá</div>
+              <p className="text-xs text-[var(--gl-text-muted)] font-mono">0 lượt đánh giá</p>
+            </div>
+          ) : (
+            <>
+              <div className="text-4xl font-extrabold text-[var(--gl-accent)] font-mono">
+                {summary.averageRating.toFixed(1)} <span className="text-sm font-normal text-[var(--gl-text-muted)]">/ 5</span>
+              </div>
+              <div className="flex justify-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`w-4.5 h-4.5 ${star <= Math.round(summary.averageRating) ? "text-amber-500 fill-amber-500" : "text-[var(--gl-border)]"}`}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-[var(--gl-text-muted)] font-mono">Từ tổng số {summary.totalReviews} lượt đánh giá</p>
+            </>
+          )}
         </div>
 
         <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 rounded-3xl space-y-4 shadow-xs">
           <h4 className="text-xs font-bold text-[var(--gl-text-primary)] uppercase tracking-wider font-mono">Phân bố số sao</h4>
-          {summary.totalReviews === 0 ? (
+          {loadingSummary ? (
+            <p className="text-xs text-[var(--gl-text-muted)] text-center py-4 font-medium font-sans animate-pulse">
+              Đang tải dữ liệu phân bố...
+            </p>
+          ) : summaryError ? (
+            <p className="text-xs text-[var(--gl-danger)] text-center py-4 font-medium font-sans">
+              Không thể tải phân bố đánh giá.
+            </p>
+          ) : summary.totalReviews === 0 ? (
             <p className="text-xs text-[var(--gl-text-muted)] text-center py-4 font-medium font-sans">
               Chưa có dữ liệu phân bố đánh giá.
             </p>
