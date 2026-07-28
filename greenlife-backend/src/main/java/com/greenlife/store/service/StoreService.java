@@ -121,6 +121,7 @@ public class StoreService {
                     && !oldVerificationDoc.equals(newVerificationDoc)) {
                 fileStorageService.deleteFile(oldVerificationDoc);
             }
+            store.setVerificationDocument(newVerificationDoc);
         }
         store.setName(request.getName());
         store.setPhone(request.getPhone());
@@ -129,7 +130,6 @@ public class StoreService {
         store.setAddress(request.getAddress());
         store.setDescription(request.getDescription());
         store.setLogoUrl(request.getLogoUrl());
-        store.setVerificationDocument(newVerificationDoc);
         store.setUpdatedAt(LocalDateTime.now());
 
         if (store.getStatus() == StoreStatus.REJECTED) {
