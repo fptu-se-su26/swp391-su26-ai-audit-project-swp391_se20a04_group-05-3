@@ -643,9 +643,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const newStore: EcoStore = {
         id: String(storeData.id),
+        ownerId: currentUser.id,
         name: storeData.name || details.name,
         ownerName: storeData.ownerName || currentUser.name,
-        ownerEmail: details.shopEmail || currentUser.email,
+        ownerEmail: (details.shopEmail || currentUser.email || "").trim().toLowerCase(),
         rating: 0,
         avatar: storeData.logoUrl || details.logoUrl || currentUser.avatar || "",
         bannerImage: "",
@@ -659,7 +660,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         serviceArea: ""
       };
       addStore(newStore);
-      toast.success("Gửi hồ sơ đăng ký bán hàng thành công! Đang chờ Admin duyệt.");
+      return { success: true, store: storeData };
     } catch (err) {
       logger.error("Lỗi đăng ký bán hàng:", err);
       throw err;

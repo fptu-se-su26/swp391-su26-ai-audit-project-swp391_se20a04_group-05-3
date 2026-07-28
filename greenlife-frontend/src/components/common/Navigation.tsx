@@ -293,7 +293,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           {/* Desktop Navigation Wrapper (Col 2 - Center, min-w-0) */}
           <div className="min-w-0 flex items-center justify-center">
             <nav
-              className={`hidden lg:flex items-center gap-1 overflow-x-auto gl-nav-scroll py-1 max-w-full ${
+              className={`hidden lg:flex items-center gap-1.5 overflow-x-auto whitespace-nowrap py-1 max-w-full gl-nav-scroll ${
                 isAdmin || isStoreOwner ? "justify-start" : "justify-center"
               }`}
             >
@@ -309,17 +309,14 @@ export const Navigation: React.FC<NavigationProps> = ({
                     key={item.id}
                     role="link"
                     onClick={() => handleNavClick(item.id)}
-                    className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer nav-item-animated transition-all whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium cursor-pointer nav-item-animated transition-all whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
                       isActive
                         ? "active bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20 shadow-sm"
                         : "text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)] border border-transparent"
                     }`}
                   >
-                    <div className="flex items-center gap-1.5">
-                      <Icon className="h-4 w-4 nav-icon shrink-0" />
-                      <span className="hidden xl:inline">{item.label}</span>
-                      <span className="xl:hidden text-xs">{item.label.split(" ")[0]}</span>
-                    </div>
+                    <Icon className="h-4 w-4 nav-icon shrink-0" />
+                    <span>{item.label}</span>
                     {isActive && <span className="nav-active-dot" />}
                   </button>
                 );
@@ -332,30 +329,43 @@ export const Navigation: React.FC<NavigationProps> = ({
             {/* Desktop Quick Actions */}
             <div className="hidden md:flex items-center gap-2 shrink-0">
 
-              {/* Back to buyer shortcut (store owner) */}
-            {isStoreOwner && (
-              <button
-                onClick={() => {
-                  setUserRole("customer");
-                  setCurrentPage("home");
-                }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--gl-accent-soft)] hover:bg-[var(--gl-accent)]/20 text-[var(--gl-accent)] border border-[var(--gl-accent)]/30 hover:border-[var(--gl-accent)]/60 rounded-xl text-xs font-bold transition-all shadow-sm tracking-wide cursor-pointer btn-animated min-h-[40px]"
-                title="Quay lại giao diện mua sắm cho khách hàng"
-              >
-                  <Home className="w-3.5 h-3.5" />
-                Vào Trang Mua Sắm
-              </button>
-            )}
+              {/* Seller Mode Controls: Quay lại mua hàng & Xem cửa hàng */}
+              {isStoreOwner && (
+                <>
+                  <button
+                    onClick={() => {
+                      setCurrentPage("shop");
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] rounded-xl text-sm font-semibold transition-all shadow-sm cursor-pointer btn-animated min-h-[40px] whitespace-nowrap"
+                    title="Xem gian hàng công khai trên cửa hàng"
+                  >
+                    <Store className="w-4 h-4 text-[var(--gl-accent)] shrink-0" />
+                    <span>Xem cửa hàng</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setUserRole("customer");
+                      setCurrentPage("home");
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[var(--gl-accent-soft)] hover:bg-[var(--gl-accent)]/20 text-[var(--gl-accent)] border border-[var(--gl-accent)]/30 hover:border-[var(--gl-accent)]/60 rounded-xl text-sm font-semibold transition-all shadow-sm cursor-pointer btn-animated min-h-[40px] whitespace-nowrap"
+                    title="Quay lại giao diện mua sắm cho khách hàng"
+                  >
+                    <Home className="w-4 h-4 shrink-0" />
+                    <span>Quay lại mua hàng</span>
+                  </button>
+                </>
+              )}
             
-            {/* Store Indicator */}
-            {matchedStore && (
-                <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] rounded-xl text-[10px] text-[var(--gl-text-muted)]">
-                  <MapPin className="h-3 w-3 text-[var(--gl-accent)] shrink-0" />
+              {/* Store Indicator */}
+              {matchedStore && (
+                <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] rounded-xl text-xs text-[var(--gl-text-muted)]">
+                  <MapPin className="h-3.5 w-3.5 text-[var(--gl-accent)] shrink-0" />
                   <span className="line-clamp-1 max-w-[130px]">
                     Vườn: <strong className="text-[var(--gl-accent)]">{matchedStore.name.replace("Nhà Vườn ", "").replace("Cửa Hàng ", "")}</strong>
-                </span>
-              </div>
-            )}
+                  </span>
+                </div>
+              )}
 
               {/* Theme Toggle */}
             <button
@@ -796,6 +806,33 @@ export const Navigation: React.FC<NavigationProps> = ({
                   <User className="w-4 h-4 text-[var(--gl-accent)]" />
                   Hồ sơ của tôi
                 </button>
+
+                {isStoreOwner && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setCurrentPage("shop");
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)] w-full text-left cursor-pointer transition-all min-h-[44px]"
+                    >
+                      <Store className="w-4 h-4 text-[var(--gl-accent)]" />
+                      Xem cửa hàng
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setUserRole("customer");
+                        setCurrentPage("home");
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)] w-full text-left cursor-pointer transition-all min-h-[44px]"
+                    >
+                      <Home className="w-4 h-4 text-[var(--gl-accent)]" />
+                      Quay lại mua hàng
+                    </button>
+                  </>
+                )}
 
                 {currentUser.is_seller && userRole === "customer" && (
                   <button

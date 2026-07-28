@@ -296,6 +296,7 @@ export interface EcoStore {
   name: string;
   ownerName: string;
   ownerEmail: string;
+  ownerId?: string | number;
   rating: number;
   avatar: string;
   bannerImage: string;

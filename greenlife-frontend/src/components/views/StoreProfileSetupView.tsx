@@ -32,10 +32,20 @@ export const StoreProfileSetupView: React.FC = () => {
     registerSeller,
     sendSellerOtp,
     verifySellerOtp,
-    addAddress
+    addAddress,
+    switchRole,
+    setCurrentPage
   } = useAppContext();
 
-  const myStore = stores.find((s) => s.ownerEmail === currentUser?.email);
+  const myStore = stores.find((s) => {
+    if (!currentUser) return false;
+    if (s.ownerId !== undefined && s.ownerId !== null && currentUser.id !== undefined && currentUser.id !== null) {
+      return String(s.ownerId) === String(currentUser.id);
+    }
+    const storeEmail = s.ownerEmail?.trim().toLowerCase();
+    const userEmail = currentUser.email?.trim().toLowerCase();
+    return Boolean(storeEmail && userEmail && storeEmail === userEmail);
+  });
 
   // Wizard scroll reference
   const wizardRef = useRef<HTMLDivElement>(null);
@@ -357,7 +367,7 @@ export const StoreProfileSetupView: React.FC = () => {
 
   // ── Submit Seller Registration ───────────────────────────────────────────
   const handleCompleteRegistration = async () => {
-    if (!currentUser || !pickupAddress) return;
+    if (!currentUser || !pickupAddress || submitting) return;
     setSubmitting(true);
     try {
       await registerSeller({
@@ -376,14 +386,31 @@ export const StoreProfileSetupView: React.FC = () => {
         cccdBackUrl: kycBackImage || kycBackPreview,
         businessEvidenceUrls: businessEvidenceImages.length > 0 ? businessEvidenceImages : businessEvidencePreviews
       });
-      toast.success("Đăng ký bán hàng thành công! Hồ sơ đang chờ phê duyệt.");
+      toast.success("Đăng ký bán hàng thành công. Hồ sơ cửa hàng của bạn đang chờ quản trị viên xét duyệt.");
     } catch (err: any) {
-      // PRESERVE FORM DATA: Remain on Step 4 and do NOT reset state on failure
-      const rawMsg = err?.message || "";
-      const safeMsg = (rawMsg && !/sql|jdbc|column|hibernate|table|insert|select|update|delete/i.test(rawMsg))
-        ? rawMsg
-        : "Không thể xử lý tài liệu xác minh. Vui lòng tải lại ảnh và thử lại.";
-      toast.error("Đăng ký bán hàng thất bại: " + safeMsg);
+      const status = err?.status || err?.response?.status;
+      const msg = String(err?.message || "").toLowerCase();
+      let userMessage = "Đăng ký bán hàng chưa thành công. Vui lòng thử lại sau.";
+
+      if (status === 400) {
+        userMessage = "Thông tin đăng ký không hợp lệ. Vui lòng kiểm tra lại các trường dữ liệu.";
+      } else if (status === 401) {
+        userMessage = "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.";
+      } else if (status === 403) {
+        userMessage = "Bạn không có quyền thực hiện thao tác này.";
+      } else if (status === 409) {
+        userMessage = "Cửa hàng hoặc email đăng ký này đã tồn tại trên hệ thống.";
+      } else if (status === 415 || msg.includes("mime") || msg.includes("unsupported") || msg.includes("media type")) {
+        userMessage = "Định dạng tài liệu không được hỗ trợ. Vui lòng chọn tệp JPG hoặc PNG.";
+      } else if (status === 413 || msg.includes("large") || msg.includes("size") || msg.includes("too big")) {
+        userMessage = "Tệp tải lên vượt quá dung lượng cho phép.";
+      } else if (msg.includes("timeout") || msg.includes("time out")) {
+        userMessage = "Yêu cầu mất quá nhiều thời gian. Vui lòng kiểm tra kết nối và thử lại.";
+      } else if (msg.includes("network") || msg.includes("fetch") || msg.includes("failed to fetch")) {
+        userMessage = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng và thử lại.";
+      }
+
+      toast.error(userMessage);
     } finally {
       setSubmitting(false);
     }
@@ -450,14 +477,30 @@ export const StoreProfileSetupView: React.FC = () => {
 
   if (myStore && myStore.verified) {
     return (
-      <div className="max-w-2xl mx-auto py-16 px-4 text-center">
-        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-8 rounded-3xl shadow-xl relative overflow-hidden">
+      <div className="max-w-2xl mx-auto py-16 px-4 text-center text-[var(--gl-text-primary)]">
+        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-8 sm:p-10 rounded-3xl shadow-xl relative overflow-hidden space-y-6">
           <div className="absolute top-0 inset-x-0 h-1.5 bg-emerald-500" />
-          <div className="w-16 h-16 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+          <div className="w-16 h-16 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20">
             <CheckCircle2 className="h-8 w-8" />
           </div>
-          <h2 className="text-xl font-bold text-[var(--gl-text-primary)]">Cửa hàng của bạn đã hoạt động</h2>
-          <p className="text-xs text-[var(--gl-text-muted)]">Đối tác GreenLife đã được phê duyệt thành công. Vui lòng chuyển đổi vai trò sang Seller tại menu cá nhân để bắt đầu kinh doanh.</p>
+          <div className="space-y-2">
+            <h2 className="text-xl sm:text-2xl font-display font-bold text-[var(--gl-text-primary)]">Cửa hàng của bạn đã được phê duyệt!</h2>
+            <p className="text-xs text-[var(--gl-text-secondary)] max-w-md mx-auto leading-relaxed">
+              Hồ sơ đăng ký nhà vườn đối tác của bạn đã được xác minh thành công. Bạn có thể truy cập Kênh Người Bán ngay bây giờ.
+            </p>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => {
+                switchRole("store");
+                setCurrentPage("store-dashboard");
+              }}
+              className="px-6 py-3 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white font-bold text-sm rounded-xl transition duration-200 shadow-md cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+            >
+              Chuyển sang Kênh Người Bán
+            </button>
+          </div>
         </div>
       </div>
     );
