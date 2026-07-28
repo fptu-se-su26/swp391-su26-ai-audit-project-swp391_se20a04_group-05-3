@@ -37,13 +37,19 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
   const debouncedSearch = useDebounce(search, 400);
 
+  const validStoreId = useMemo(() => {
+    if (!selectedStoreId) return undefined;
+    const num = Number(selectedStoreId);
+    return Number.isInteger(num) && num > 0 ? num : undefined;
+  }, [selectedStoreId]);
+
   useEffect(() => {
     const controller = new AbortController();
-    loadProducts(debouncedSearch, selectedCategory, controller.signal);
+    loadProducts(debouncedSearch, selectedCategory, controller.signal, validStoreId);
     return () => {
       controller.abort();
     };
-  }, [debouncedSearch, selectedCategory]);
+  }, [debouncedSearch, selectedCategory, validStoreId, loadProducts]);
 
   const matchedStore = useMemo(() => {
     return stores.find((s) => String(s.id) === String(selectedStoreId));

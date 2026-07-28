@@ -110,7 +110,7 @@ interface AppContextType {
   // Store Navigation settings
   storeActiveTab: "overview" | "orders" | "products" | "settings" | "blogs" | "reviews" | "services";
   setStoreActiveTab: (tab: "overview" | "orders" | "products" | "settings" | "blogs" | "reviews" | "services") => void;
-  loadProducts: (search?: string, category?: string, signal?: AbortSignal) => Promise<void>;
+  loadProducts: (search?: string, category?: string, signal?: AbortSignal, storeId?: number) => Promise<void>;
 
   // Review CRUD actions
   createReview: (payload: { plantId?: number | null; storeId?: number | null; rating: number; comment: string }) => Promise<any>;
@@ -256,10 +256,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [reloadPublicStores]);
 
-  const loadProducts = useCallback(async (search?: string, category?: string, signal?: AbortSignal) => {
+  const loadProducts = useCallback(async (search?: string, category?: string, signal?: AbortSignal, storeId?: number) => {
     setLoading((prev) => ({ ...prev, products: true }));
     try {
-      const loadedProducts = await PlantService.getProducts(search, category, signal);
+      const loadedProducts = await PlantService.getProducts(search, category, signal, storeId);
       setProducts(loadedProducts);
     } catch (err: any) {
       if (err.name !== "AbortError") {
