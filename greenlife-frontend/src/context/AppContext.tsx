@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
-import { User, Product, CartItem, Appointment, DiagnosisLog, EcoStore, BlogPost, NotificationItem, UserAddress } from "../types";
+import { User, Product, CartItem, Appointment, DiagnosisLog, EcoStore, BlogPost, NotificationItem, UserAddress, PublicStore } from "../types";
 import { AuthService } from "../services/authService";
 import { PlantService } from "../services/plantService";
 import { BookingService } from "../services/bookingService";
@@ -12,6 +12,7 @@ import { AddressService } from "../services/addressService";
 import { OrderService } from "../services/orderService";
 import { WishlistService } from "../services/wishlistService";
 import { ReviewService } from "../services/reviewService";
+import { PublicStoreService } from "../services/publicStoreService";
 import { logger } from "../utils/logger";
 
 interface AppContextType {
@@ -19,6 +20,10 @@ interface AppContextType {
   userRole: "customer" | "store" | "admin";
   products: Product[];
   stores: EcoStore[];
+  publicStores: PublicStore[];
+  publicStoresLoading: boolean;
+  publicStoresError: string | null;
+  reloadPublicStores: () => Promise<void>;
   blogPosts: BlogPost[];
   cart: CartItem[];
   cartSubtotal: number;
@@ -130,6 +135,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [userRole, setUserRole] = useState<"customer" | "store" | "admin">("customer");
   const [products, setProducts] = useState<Product[]>([]);
   const [stores, setStores] = useState<EcoStore[]>([]);
+  const [publicStores, setPublicStores] = useState<PublicStore[]>([]);
+  const [publicStoresLoading, setPublicStoresLoading] = useState<boolean>(false);
+  const [publicStoresError, setPublicStoresError] = useState<string | null>(null);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartSubtotal, setCartSubtotal] = useState<number>(0);
@@ -220,6 +228,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [...prev, store];
     });
   }, []);
+
+  const reloadPublicStores = useCallback(async (signal?: AbortSignal) => {
+    setPublicStoresLoading(true);
+    setPublicStoresError(null);
+    try {
+      const data = await PublicStoreService.getPublicStores(signal);
+      if (signal?.aborted) return;
+      setPublicStores(data);
+    } catch (err: any) {
+      if (signal?.aborted || err?.name === "AbortError") return;
+      logger.error("Lỗi khi tải danh sách nhà vườn công khai:", err);
+      setPublicStores([]);
+      setPublicStoresError("Không thể tải danh sách nhà vườn. Vui lòng thử lại.");
+    } finally {
+      if (!signal?.aborted) {
+        setPublicStoresLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    reloadPublicStores(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [reloadPublicStores]);
 
   const loadProducts = useCallback(async (search?: string, category?: string, signal?: AbortSignal) => {
     setLoading((prev) => ({ ...prev, products: true }));
@@ -1131,13 +1166,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createReview,
       updateReview,
       deleteReview,
-      moderateReview
+      moderateReview,
+      publicStores,
+      publicStoresLoading,
+      publicStoresError,
+      reloadPublicStores
     }),
     [
       currentUser,
       userRole,
       products,
       stores,
+      publicStores,
+      publicStoresLoading,
+      publicStoresError,
+      reloadPublicStores,
       blogPosts,
       cart,
       cartSubtotal,
