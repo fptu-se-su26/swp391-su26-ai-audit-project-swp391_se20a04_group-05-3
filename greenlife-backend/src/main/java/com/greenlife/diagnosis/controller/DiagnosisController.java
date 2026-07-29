@@ -26,7 +26,7 @@ public class DiagnosisController {
     private final CurrentUserResolver currentUserResolver;
 
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<DiagnosisResponse> createDiagnosis(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "plantId", required = false) Integer plantId,
@@ -39,7 +39,7 @@ public class DiagnosisController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<Page<DiagnosisResponse>> getMyDiagnoses(
             @RequestParam(value = "plantId", required = false) Integer plantId,
             @RequestParam(value = "severity", required = false) Severity severity,
