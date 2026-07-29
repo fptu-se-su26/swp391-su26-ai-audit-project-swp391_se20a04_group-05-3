@@ -579,20 +579,18 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
     if (!productName.trim()) return;
 
     // Find the correct categoryId based on productCategory
-    let categoryId = 1; // default to first category
-    if (categoriesList && categoriesList.length > 0) {
-      let slug = "cay-trong-nha";
-      if (productCategory === "care") slug = "phu-kien";
-      else if (productCategory === "nutrients") slug = "phan-bon";
-      else if (productCategory === "smarthome") slug = "thiet-bi-thong-minh";
-      
-      const found = categoriesList.find((c) => c.slug === slug);
-      if (found) {
-        categoryId = found.id;
-      } else {
-        categoryId = categoriesList[0].id;
-      }
+    let targetSlug = "cay-trong-nha";
+    if (productCategory === "care") targetSlug = "phu-kien";
+    else if (productCategory === "nutrients") targetSlug = "phan-bon";
+    else if (productCategory === "smarthome") targetSlug = "thiet-bi-thong-minh";
+
+    const foundCategory = Array.isArray(categoriesList) ? categoriesList.find((c) => c.slug === targetSlug) : null;
+    if (!foundCategory || !foundCategory.id) {
+      toast.error("Không thể xác định nhóm sản phẩm. Vui lòng tải lại trang và thử lại.");
+      return;
     }
+
+    const categoryId = foundCategory.id;
 
     // Clean price and stock by trimming and stripping leading zeros
     const cleanPrice = productPrice.trim().replace(/^0+/, "");
@@ -653,7 +651,8 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
       // Refresh list
       fetchMyProducts();
     } catch (err: any) {
-      toast.error("Lỗi khi lưu sản phẩm: " + err.message);
+      logger.error("Lỗi khi lưu sản phẩm:", err);
+      toast.error("Lỗi khi lưu sản phẩm. Vui lòng thử lại.");
     }
   }, [productName, productCategory, productPrice, productDescription, productStock, productSku, productImageUrl, editingProduct, categoriesList, fetchMyProducts]);
 
@@ -1830,10 +1829,10 @@ export const StoreDashboardView: React.FC<StoreDashboardViewProps> = ({
                   onChange={(e) => setProductCategory(e.target.value as any)}
                   className="w-full bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] rounded-xl py-2 px-3 text-xs font-mono cursor-pointer"
                 >
-                  <option value="plants" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Cây Xanh (Plants)</option>
-                  <option value="care" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Chăm Sóc (Care)</option>
-                  <option value="nutrients" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Dinh Dưỡng (Nutrients)</option>
-                  <option value="smarthome" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Thiết Bị IoT (Smarthome)</option>
+                  <option value="plants" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Cây trồng trong nhà</option>
+                  <option value="care" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Phụ kiện chăm sóc</option>
+                  <option value="nutrients" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Phân bón & dinh dưỡng</option>
+                  <option value="smarthome" className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">Thiết bị thông minh</option>
                 </select>
               </div>
 
