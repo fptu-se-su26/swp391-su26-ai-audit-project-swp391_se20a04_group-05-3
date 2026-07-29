@@ -114,6 +114,32 @@ const SecureKycImage: React.FC<{ url: string; alt: string }> = ({ url, alt }) =>
   );
 };
 
+export interface MappedPendingStore {
+  id: string;
+  name: string;
+  ownerName: string;
+  ownerEmail: string;
+  phone: string;
+  rating: number;
+  avatar: string;
+  bannerImage: string;
+  address: string;
+  workingHours: string;
+  carbonOffsetKg: number;
+  productsCount: number;
+  verified: boolean;
+  city: string;
+  district: string;
+  description: string;
+  businessType: string;
+  verificationDocument: string | null;
+  cccdFrontUrl: string | null;
+  cccdBackUrl: string | null;
+  businessEvidenceUrls: string[];
+  status: string;
+  createdAt: string;
+}
+
 export const AdminDashboardView: React.FC = () => {
   const { 
     stores, 
@@ -162,13 +188,16 @@ export const AdminDashboardView: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [detailStoreModalOpen, setDetailStoreModalOpen] = useState(false);
+  const [selectedDetailStore, setSelectedDetailStore] = useState<MappedPendingStore | null>(null);
+  const [processingStoreId, setProcessingStoreId] = useState<string | null>(null);
 
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingReports, setLoadingReports] = useState(true);
 
   // Integration States for Phase 3A.1
   const [dbUsers, setDbUsers] = useState<any[]>([]);
-  const [dbPendingStores, setDbPendingStores] = useState<any[]>([]);
+  const [dbPendingStores, setDbPendingStores] = useState<MappedPendingStore[]>([]);
   const [dbOrders, setDbOrders] = useState<any[]>([]);
   const [fallbackWarning, setFallbackWarning] = useState<string | null>(null);
 
@@ -235,22 +264,30 @@ export const AdminDashboardView: React.FC = () => {
   const fetchPendingStores = useCallback(async (signal?: AbortSignal) => {
     try {
       const pendingData = await AdminStoreService.getPendingStores(signal);
-      const mapped = pendingData.map(s => ({
+      const mapped: MappedPendingStore[] = pendingData.map(s => ({
         id: s.id.toString(),
         name: s.name,
         ownerName: s.ownerName,
-        ownerEmail: s.phone || "N/A",
+        ownerEmail: s.ownerEmail || "",
+        phone: s.phone || "",
         rating: 5.0,
         avatar: s.logoUrl || "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=100",
         bannerImage: "",
-        address: s.address,
+        address: s.address || "",
         workingHours: "08:00 - 18:00",
         carbonOffsetKg: 0,
         productsCount: 0,
         verified: false,
         city: s.city || "",
         district: s.district || "",
-        verificationDocument: s.verificationDocument
+        description: s.description || "",
+        businessType: s.businessType || "",
+        verificationDocument: s.verificationDocument || null,
+        cccdFrontUrl: s.cccdFrontUrl || null,
+        cccdBackUrl: s.cccdBackUrl || null,
+        businessEvidenceUrls: s.businessEvidenceUrls || [],
+        status: s.status || "",
+        createdAt: s.createdAt || ""
       }));
       setDbPendingStores(mapped);
     } catch (err: any) {
@@ -520,16 +557,27 @@ export const AdminDashboardView: React.FC = () => {
   }, [dbUsers, userSearch, userRoleFilter]);
 
   const handleApproveStore = useCallback(async (storeId: string) => {
+    if (processingStoreId) return;
     const numericId = parseInt(storeId);
+    setProcessingStoreId(storeId);
     try {
       await AdminStoreService.approveStore(numericId);
       toast.success("Duyệt hồ sơ kinh doanh của Nhà Vườn thành công!");
       updateStoreInfo(storeId, { verified: true });
+      setSelectedDetailStore((prev) => (prev && prev.id === storeId ? null : prev));
+      setDetailStoreModalOpen((prevOpen) => {
+        if (selectedDetailStore && selectedDetailStore.id === storeId) {
+          return false;
+        }
+        return prevOpen;
+      });
       loadAllData();
     } catch (err: any) {
       toast.error(`Không thể duyệt hồ sơ: ${err.message || err}`);
+    } finally {
+      setProcessingStoreId(null);
     }
-  }, [updateStoreInfo, loadAllData]);
+  }, [processingStoreId, updateStoreInfo, loadAllData, selectedDetailStore]);
 
   const handleRejectStore = useCallback((storeId: string) => {
     setRejectStoreId(storeId);
@@ -539,7 +587,7 @@ export const AdminDashboardView: React.FC = () => {
   }, []);
 
   const handleRejectStoreConfirmed = useCallback(async () => {
-    if (!rejectStoreId) return;
+    if (!rejectStoreId || processingStoreId) return;
     const trimmedReason = rejectStoreReason.trim();
     if (!trimmedReason) {
       setRejectStoreError("Vui lòng nhập lý do từ chối.");
@@ -550,20 +598,31 @@ export const AdminDashboardView: React.FC = () => {
       return;
     }
 
-    const numericId = parseInt(rejectStoreId);
+    const currentRejectId = rejectStoreId;
+    const numericId = parseInt(currentRejectId);
+    setProcessingStoreId(currentRejectId);
     try {
       await AdminStoreService.rejectStore(numericId, trimmedReason);
       toast.success("Đã từ chối hồ sơ đăng ký kinh doanh.");
-      updateStoreInfo(rejectStoreId, { verified: false, name: `${stores.find(s=>s.id === rejectStoreId)?.name} (Bị từ chối)` });
+      updateStoreInfo(currentRejectId, { verified: false, name: `${stores.find(s=>s.id === currentRejectId)?.name} (Bị từ chối)` });
       setRejectStoreOpen(false);
       setRejectStoreId(null);
       setRejectStoreReason("");
       setRejectStoreError("");
+      setSelectedDetailStore((prev) => (prev && prev.id === currentRejectId ? null : prev));
+      setDetailStoreModalOpen((prevOpen) => {
+        if (selectedDetailStore && selectedDetailStore.id === currentRejectId) {
+          return false;
+        }
+        return prevOpen;
+      });
       loadAllData();
     } catch (err: any) {
       toast.error(`Không thể từ chối hồ sơ: ${err.message || err}`);
+    } finally {
+      setProcessingStoreId(null);
     }
-  }, [rejectStoreId, rejectStoreReason, stores, updateStoreInfo, loadAllData]);
+  }, [rejectStoreId, rejectStoreReason, processingStoreId, stores, updateStoreInfo, loadAllData, selectedDetailStore]);
 
   // Product Filtering logic
   const filteredProducts = useMemo(() => {
@@ -982,19 +1041,32 @@ export const AdminDashboardView: React.FC = () => {
                         Nhà vườn cam kết cung ứng các giống thực vật nuôi trồng 100% hữu cơ, sử dụng chậu nung và túi sơ dừa tự hủy ép nén. Tuyệt đối không phân phối thuốc hóa học trừ sâu hay các loại bao bì nhựa PP gây ô nhiễm.
                       </div>
 
-                      <div className="flex gap-3.5 pt-2 mt-auto">
+                      <div className="flex flex-wrap sm:flex-nowrap gap-2.5 pt-2 mt-auto">
                         <button
                           type="button"
-                          onClick={() => handleApproveStore(store.id)}
-                          className="flex-1 py-2.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-black font-semibold rounded-xl text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                          onClick={() => {
+                            setSelectedDetailStore(store);
+                            setDetailStoreModalOpen(true);
+                          }}
+                          className="py-2.5 px-3 min-h-[40px] border border-[var(--gl-border)] hover:bg-[var(--gl-bg-muted)] text-[var(--gl-text-primary)] font-semibold rounded-xl text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         >
-                          <Check className="h-3.5 w-3.5" />
-                          Phê Duyệt Hồ Sơ
+                          <Eye className="h-3.5 w-3.5" />
+                          Xem Chi Tiết Hồ Sơ
                         </button>
                         <button
                           type="button"
+                          disabled={processingStoreId === store.id}
+                          onClick={() => handleApproveStore(store.id)}
+                          className="flex-1 py-2.5 min-h-[40px] bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold rounded-xl text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Phê Duyệt
+                        </button>
+                        <button
+                          type="button"
+                          disabled={processingStoreId === store.id}
                           onClick={() => handleRejectStore(store.id)}
-                          className="py-2.5 px-4 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-semibold rounded-xl text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase border border-rose-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                          className="py-2.5 px-3 min-h-[40px] bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-rose-500 font-semibold rounded-xl text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase border border-rose-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                         >
                           <X className="h-3.5 w-3.5" />
                           Từ Chối
@@ -2141,7 +2213,7 @@ export const AdminDashboardView: React.FC = () => {
 
       {/* Rejection Modal for Store Profile */}
       {rejectStoreOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
           <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl relative text-left max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain">
             <button
               type="button"
@@ -2210,6 +2282,231 @@ export const AdminDashboardView: React.FC = () => {
                 Xác nhận từ chối
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Store Application Detail Modal */}
+      {detailStoreModalOpen && selectedDetailStore && (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="detail-store-modal-title"
+        >
+          <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[var(--gl-border)] px-6 py-4 bg-[var(--gl-bg-surface)] shrink-0">
+              <div className="flex items-center gap-3">
+                <img
+                  src={getMediaUrl(selectedDetailStore.avatar) || "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=100"}
+                  alt={selectedDetailStore.name}
+                  className="w-10 h-10 object-cover rounded-xl border border-[var(--gl-border)]"
+                />
+                <div>
+                  <h3 className="text-sm font-bold text-[var(--gl-text-primary)]" id="detail-store-modal-title">
+                    Chi Tiết Hồ Sơ: {selectedDetailStore.name}
+                  </h3>
+                  <span className="text-[10px] text-[var(--gl-text-muted)] font-mono">
+                    Mã số đăng ký: #{selectedDetailStore.id}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDetailStoreModalOpen(false);
+                  setSelectedDetailStore(null);
+                }}
+                className="rounded-xl p-2 bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] transition-all cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center"
+                aria-label="Đóng chi tiết hồ sơ"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs text-[var(--gl-text-primary)]">
+
+              {/* Section 1: Applicant Information */}
+              <div className="space-y-2 bg-[var(--gl-bg-muted)]/50 p-4 rounded-xl border border-[var(--gl-border)]">
+                <h4 className="text-xs font-bold text-[var(--gl-accent)] uppercase tracking-wider font-mono flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" />
+                  1. Thông Tin Người Đăng Ký
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+                  <div>
+                    <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Họ và tên chủ sở hữu:</span>
+                    <span className="font-semibold text-[var(--gl-text-primary)] break-words">{selectedDetailStore.ownerName || "Chưa cung cấp"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Số điện thoại liên hệ:</span>
+                    <span className="font-semibold font-mono text-[var(--gl-text-primary)]">{selectedDetailStore.phone || "Chưa cung cấp"}</span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Email tài khoản:</span>
+                    <span className="font-semibold font-mono text-[var(--gl-text-primary)] break-all">{selectedDetailStore.ownerEmail || "Chưa cung cấp"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Store Information */}
+              <div className="space-y-2 bg-[var(--gl-bg-muted)]/50 p-4 rounded-xl border border-[var(--gl-border)]">
+                <h4 className="text-xs font-bold text-[var(--gl-accent)] uppercase tracking-wider font-mono flex items-center gap-1.5">
+                  <Store className="w-3.5 h-3.5" />
+                  2. Thông Tin Cửa Hàng / Nhà Vườn
+                </h4>
+                <div className="space-y-2 text-[11px] pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Tên nhà vườn:</span>
+                      <span className="font-semibold text-[var(--gl-text-primary)]">{selectedDetailStore.name || "Chưa cung cấp"}</span>
+                    </div>
+                    <div>
+                      <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Hình thức / Quy mô:</span>
+                      <span className="font-semibold text-[var(--gl-text-primary)]">
+                        {selectedDetailStore.businessType === "PHYSICAL_STORE"
+                          ? "Có cửa hàng trực tiếp"
+                          : selectedDetailStore.businessType
+                            ? selectedDetailStore.businessType
+                            : "Chưa cung cấp"}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Mô tả hoạt động:</span>
+                    <p className="text-[var(--gl-text-secondary)] leading-relaxed whitespace-pre-wrap bg-[var(--gl-bg-surface)] p-2.5 rounded-lg border border-[var(--gl-border)] text-[11px] mt-1">
+                      {selectedDetailStore.description || "Chưa cung cấp mô tả chi tiết."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Address Information */}
+              <div className="space-y-2 bg-[var(--gl-bg-muted)]/50 p-4 rounded-xl border border-[var(--gl-border)]">
+                <h4 className="text-xs font-bold text-[var(--gl-accent)] uppercase tracking-wider font-mono flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" />
+                  3. Địa Chỉ Kinh Doanh & Vận Chuyển
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+                  <div className="sm:col-span-2">
+                    <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Địa chỉ chi tiết:</span>
+                    <span className="font-semibold text-[var(--gl-text-primary)]">{selectedDetailStore.address || "Chưa cung cấp"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Quận / Huyện / Phường:</span>
+                    <span className="font-semibold text-[var(--gl-text-primary)]">{selectedDetailStore.district || "Chưa cung cấp"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Tỉnh / Thành phố:</span>
+                    <span className="font-semibold text-[var(--gl-text-primary)]">{selectedDetailStore.city || "Chưa cung cấp"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Submission Information */}
+              <div className="space-y-2 bg-[var(--gl-bg-muted)]/50 p-4 rounded-xl border border-[var(--gl-border)]">
+                <h4 className="text-xs font-bold text-[var(--gl-accent)] uppercase tracking-wider font-mono flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  4. Thông Tin Nộp Hồ Sơ
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+                  <div>
+                    <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Thời gian đăng ký:</span>
+                    <span className="font-semibold font-mono text-[var(--gl-text-primary)]">
+                      {selectedDetailStore.createdAt ? new Date(selectedDetailStore.createdAt).toLocaleString("vi-VN") : "Chưa cung cấp"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--gl-text-muted)] block text-[10px] font-mono">Trạng thái hồ sơ:</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-500 font-mono font-bold border border-amber-500/20 inline-block uppercase">
+                      {selectedDetailStore.status || "Chưa xác định"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: KYC & Evidence Documents */}
+              <div className="space-y-2 bg-[var(--gl-bg-muted)]/50 p-4 rounded-xl border border-[var(--gl-border)]">
+                <h4 className="text-xs font-bold text-[var(--gl-accent)] uppercase tracking-wider font-mono flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  5. Hồ Sơ Định Danh KYC & Minh Chứng Hoạt Động (Bảo mật Admin)
+                </h4>
+
+                {(selectedDetailStore.cccdFrontUrl || selectedDetailStore.verificationDocument || selectedDetailStore.cccdBackUrl || (selectedDetailStore.businessEvidenceUrls && selectedDetailStore.businessEvidenceUrls.length > 0)) ? (
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    {selectedDetailStore.cccdFrontUrl && (
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-[var(--gl-text-muted)] font-mono block">CCCD Mặt trước:</span>
+                        <SecureKycImage url={selectedDetailStore.cccdFrontUrl} alt="CCCD Mặt trước" />
+                      </div>
+                    )}
+                    {selectedDetailStore.verificationDocument && selectedDetailStore.verificationDocument !== selectedDetailStore.cccdFrontUrl && (
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-[var(--gl-text-muted)] font-mono block">Giấy tờ xác thực:</span>
+                        <SecureKycImage url={selectedDetailStore.verificationDocument} alt="Giấy tờ xác thực" />
+                      </div>
+                    )}
+                    {selectedDetailStore.cccdBackUrl && (
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-[var(--gl-text-muted)] font-mono block">CCCD Mặt sau:</span>
+                        <SecureKycImage url={selectedDetailStore.cccdBackUrl} alt="CCCD Mặt sau" />
+                      </div>
+                    )}
+                    {selectedDetailStore.businessEvidenceUrls && selectedDetailStore.businessEvidenceUrls.map((evUrl: string, evIdx: number) => (
+                      <div key={evIdx} className="space-y-1">
+                        <span className="text-[9px] text-[var(--gl-text-muted)] font-mono block">Minh chứng #{evIdx + 1}:</span>
+                        <SecureKycImage url={evUrl} alt={`Minh chứng ${evIdx + 1}`} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[var(--gl-text-muted)] italic pt-1">Chưa cung cấp tài liệu định danh KYC.</p>
+                )}
+              </div>
+
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="flex items-center justify-between border-t border-[var(--gl-border)] px-6 py-4 bg-[var(--gl-bg-surface)] shrink-0 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDetailStoreModalOpen(false);
+                  setSelectedDetailStore(null);
+                }}
+                className="px-4 py-2.5 bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] font-semibold rounded-xl text-xs transition-all cursor-pointer min-h-[40px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+              >
+                Đóng
+              </button>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  disabled={processingStoreId === selectedDetailStore.id}
+                  onClick={() => {
+                    handleRejectStore(selectedDetailStore.id);
+                  }}
+                  className="px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-rose-500 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all border border-rose-500/20 uppercase min-h-[40px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                >
+                  <X className="w-4 h-4" />
+                  Từ Chối
+                </button>
+                <button
+                  type="button"
+                  disabled={processingStoreId === selectedDetailStore.id}
+                  onClick={() => {
+                    handleApproveStore(selectedDetailStore.id);
+                  }}
+                  className="px-5 py-2.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase min-h-[40px] shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                >
+                  <Check className="w-4 h-4" />
+                  Phê Duyệt Hồ Sơ
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
