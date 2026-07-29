@@ -21,7 +21,7 @@ export const StoreDashboardGuard: React.FC<StoreDashboardGuardProps> = ({
   products,
   onAddProduct,
 }) => {
-  const { currentUser, stores } = useAppContext();
+  const { currentUser, stores, refreshCurrentUser } = useAppContext();
   const [storeState, setStoreState] = useState<"loading" | "none" | "pending" | "approved" | "rejected" | "error">("loading");
   const [rejectReason, setRejectReason] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
@@ -56,6 +56,9 @@ export const StoreDashboardGuard: React.FC<StoreDashboardGuardProps> = ({
         if (data) {
           if (data.status === "APPROVED") {
             setStoreState("approved");
+            if (!currentUser?.is_seller) {
+              refreshCurrentUser();
+            }
           } else if (data.status === "PENDING" || data.status === "PENDING_APPROVAL") {
             setStoreState("pending");
           } else if (data.status === "REJECTED") {
@@ -104,7 +107,7 @@ export const StoreDashboardGuard: React.FC<StoreDashboardGuardProps> = ({
     return () => {
       abortController.abort();
     };
-  }, [currentUser, stores, retryTrigger]);
+  }, [currentUser?.id, currentUser?.is_seller, stores, retryTrigger, refreshCurrentUser]);
 
   if (storeState === "loading") {
     return (

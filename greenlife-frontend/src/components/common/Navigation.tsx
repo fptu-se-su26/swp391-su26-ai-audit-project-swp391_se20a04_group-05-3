@@ -567,9 +567,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                         role="menuitem"
                         onClick={() => {
                           setIsProfileDropdownOpen(false);
-                          if (userRole === "admin") handleNavClick("admin-dashboard");
-                          else if (userRole === "store") handleNavClick("store-dashboard");
-                          else handleNavClick("customer-dashboard");
+                          handleNavClick("customer-dashboard");
                         }}
                           className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--gl-bg-elevated)] hover:text-[var(--gl-text-primary)] transition-colors flex items-center gap-2 cursor-pointer font-medium"
                       >
@@ -763,7 +761,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         {isMobileMenuOpen && (
           <div ref={mobileMenuRef} className="lg:hidden border-t border-[var(--gl-border)] bg-[var(--gl-bg-surface)] p-4 space-y-3 animate-slide-down relative z-40">
             <nav className="flex flex-col gap-1">
-              {navItems.map((item) => {
+              {navItems.filter((item) => item.id !== "customer-view-back").map((item) => {
                 const Icon = item.icon;
                 const isActive = isAdmin
                   ? (currentPage === "admin-dashboard" && adminActiveTab === item.id)
@@ -809,9 +807,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <button
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    if (userRole === "admin") handleNavClick("admin-dashboard");
-                    else if (userRole === "store") handleNavClick("store-dashboard");
-                    else handleNavClick("customer-dashboard");
+                    handleNavClick("customer-dashboard");
                   }}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)] w-full text-left cursor-pointer transition-all min-h-[44px]"
                 >
