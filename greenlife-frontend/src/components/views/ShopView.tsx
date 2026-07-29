@@ -92,13 +92,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
       );
     }
 
-    // Apply Category Filter
-    if (selectedCategory !== "all") {
-      result = result.filter((p) => p.category === selectedCategory);
-    }
-
     return result;
-  }, [products, debouncedSearch, selectedCategory]);
+  }, [products, debouncedSearch]);
 
   const sortedProducts = useMemo(() => {
     const result = [...filteredProducts];
