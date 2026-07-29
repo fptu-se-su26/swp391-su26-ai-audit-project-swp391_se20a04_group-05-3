@@ -227,14 +227,14 @@ public class CheckoutIntegrationTest {
                 String token = jwtService.generateToken(customer1);
 
                 // Add items to cart
-                cartItemRepository.save(CartItem.builder()
+                CartItem ci1 = cartItemRepository.save(CartItem.builder()
                                 .customer(customer1)
                                 .plant(activePlant1)
                                 .quantity(2)
                                 .addedAt(LocalDateTime.now())
                                 .build());
 
-                cartItemRepository.save(CartItem.builder()
+                CartItem ci2 = cartItemRepository.save(CartItem.builder()
                                 .customer(customer1)
                                 .plant(activePlant2)
                                 .quantity(1)
@@ -242,6 +242,7 @@ public class CheckoutIntegrationTest {
                                 .build());
 
                 CheckoutRequest checkoutRequest = CheckoutRequest.builder()
+                                .cartItemIds(List.of(ci1.getId(), ci2.getId()))
                                 .recipientName("Alice")
                                 .recipientPhone("0987654321")
                                 .shippingAddress("456 Blvd")
@@ -275,6 +276,7 @@ public class CheckoutIntegrationTest {
                 String token = jwtService.generateToken(customer1);
 
                 CheckoutRequest checkoutRequest = CheckoutRequest.builder()
+                                .cartItemIds(List.of(9999))
                                 .recipientName("Alice")
                                 .recipientPhone("0987654321")
                                 .shippingAddress("456 Blvd")
@@ -292,7 +294,7 @@ public class CheckoutIntegrationTest {
         void testInsufficientStockCheckoutFails() throws Exception {
                 String token = jwtService.generateToken(customer1);
 
-                cartItemRepository.save(CartItem.builder()
+                CartItem ci1 = cartItemRepository.save(CartItem.builder()
                                 .customer(customer1)
                                 .plant(activePlant1)
                                 .quantity(6) // activePlant1 stock is 5
@@ -300,6 +302,7 @@ public class CheckoutIntegrationTest {
                                 .build());
 
                 CheckoutRequest checkoutRequest = CheckoutRequest.builder()
+                                .cartItemIds(List.of(ci1.getId()))
                                 .recipientName("Alice")
                                 .recipientPhone("0987654321")
                                 .shippingAddress("456 Blvd")
@@ -318,14 +321,14 @@ public class CheckoutIntegrationTest {
                 String token = jwtService.generateToken(customer1);
 
                 // Add one valid item and one invalid item (exceeding stock)
-                cartItemRepository.save(CartItem.builder()
+                CartItem ci1 = cartItemRepository.save(CartItem.builder()
                                 .customer(customer1)
                                 .plant(activePlant1)
                                 .quantity(2) // valid: stock is 5
                                 .addedAt(LocalDateTime.now())
                                 .build());
 
-                cartItemRepository.save(CartItem.builder()
+                CartItem ci2 = cartItemRepository.save(CartItem.builder()
                                 .customer(customer1)
                                 .plant(activePlant2)
                                 .quantity(4) // invalid: stock is 3
@@ -333,6 +336,7 @@ public class CheckoutIntegrationTest {
                                 .build());
 
                 CheckoutRequest checkoutRequest = CheckoutRequest.builder()
+                                .cartItemIds(List.of(ci1.getId(), ci2.getId()))
                                 .recipientName("Alice")
                                 .recipientPhone("0987654321")
                                 .shippingAddress("456 Blvd")
@@ -361,7 +365,7 @@ public class CheckoutIntegrationTest {
                 String token = jwtService.generateToken(customer1);
 
                 // Cart quantity matches stock initially
-                cartItemRepository.save(CartItem.builder()
+                CartItem ci1 = cartItemRepository.save(CartItem.builder()
                                 .customer(customer1)
                                 .plant(activePlant1)
                                 .quantity(5) // matches stock
@@ -373,6 +377,7 @@ public class CheckoutIntegrationTest {
                 plantRepository.save(activePlant1);
 
                 CheckoutRequest checkoutRequest = CheckoutRequest.builder()
+                                .cartItemIds(List.of(ci1.getId()))
                                 .recipientName("Alice")
                                 .recipientPhone("0987654321")
                                 .shippingAddress("456 Blvd")
@@ -400,7 +405,7 @@ public class CheckoutIntegrationTest {
                 String token = jwtService.generateToken(customer1);
 
                 // Customer adds item to cart at initial price 100,000 VND
-                cartItemRepository.save(CartItem.builder()
+                CartItem ci1 = cartItemRepository.save(CartItem.builder()
                                 .customer(customer1)
                                 .plant(activePlant1)
                                 .quantity(2)
@@ -412,6 +417,7 @@ public class CheckoutIntegrationTest {
                 plantRepository.save(activePlant1);
 
                 CheckoutRequest checkoutRequest = CheckoutRequest.builder()
+                                .cartItemIds(List.of(ci1.getId()))
                                 .recipientName("Alice")
                                 .recipientPhone("0987654321")
                                 .shippingAddress("456 Blvd")
@@ -433,7 +439,7 @@ public class CheckoutIntegrationTest {
                 String token2 = jwtService.generateToken(customer2);
 
                 // Customer 1 checks out to create an order
-                cartItemRepository.save(CartItem.builder()
+                CartItem ci1 = cartItemRepository.save(CartItem.builder()
                                 .customer(customer1)
                                 .plant(activePlant1)
                                 .quantity(1)
@@ -441,6 +447,7 @@ public class CheckoutIntegrationTest {
                                 .build());
 
                 CheckoutRequest checkoutRequest = CheckoutRequest.builder()
+                                .cartItemIds(List.of(ci1.getId()))
                                 .recipientName("Alice")
                                 .recipientPhone("0987654321")
                                 .shippingAddress("456 Blvd")
@@ -465,6 +472,7 @@ public class CheckoutIntegrationTest {
         @Test
         void testUnauthorizedAccess() throws Exception {
                 CheckoutRequest checkoutRequest = CheckoutRequest.builder()
+                                .cartItemIds(List.of(1))
                                 .recipientName("Alice")
                                 .recipientPhone("0987654321")
                                 .shippingAddress("456 Blvd")

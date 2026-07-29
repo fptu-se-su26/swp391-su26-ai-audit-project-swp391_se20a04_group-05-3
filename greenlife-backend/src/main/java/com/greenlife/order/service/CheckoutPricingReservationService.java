@@ -68,9 +68,39 @@ public class CheckoutPricingReservationService {
         User customer = userRepository.findById(customerId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
-        List<CartItem> cartItems = cartItemRepository.findByCustomerId(customerId);
-        if (cartItems.isEmpty()) {
+        if (request.getCartItemIds() == null || request.getCartItemIds().isEmpty()) {
+            throw new CustomException("Vui lòng chọn ít nhất một sản phẩm trong giỏ hàng để thanh toán", HttpStatus.BAD_REQUEST);
+        }
+
+        List<CartItem> userCartItems = cartItemRepository.findByCustomerId(customerId);
+        if (userCartItems.isEmpty()) {
             throw new CustomException("Giỏ hàng của bạn đang trống", HttpStatus.BAD_REQUEST);
+        }
+
+        Map<Integer, CartItem> userCartItemMap = userCartItems.stream()
+                .collect(Collectors.toMap(CartItem::getId, item -> item));
+
+        Set<Integer> uniqueSubmittedIds = new LinkedHashSet<>(request.getCartItemIds());
+        List<CartItem> selectedCartItems = new ArrayList<>();
+
+        for (Integer submittedId : uniqueSubmittedIds) {
+            CartItem item = userCartItemMap.get(submittedId);
+            if (item == null) {
+                throw new CustomException("Sản phẩm trong giỏ hàng không tồn tại hoặc không thuộc về bạn", HttpStatus.BAD_REQUEST);
+            }
+            selectedCartItems.add(item);
+        }
+
+        // PayOS Safety Rule: Reject multi-store PayOS checkout before any order creation or stock deduction
+        String method = (request.getPaymentMethod() != null) ? request.getPaymentMethod() : "COD";
+        if ("PAYOS".equalsIgnoreCase(method)) {
+            long distinctStoreCount = selectedCartItems.stream()
+                    .map(item -> item.getPlant().getStore().getId())
+                    .distinct()
+                    .count();
+            if (distinctStoreCount > 1) {
+                throw new CustomException("Thanh toán PayOS hiện tại chỉ hỗ trợ sản phẩm từ 1 cửa hàng trong mỗi đơn hàng. Vui lòng bỏ chọn sản phẩm từ các cửa hàng khác hoặc chọn thanh toán COD.", HttpStatus.BAD_REQUEST);
+            }
         }
 
         // 1. Resolve shipping address details
@@ -98,11 +128,11 @@ public class CheckoutPricingReservationService {
             shippingAddress = request.getShippingAddress();
         }
 
-        // 2. Build PromotionPriceRequest using ONLY server-side loaded data
+        // 2. Build PromotionPriceRequest using ONLY selected cart items
         List<PromotionPriceRequest> priceRequests = new ArrayList<>();
         Map<Integer, Plant> plantMap = new HashMap<>();
 
-        for (CartItem item : cartItems) {
+        for (CartItem item : selectedCartItems) {
             Plant plant = plantRepository.findById(item.getPlant().getId())
                     .orElseThrow(() -> new CustomException("Sản phẩm không tồn tại", HttpStatus.NOT_FOUND));
 
@@ -191,7 +221,7 @@ public class CheckoutPricingReservationService {
 
         // Group cart items and their matching quotes by store
         Map<Store, List<CartItemAndQuote>> itemsByStore = new HashMap<>();
-        for (CartItem item : cartItems) {
+        for (CartItem item : selectedCartItems) {
             Plant plant = plantMap.get(item.getPlant().getId());
             Store store = plant.getStore();
 
@@ -204,7 +234,6 @@ public class CheckoutPricingReservationService {
         }
 
         List<Order> createdOrders = new ArrayList<>();
-        String method = (request.getPaymentMethod() != null) ? request.getPaymentMethod() : "COD";
 
         // Resolve commission rate fallback
         BigDecimal defaultRate = BigDecimal.valueOf(0.10);
@@ -381,8 +410,8 @@ public class CheckoutPricingReservationService {
             createdOrders.add(savedOrder);
         }
 
-        // Clear cart
-        cartItemRepository.deleteAll(cartItems);
+        // Clear selected cart items
+        cartItemRepository.deleteAll(selectedCartItems);
 
         return createdOrders;
     }
