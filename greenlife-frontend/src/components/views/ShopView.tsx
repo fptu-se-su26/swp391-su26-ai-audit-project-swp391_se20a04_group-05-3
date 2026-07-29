@@ -72,11 +72,11 @@ export const ShopView: React.FC<ShopViewProps> = ({
   }, []);
 
   const categories = [
-    { id: "all", label: "Tất Cả" },
-    { id: "cay-trong-nha", label: "Cây Xanh Bản Địa" },
-    { id: "phu-kien", label: "Trị Bệnh Sinh Học" },
-    { id: "phan-bon", label: "Dinh Dưỡng Hữu Cơ" },
-    { id: "thiet-bi-thong-minh", label: "IoT Smart Home" },
+    { id: "all", label: "Tất cả" },
+    { id: "cay-trong-nha", label: "Cây trồng trong nhà" },
+    { id: "phu-kien", label: "Phụ kiện chăm sóc" },
+    { id: "phan-bon", label: "Phân bón & dinh dưỡng" },
+    { id: "thiet-bi-thong-minh", label: "Thiết bị thông minh" },
   ];
 
   const filteredProducts = useMemo(() => {
