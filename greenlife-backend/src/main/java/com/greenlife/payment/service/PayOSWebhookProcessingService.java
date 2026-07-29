@@ -23,9 +23,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.greenlife.promotion.service.PromotionReservationLifecycleService;
 
 
+import com.greenlife.order.repository.CartItemRepository;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Processes a registered PayOS webhook event under pessimistic locks.
@@ -42,6 +47,7 @@ public class PayOSWebhookProcessingService {
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final PromotionReservationLifecycleService promotionReservationLifecycleService;
+    private final CartItemRepository cartItemRepository;
 
 
     /**
@@ -176,6 +182,8 @@ public class PayOSWebhookProcessingService {
             // Consume promotion budget reservations
             promotionReservationLifecycleService.consumeForOrder(order.getId());
 
+            // Remove purchased cart items upon verified payment success
+            deletePurchasedCartItems(order);
 
             // Publish application events
             eventPublisher.publishEvent(new PaymentEvent(this, order.getId(), order.getCustomer().getId(), true));
@@ -302,6 +310,8 @@ public class PayOSWebhookProcessingService {
             // Consume promotion budget reservations
             promotionReservationLifecycleService.consumeForOrder(order.getId());
 
+            // Remove purchased cart items upon verified payment success
+            deletePurchasedCartItems(order);
 
             eventPublisher.publishEvent(new PaymentEvent(this, order.getId(), order.getCustomer().getId(), true));
             eventPublisher.publishEvent(new OrderStatusEvent(this, order.getId(),
@@ -325,6 +335,21 @@ public class PayOSWebhookProcessingService {
             order.setStatus(OrderStatus.CONFIRMED);
             order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
+            deletePurchasedCartItems(order);
+        }
+    }
+
+    private void deletePurchasedCartItems(Order order) {
+        if (order == null || order.getCustomer() == null || order.getOrderDetails() == null || order.getOrderDetails().isEmpty()) {
+            return;
+        }
+        List<Integer> plantIds = order.getOrderDetails().stream()
+                .map(detail -> detail.getPlant() != null ? detail.getPlant().getId() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (!plantIds.isEmpty()) {
+            cartItemRepository.deleteByCustomerIdAndPlantIdIn(order.getCustomer().getId(), plantIds);
         }
     }
 

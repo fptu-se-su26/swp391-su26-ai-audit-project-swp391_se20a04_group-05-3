@@ -13,6 +13,7 @@ import com.greenlife.payment.service.internal.PreparedPaymentStatusQuery;
 import com.greenlife.promotion.service.PromotionReservationLifecycleService;
 import com.greenlife.user.entity.User;
 import com.greenlife.store.entity.Store;
+import com.greenlife.order.repository.CartItemRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +44,9 @@ public class PayOSStatusReconciliationServiceTest {
 
     @Mock
     private PromotionReservationLifecycleService promotionReservationLifecycleService;
+
+    @Mock
+    private CartItemRepository cartItemRepository;
 
     @InjectMocks
     private PayOSStatusReconciliationService reconciliationService;

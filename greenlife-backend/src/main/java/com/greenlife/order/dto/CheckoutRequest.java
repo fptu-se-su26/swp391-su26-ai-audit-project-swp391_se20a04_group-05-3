@@ -1,8 +1,11 @@
 package com.greenlife.order.dto;
 
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+
+import java.util.List;
 
 @Getter
 @Setter
@@ -10,6 +13,9 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class CheckoutRequest {
+
+    @NotEmpty(message = "Vui lòng chọn ít nhất một sản phẩm trong giỏ hàng để thanh toán")
+    private List<Integer> cartItemIds;
 
     private Integer addressId;
 

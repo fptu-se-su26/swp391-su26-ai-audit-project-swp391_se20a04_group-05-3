@@ -77,6 +77,7 @@ public class OrderServiceCheckoutPricingTest {
     @Test
     void testCheckoutDelegatesAndPublishesEvent() {
         CheckoutRequest request = new CheckoutRequest();
+        request.setCartItemIds(List.of(1001));
         request.setPaymentMethod("PAYOS");
 
         when(checkoutPricingReservationService.executeCheckoutTransaction(1, request))
