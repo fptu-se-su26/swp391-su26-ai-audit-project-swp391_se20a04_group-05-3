@@ -29,6 +29,8 @@ import com.greenlife.promotion.dto.PromotionPriceRequest;
 import com.greenlife.promotion.dto.PromotionPriceQuote;
 import java.math.BigDecimal;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class PlantService {
@@ -118,41 +120,76 @@ public class PlantService {
         String trimmedName = request.getName().trim();
         String trimmedSlug = request.getSlug().trim();
 
-        if (plantRepository.existsByNameIgnoreCaseAndStoreId(trimmedName, request.getStoreId())) {
-            throw new CustomException("Tên sản phẩm đã tồn tại trong cửa hàng này", HttpStatus.BAD_REQUEST);
-        }
+        Optional<Plant> existingByNameOpt = plantRepository.findByNameIgnoreCaseAndStoreId(trimmedName, request.getStoreId());
 
-        if (plantRepository.existsBySlugAndStoreId(trimmedSlug, request.getStoreId())) {
-            throw new CustomException("Slug sản phẩm đã tồn tại trong cửa hàng này", HttpStatus.BAD_REQUEST);
-        }
+        Plant plantToSave;
 
-        PlantStatus initialStatus = PlantStatus.ACTIVE;
-        if (request.getStatus() != null) {
-            try {
-                initialStatus = PlantStatus.valueOf(request.getStatus().trim().toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new CustomException("Trạng thái sản phẩm không hợp lệ", HttpStatus.BAD_REQUEST);
+        if (existingByNameOpt.isPresent()) {
+            Plant existingByName = existingByNameOpt.get();
+            if (existingByName.getStatus() != PlantStatus.INACTIVE) {
+                throw new CustomException("Tên sản phẩm đã tồn tại trong cửa hàng này", HttpStatus.BAD_REQUEST);
             }
+
+            Optional<Plant> existingBySlugOpt = plantRepository.findBySlugAndStoreId(trimmedSlug, request.getStoreId());
+            if (existingBySlugOpt.isPresent() && !existingBySlugOpt.get().getId().equals(existingByName.getId())) {
+                throw new CustomException("Slug sản phẩm đã tồn tại trong cửa hàng này", HttpStatus.BAD_REQUEST);
+            }
+
+            PlantStatus targetStatus = (request.getStock() != null && request.getStock() == 0)
+                    ? PlantStatus.OUT_OF_STOCK
+                    : PlantStatus.ACTIVE;
+
+            plantToSave = existingByName;
+            plantToSave.setCategory(category);
+            plantToSave.setName(trimmedName);
+            plantToSave.setSlug(trimmedSlug);
+            plantToSave.setDescription(request.getDescription());
+            plantToSave.setPrice(request.getPrice());
+            plantToSave.setStock(request.getStock());
+            plantToSave.setImageUrl(request.getImageUrl());
+            plantToSave.setCareLevel(request.getCareLevel());
+            plantToSave.setSunlight(request.getSunlight());
+            plantToSave.setWaterLevel(request.getWaterLevel());
+            plantToSave.setSku(request.getSku() != null ? request.getSku().trim() : null);
+            plantToSave.setStatus(targetStatus);
+            plantToSave.setUpdatedAt(LocalDateTime.now());
+        } else {
+            Optional<Plant> existingBySlugOpt = plantRepository.findBySlugAndStoreId(trimmedSlug, request.getStoreId());
+            if (existingBySlugOpt.isPresent()) {
+                throw new CustomException("Slug sản phẩm đã tồn tại trong cửa hàng này", HttpStatus.BAD_REQUEST);
+            }
+
+            PlantStatus initialStatus = PlantStatus.ACTIVE;
+            if (request.getStatus() != null && !request.getStatus().trim().isEmpty()) {
+                try {
+                    initialStatus = PlantStatus.valueOf(request.getStatus().trim().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    throw new CustomException("Trạng thái sản phẩm không hợp lệ", HttpStatus.BAD_REQUEST);
+                }
+            }
+            if (request.getStock() != null && request.getStock() == 0) {
+                initialStatus = PlantStatus.OUT_OF_STOCK;
+            }
+
+            plantToSave = Plant.builder()
+                    .store(store)
+                    .category(category)
+                    .name(trimmedName)
+                    .slug(trimmedSlug)
+                    .description(request.getDescription())
+                    .price(request.getPrice())
+                    .stock(request.getStock())
+                    .imageUrl(request.getImageUrl())
+                    .careLevel(request.getCareLevel())
+                    .sunlight(request.getSunlight())
+                    .waterLevel(request.getWaterLevel())
+                    .sku(request.getSku() != null ? request.getSku().trim() : null)
+                    .status(initialStatus)
+                    .createdAt(LocalDateTime.now())
+                    .build();
         }
 
-        Plant plant = Plant.builder()
-                .store(store)
-                .category(category)
-                .name(trimmedName)
-                .slug(trimmedSlug)
-                .description(request.getDescription())
-                .price(request.getPrice())
-                .stock(request.getStock())
-                .imageUrl(request.getImageUrl())
-                .careLevel(request.getCareLevel())
-                .sunlight(request.getSunlight())
-                .waterLevel(request.getWaterLevel())
-                .sku(request.getSku() != null ? request.getSku().trim() : null)
-                .status(initialStatus)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        Plant saved = plantRepository.save(plant);
+        Plant saved = plantRepository.save(plantToSave);
         Map<Integer, PromotionPriceQuote> quotesMap = getQuotesMapForPlants(List.of(saved));
         return mapToPlantResponseWithQuote(saved, quotesMap.get(saved.getId()));
     }
