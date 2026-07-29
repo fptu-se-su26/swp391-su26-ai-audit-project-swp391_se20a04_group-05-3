@@ -72,23 +72,18 @@ public class CheckoutPricingReservationService {
             throw new CustomException("Vui lòng chọn ít nhất một sản phẩm trong giỏ hàng để thanh toán", HttpStatus.BAD_REQUEST);
         }
 
-        List<CartItem> userCartItems = cartItemRepository.findByCustomerId(customerId);
-        if (userCartItems.isEmpty()) {
-            throw new CustomException("Giỏ hàng của bạn đang trống", HttpStatus.BAD_REQUEST);
+        List<Integer> requestedIds = request.getCartItemIds().stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (requestedIds.isEmpty()) {
+            throw new CustomException("Vui lòng chọn ít nhất một sản phẩm trong giỏ hàng để thanh toán", HttpStatus.BAD_REQUEST);
         }
 
-        Map<Integer, CartItem> userCartItemMap = userCartItems.stream()
-                .collect(Collectors.toMap(CartItem::getId, item -> item));
-
-        Set<Integer> uniqueSubmittedIds = new LinkedHashSet<>(request.getCartItemIds());
-        List<CartItem> selectedCartItems = new ArrayList<>();
-
-        for (Integer submittedId : uniqueSubmittedIds) {
-            CartItem item = userCartItemMap.get(submittedId);
-            if (item == null) {
-                throw new CustomException("Sản phẩm trong giỏ hàng không tồn tại hoặc không thuộc về bạn", HttpStatus.BAD_REQUEST);
-            }
-            selectedCartItems.add(item);
+        List<CartItem> selectedCartItems = cartItemRepository.findByCustomerIdAndIdIn(customerId, requestedIds);
+        if (selectedCartItems.size() != requestedIds.size()) {
+            throw new CustomException("Sản phẩm trong giỏ hàng không tồn tại hoặc không thuộc về bạn", HttpStatus.BAD_REQUEST);
         }
 
         // PayOS Safety Rule: Reject multi-store PayOS checkout before any order creation or stock deduction
@@ -410,8 +405,11 @@ public class CheckoutPricingReservationService {
             createdOrders.add(savedOrder);
         }
 
-        // Clear selected cart items
-        cartItemRepository.deleteAll(selectedCartItems);
+        // For COD orders, delete selected cart items immediately after order creation.
+        // For PayOS orders, selected cart items remain in DB until payment is verified PAID.
+        if (!"PAYOS".equalsIgnoreCase(method)) {
+            cartItemRepository.deleteAll(selectedCartItems);
+        }
 
         return createdOrders;
     }

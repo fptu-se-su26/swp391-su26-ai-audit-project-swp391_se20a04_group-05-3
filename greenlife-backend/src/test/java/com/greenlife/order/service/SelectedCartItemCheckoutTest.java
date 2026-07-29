@@ -109,7 +109,7 @@ public class SelectedCartItemCheckoutTest {
     @Test
     void testCheckout_WithOneSelectedItem_CreatesOrderOnlyForThatItem() {
         when(userRepository.findById(1)).thenReturn(Optional.of(customer));
-        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(cartItem1, cartItem2));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(1001)))).thenReturn(List.of(cartItem1));
         when(plantRepository.findById(101)).thenReturn(Optional.of(plantA));
 
         PromotionPriceQuote quote = createMockQuote(101, 10, 2, new BigDecimal("100000"));
@@ -139,9 +139,9 @@ public class SelectedCartItemCheckoutTest {
     }
 
     @Test
-    void testCheckout_UnselectedItemsRemainInCart_AndOnlySelectedItemsDeleted() {
+    void testCheckout_UnselectedItemsRemainInCart_AndOnlySelectedItemsDeleted_ForCod() {
         when(userRepository.findById(1)).thenReturn(Optional.of(customer));
-        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(cartItem1, cartItem2));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(1001)))).thenReturn(List.of(cartItem1));
         when(plantRepository.findById(101)).thenReturn(Optional.of(plantA));
 
         PromotionPriceQuote quote = createMockQuote(101, 10, 2, new BigDecimal("100000"));
@@ -158,15 +158,39 @@ public class SelectedCartItemCheckoutTest {
 
         service.executeCheckoutTransaction(1, req);
 
-        // Verify only cartItem1 is deleted from DB, cartItem2 is preserved
+        // Verify only cartItem1 is deleted from DB for COD
         verify(cartItemRepository, times(1)).deleteAll(List.of(cartItem1));
-        verify(cartItemRepository, never()).deleteAll(List.of(cartItem1, cartItem2));
+    }
+
+    @Test
+    void testCheckout_PayOS_DoesNotDeleteCartItemsDuringCheckout() {
+        when(userRepository.findById(1)).thenReturn(Optional.of(customer));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(1001)))).thenReturn(List.of(cartItem1));
+        when(plantRepository.findById(101)).thenReturn(Optional.of(plantA));
+
+        PromotionPriceQuote quote = createMockQuote(101, 10, 2, new BigDecimal("100000"));
+        when(priceEngineService.calculatePrices(any())).thenReturn(List.of(quote));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CheckoutRequest req = CheckoutRequest.builder()
+                .cartItemIds(List.of(1001))
+                .recipientName("Recipient")
+                .recipientPhone("0901234567")
+                .shippingAddress("123 Street")
+                .paymentMethod("PAYOS")
+                .build();
+
+        service.executeCheckoutTransaction(1, req);
+
+        // Verify cart items are NOT deleted during PayOS order creation
+        verify(cartItemRepository, never()).deleteAll(any());
+        verify(cartItemRepository, never()).deleteByCustomerIdAndPlantIdIn(any(), any());
     }
 
     @Test
     void testCheckout_SubmittedCartItemBelongingToAnotherUser_IsRejected() {
         when(userRepository.findById(1)).thenReturn(Optional.of(customer));
-        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(cartItem1));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(1002)))).thenReturn(List.of());
 
         CheckoutRequest req = CheckoutRequest.builder()
                 .cartItemIds(List.of(1002))
@@ -184,7 +208,7 @@ public class SelectedCartItemCheckoutTest {
     @Test
     void testCheckout_NonexistentCartItemId_IsRejected() {
         when(userRepository.findById(1)).thenReturn(Optional.of(customer));
-        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(cartItem1));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(9999)))).thenReturn(List.of());
 
         CheckoutRequest req = CheckoutRequest.builder()
                 .cartItemIds(List.of(9999))
@@ -201,7 +225,7 @@ public class SelectedCartItemCheckoutTest {
     @Test
     void testCheckout_DuplicateCartItemIds_DoNotCreateDuplicateOrderDetails() {
         when(userRepository.findById(1)).thenReturn(Optional.of(customer));
-        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(cartItem1));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(1001)))).thenReturn(List.of(cartItem1));
         when(plantRepository.findById(101)).thenReturn(Optional.of(plantA));
 
         PromotionPriceQuote quote = createMockQuote(101, 10, 2, new BigDecimal("100000"));
@@ -244,7 +268,7 @@ public class SelectedCartItemCheckoutTest {
         CartItem cartItem3 = CartItem.builder().id(1003).customer(customer).plant(plantA2).quantity(1).build();
 
         when(userRepository.findById(1)).thenReturn(Optional.of(customer));
-        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(cartItem1, cartItem3));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(1001, 1003)))).thenReturn(List.of(cartItem1, cartItem3));
         when(plantRepository.findById(101)).thenReturn(Optional.of(plantA));
         when(plantRepository.findById(103)).thenReturn(Optional.of(plantA2));
 
@@ -269,7 +293,7 @@ public class SelectedCartItemCheckoutTest {
     @Test
     void testCheckout_PayosWithMultipleStores_IsRejectedBeforePersistence() {
         when(userRepository.findById(1)).thenReturn(Optional.of(customer));
-        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(cartItem1, cartItem2));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(1001, 1002)))).thenReturn(List.of(cartItem1, cartItem2));
 
         CheckoutRequest req = CheckoutRequest.builder()
                 .cartItemIds(List.of(1001, 1002)) // Items from Store A and Store B
@@ -291,7 +315,7 @@ public class SelectedCartItemCheckoutTest {
     @Test
     void testCheckout_CodWithMultipleStores_CreatesSeparateOrdersPerStore() {
         when(userRepository.findById(1)).thenReturn(Optional.of(customer));
-        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(cartItem1, cartItem2));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(1001, 1002)))).thenReturn(List.of(cartItem1, cartItem2));
         when(plantRepository.findById(101)).thenReturn(Optional.of(plantA));
         when(plantRepository.findById(102)).thenReturn(Optional.of(plantB));
 
@@ -315,7 +339,7 @@ public class SelectedCartItemCheckoutTest {
     @Test
     void testCheckout_InventoryIsDeductedOnlyForSelectedItems() {
         when(userRepository.findById(1)).thenReturn(Optional.of(customer));
-        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(cartItem1, cartItem2));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(1001)))).thenReturn(List.of(cartItem1));
         when(plantRepository.findById(101)).thenReturn(Optional.of(plantA));
 
         PromotionPriceQuote quote = createMockQuote(101, 10, 2, new BigDecimal("100000"));

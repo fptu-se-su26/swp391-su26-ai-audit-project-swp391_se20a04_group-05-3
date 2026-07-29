@@ -12,6 +12,7 @@ import com.greenlife.payment.entity.enums.PaymentTransactionStatus;
 import com.greenlife.payment.entity.enums.WebhookProcessingStatus;
 import com.greenlife.payment.payos.dto.PayOSWebhookData;
 import com.greenlife.payment.payos.dto.PayOSWebhookPayload;
+import com.greenlife.order.repository.CartItemRepository;
 import com.greenlife.payment.repository.PayOSWebhookEventRepository;
 import com.greenlife.payment.repository.PaymentTransactionRepository;
 import com.greenlife.payment.service.internal.PreparedPaymentStatusQuery;
@@ -51,6 +52,9 @@ public class PayOSWebhookProcessingServiceTest {
 
     @Mock
     private PromotionReservationLifecycleService promotionReservationLifecycleService;
+
+    @Mock
+    private CartItemRepository cartItemRepository;
 
     @InjectMocks
     private PayOSWebhookProcessingService webhookProcessingService;
