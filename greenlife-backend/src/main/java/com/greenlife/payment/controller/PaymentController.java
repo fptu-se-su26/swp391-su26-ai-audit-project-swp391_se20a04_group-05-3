@@ -26,7 +26,7 @@ public class PaymentController {
     private final CurrentUserResolver currentUserResolver;
 
     @PostMapping("/vnpay/url")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<PaymentUrlResponse> generatePaymentUrl(
             @Valid @RequestBody PaymentUrlRequest request,
             @AuthenticationPrincipal UserDetails userDetails,

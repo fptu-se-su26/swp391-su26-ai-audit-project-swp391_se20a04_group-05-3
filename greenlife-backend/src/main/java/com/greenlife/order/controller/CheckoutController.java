@@ -27,7 +27,7 @@ public class CheckoutController {
     private final CurrentUserResolver currentUserResolver;
 
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<List<OrderResponse>> checkout(
             @Valid @RequestBody CheckoutRequest request,
             @AuthenticationPrincipal UserDetails userDetails

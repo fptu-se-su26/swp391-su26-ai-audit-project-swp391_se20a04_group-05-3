@@ -18,7 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -214,6 +216,70 @@ public class SecurityIntegrationTest {
         mockMvc.perform(get("/api/admin/stores/pending")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testStoreOwnerShoppingAccessToCustomerEndpoints() throws Exception {
+        User user = createUser(ownerEmail, ownerRole);
+        String token = jwtService.generateToken(user);
+
+        // 1. GET /api/cart
+        mockMvc.perform(get("/api/cart").header("Authorization", "Bearer " + token))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(), "STORE_OWNER must not receive 403 on GET /api/cart"));
+
+        // 2. POST /api/cart/items
+        mockMvc.perform(post("/api/cart/items").header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(), "STORE_OWNER must not receive 403 on POST /api/cart/items"));
+
+        // 3. GET /api/wishlist
+        mockMvc.perform(get("/api/wishlist").header("Authorization", "Bearer " + token))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(), "STORE_OWNER must not receive 403 on GET /api/wishlist"));
+
+        // 4. POST /api/wishlist/{plantId}
+        mockMvc.perform(post("/api/wishlist/999").header("Authorization", "Bearer " + token))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(), "STORE_OWNER must not receive 403 on POST /api/wishlist/{plantId}"));
+
+        // 5. POST /api/checkout
+        mockMvc.perform(post("/api/checkout").header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(), "STORE_OWNER must not receive 403 on POST /api/checkout"));
+
+        // 6. GET /api/orders
+        mockMvc.perform(get("/api/orders").header("Authorization", "Bearer " + token))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(), "STORE_OWNER must not receive 403 on GET /api/orders"));
+
+        // 7. GET /api/addresses
+        mockMvc.perform(get("/api/addresses").header("Authorization", "Bearer " + token))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(), "STORE_OWNER must not receive 403 on GET /api/addresses"));
+
+        // 8. POST /api/payment/vnpay/url
+        mockMvc.perform(post("/api/payment/vnpay/url").header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(), "STORE_OWNER must not receive 403 on POST /api/payment/vnpay/url"));
+
+        // 9. POST /api/bookings
+        mockMvc.perform(post("/api/bookings").header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(), "STORE_OWNER must not receive 403 on POST /api/bookings"));
+
+        // 10. POST /api/reviews
+        mockMvc.perform(post("/api/reviews").header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(), "STORE_OWNER must not receive 403 on POST /api/reviews"));
+    }
+
+    @Test
+    void testCustomerShoppingAccessUnchanged() throws Exception {
+        User user = createUser(customerEmail, customerRole);
+        String token = jwtService.generateToken(user);
+
+        mockMvc.perform(get("/api/cart").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/wishlist").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/orders").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/addresses").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
     }
 }
