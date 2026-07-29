@@ -362,4 +362,149 @@ public class CartServicePromotionTest {
         assertEquals(BigDecimal.ZERO, response.getSubtotal());
         verify(priceEngineService, never()).calculatePrices(anyList());
     }
+
+    @Test
+    void testCartResponse_ContainsCorrectStoreIdAndStoreName() {
+        // Arrange
+        CartItem item = CartItem.builder().id(1).customer(customer).plant(plant1).quantity(2).build();
+        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(item));
+
+        PromotionPriceQuote quote = new PromotionPriceQuote(
+                101, 10, 2, new BigDecimal("100000"), new BigDecimal("100000"),
+                BigDecimal.ZERO, new BigDecimal("200000"), new BigDecimal("200000"),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                false, null, null, null, LocalDateTime.now()
+        );
+        when(priceEngineService.calculatePrices(anyList())).thenReturn(List.of(quote));
+
+        // Act
+        CartResponse response = cartService.getCart(1);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(1, response.getItems().size());
+        CartItemResponse itemResp = response.getItems().get(0);
+        assertEquals(10, itemResp.getStoreId());
+        assertEquals("Cửa hàng nông nghiệp", itemResp.getStoreName());
+    }
+
+    @Test
+    void testCartResponse_ProductsFromSameStoreReturnSameStoreId() {
+        // Arrange
+        CartItem item1 = CartItem.builder().id(1).customer(customer).plant(plant1).quantity(1).build();
+        CartItem item2 = CartItem.builder().id(2).customer(customer).plant(plant2).quantity(1).build();
+        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(item1, item2));
+
+        PromotionPriceQuote quote1 = new PromotionPriceQuote(
+                101, 10, 1, new BigDecimal("100000"), new BigDecimal("100000"),
+                BigDecimal.ZERO, new BigDecimal("100000"), new BigDecimal("100000"),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                false, null, null, null, LocalDateTime.now()
+        );
+        PromotionPriceQuote quote2 = new PromotionPriceQuote(
+                102, 10, 1, new BigDecimal("200000"), new BigDecimal("200000"),
+                BigDecimal.ZERO, new BigDecimal("200000"), new BigDecimal("200000"),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                false, null, null, null, LocalDateTime.now()
+        );
+        when(priceEngineService.calculatePrices(anyList())).thenReturn(List.of(quote1, quote2));
+
+        // Act
+        CartResponse response = cartService.getCart(1);
+
+        // Assert
+        assertEquals(2, response.getItems().size());
+        assertEquals(10, response.getItems().get(0).getStoreId());
+        assertEquals(10, response.getItems().get(1).getStoreId());
+        assertEquals(response.getItems().get(0).getStoreId(), response.getItems().get(1).getStoreId());
+    }
+
+    @Test
+    void testCartResponse_ProductsFromDifferentStoresReturnDifferentStoreIds() {
+        // Arrange
+        Store store2 = Store.builder().id(20).name("Cửa hàng rau sạch").build();
+        Plant plantOtherStore = Plant.builder().id(103).store(store2).price(new BigDecimal("150000")).name("Cây Ớt").build();
+
+        CartItem item1 = CartItem.builder().id(1).customer(customer).plant(plant1).quantity(1).build();
+        CartItem item2 = CartItem.builder().id(2).customer(customer).plant(plantOtherStore).quantity(1).build();
+        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(item1, item2));
+
+        PromotionPriceQuote quote1 = new PromotionPriceQuote(
+                101, 10, 1, new BigDecimal("100000"), new BigDecimal("100000"),
+                BigDecimal.ZERO, new BigDecimal("100000"), new BigDecimal("100000"),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                false, null, null, null, LocalDateTime.now()
+        );
+        PromotionPriceQuote quote2 = new PromotionPriceQuote(
+                103, 20, 1, new BigDecimal("150000"), new BigDecimal("150000"),
+                BigDecimal.ZERO, new BigDecimal("150000"), new BigDecimal("150000"),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                false, null, null, null, LocalDateTime.now()
+        );
+        when(priceEngineService.calculatePrices(anyList())).thenReturn(List.of(quote1, quote2));
+
+        // Act
+        CartResponse response = cartService.getCart(1);
+
+        // Assert
+        assertEquals(2, response.getItems().size());
+        assertEquals(10, response.getItems().get(0).getStoreId());
+        assertEquals("Cửa hàng nông nghiệp", response.getItems().get(0).getStoreName());
+        assertEquals(20, response.getItems().get(1).getStoreId());
+        assertEquals("Cửa hàng rau sạch", response.getItems().get(1).getStoreName());
+        assertNotEquals(response.getItems().get(0).getStoreId(), response.getItems().get(1).getStoreId());
+    }
+
+    @Test
+    void testCartResponse_ExistingPricingAndQuantityFieldsRemainUnchanged() {
+        // Arrange
+        CartItem item = CartItem.builder().id(1).customer(customer).plant(plant1).quantity(3).build();
+        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(item));
+
+        PromotionPriceQuote quote = new PromotionPriceQuote(
+                101, 10, 3, new BigDecimal("100000"), new BigDecimal("90000"),
+                new BigDecimal("10000"), new BigDecimal("300000"), new BigDecimal("270000"),
+                new BigDecimal("30000"), BigDecimal.ZERO, new BigDecimal("10000"),
+                BigDecimal.ZERO, new BigDecimal("30000"),
+                true, 5, "Sale Hè", PromotionFundingSource.PLATFORM_FUNDED, LocalDateTime.now()
+        );
+        when(priceEngineService.calculatePrices(anyList())).thenReturn(List.of(quote));
+
+        // Act
+        CartResponse response = cartService.getCart(1);
+
+        // Assert
+        CartItemResponse itemResp = response.getItems().get(0);
+        assertEquals(1, itemResp.getId());
+        assertEquals(101, itemResp.getPlantId());
+        assertEquals("Cây Kim Tiền", itemResp.getPlantName());
+        assertEquals(new BigDecimal("90000"), itemResp.getPlantPrice());
+        assertEquals(3, itemResp.getQuantity());
+        assertEquals(new BigDecimal("100000"), itemResp.getBaseUnitPrice());
+        assertEquals(new BigDecimal("90000"), itemResp.getEffectiveUnitPrice());
+        assertEquals(new BigDecimal("10000"), itemResp.getUnitDiscount());
+        assertEquals(new BigDecimal("300000"), itemResp.getLineBaseAmount());
+        assertEquals(new BigDecimal("270000"), itemResp.getLineEffectiveAmount());
+        assertEquals(new BigDecimal("30000"), itemResp.getLineDiscountAmount());
+        assertTrue(itemResp.getOnSale());
+    }
+
+    @Test
+    void testCartResponse_MissingStoreRelationDoesNotProduceFakeStoreId0() {
+        // Arrange
+        Plant plantNoStore = Plant.builder().id(104).store(null).price(new BigDecimal("50000")).name("Cây Không Shop").build();
+        CartItem item = CartItem.builder().id(1).customer(customer).plant(plantNoStore).quantity(1).build();
+        when(cartItemRepository.findByCustomerId(1)).thenReturn(List.of(item));
+        when(priceEngineService.calculatePrices(anyList())).thenReturn(Collections.emptyList());
+
+        // Act
+        CartResponse response = cartService.getCart(1);
+
+        // Assert
+        assertEquals(1, response.getItems().size());
+        CartItemResponse itemResp = response.getItems().get(0);
+        assertNull(itemResp.getStoreId());
+        assertNull(itemResp.getStoreName());
+        assertNotEquals(0, itemResp.getStoreId());
+    }
 }
