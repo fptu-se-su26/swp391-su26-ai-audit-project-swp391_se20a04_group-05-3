@@ -621,7 +621,7 @@ body {
     top 80ms linear,
     transform 180ms ease,
     box-shadow 180ms ease;
-  z-index: 60;
+  z-index: 40;
 }
 
 .gl-chat-launcher:hover {
