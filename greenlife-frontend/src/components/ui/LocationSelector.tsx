@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { MapPin, Navigation, ChevronDown, ChevronUp, Store, CheckCircle2, RefreshCw } from "lucide-react";
+import { MapPin, Navigation, ChevronDown, ChevronUp, Store, CheckCircle2, RefreshCw, X } from "lucide-react";
 import { useAppContext } from "../../context/AppContext";
 import AdministrativeService, { AdministrativeProvinceDTO, AdministrativeCommuneDTO } from "../../services/administrativeService";
 import { PublicStore, EcoStore } from "../../types";
@@ -337,11 +337,25 @@ export const LocationSelector: React.FC<LocationSelectorProps> = ({
                     Danh sách nhà vườn sẵn sàng cung ứng.
                   </p>
                 </div>
-                {!isLoading && !hasError && cityStores.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-[var(--gl-bg-surface)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20 shrink-0">
-                    {cityStores.length} nhà vườn
-                  </span>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {!propOnSelectStore && activeSelectedStoreId && contextSetSelectedStoreId && (
+                    <button
+                      id="clear-store-filter-btn"
+                      type="button"
+                      onClick={() => contextSetSelectedStoreId(null)}
+                      aria-label="Xem sản phẩm từ tất cả nhà vườn"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-[40px] text-xs font-semibold rounded-lg border border-[var(--gl-accent)]/40 bg-[var(--gl-bg-surface)] text-[var(--gl-accent)] hover:bg-[var(--gl-accent-soft)] hover:border-[var(--gl-accent)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                    >
+                      <X className="w-3.5 h-3.5 shrink-0" />
+                      <span>Xem tất cả nhà vườn</span>
+                    </button>
+                  )}
+                  {!isLoading && !hasError && cityStores.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-[var(--gl-bg-surface)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20">
+                      {cityStores.length} nhà vườn
+                    </span>
+                  )}
+                </div>
               </div>
 
               {isLoading ? (
