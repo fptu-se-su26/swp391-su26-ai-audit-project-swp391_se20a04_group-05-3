@@ -11,6 +11,14 @@ export interface CheckoutPayload {
   paymentMethod: "COD" | "PAYOS";
 }
 
+export interface PayOSPaymentStatusResponse {
+  orderCode: number;
+  amount: number;
+  paymentStatus: "PENDING" | "PAID" | "FAILED" | "CANCELLED" | string;
+  orderId?: number;
+  paymentLinkId?: string;
+}
+
 export class OrderService {
   private static normalizeStatus(status: string): "pending" | "processing" | "shipped" | "cancelled" | "completed" | "received" | "return_requested" | "return_approved" | "return_rejected" {
     if (!status) return "pending";
@@ -110,8 +118,8 @@ export class OrderService {
     return HttpClient.post("/api/payments/payos/create-link", { orderId: Number(orderId) }, { signal });
   }
 
-  public static async getPayOSPaymentStatus(orderCode: number | string, signal?: AbortSignal): Promise<any> {
-    return HttpClient.get(`/api/payments/payos/${orderCode}/status`, { signal });
+  public static async getPayOSPaymentStatus(orderCode: number | string, signal?: AbortSignal): Promise<PayOSPaymentStatusResponse> {
+    return HttpClient.get<PayOSPaymentStatusResponse>(`/api/payments/payos/${orderCode}/status`, { signal });
   }
 
   public static async confirmReceived(id: string, signal?: AbortSignal): Promise<StoreOrder> {

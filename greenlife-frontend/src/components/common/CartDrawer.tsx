@@ -22,12 +22,56 @@ import { toast } from "react-hot-toast";
 import { EmptyState } from "./EmptyState";
 import { getMediaUrl } from "../../utils/mediaUrl";
 import AdministrativeService, { AdministrativeProvinceDTO, AdministrativeCommuneDTO } from "../../services/administrativeService";
+import { CartItemRow } from "./CartItemRow";
 
 interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   setCurrentPage: (page: string) => void;
 }
+
+interface IndeterminateCheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  indeterminate?: boolean;
+}
+
+const IndeterminateCheckbox: React.FC<IndeterminateCheckboxProps> = ({
+  indeterminate,
+  className = "",
+  ...rest
+}) => {
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = Boolean(indeterminate);
+    }
+  }, [indeterminate]);
+
+  return (
+    <input
+      type="checkbox"
+      ref={ref}
+      className={`w-4 h-4 rounded text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] accent-[var(--gl-accent)] cursor-pointer shrink-0 ${className}`}
+      {...rest}
+    />
+  );
+};
+
+export const getValidStoreId = (item: CartItem): number | undefined => {
+  if (item.storeId !== undefined && item.storeId !== null && !isNaN(item.storeId) && item.storeId > 0) {
+    return item.storeId;
+  }
+  if (item.product?.shopId !== undefined && item.product?.shopId !== null) {
+    const parsed = Number(item.product.shopId);
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return undefined;
+};
+
+const getStoreName = (item: CartItem): string => {
+  if (item.storeName && item.storeName.trim() !== "") return item.storeName;
+  return "Cửa hàng sinh thái";
+};
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
   isOpen,
@@ -107,8 +151,59 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [note, setNote] = useState("");
 
   // Selection calculations
-  const validCartItems = cart.filter((item): item is CartItem & { id: number } => item.id !== undefined);
+  const validCartItems = React.useMemo(() => {
+    return cart.filter((item): item is CartItem & { id: number } => item.id !== undefined);
+  }, [cart]);
+
   const isAllSelected = validCartItems.length > 0 && validCartItems.every(item => selectedCartItemIds.includes(item.id));
+  const isGlobalIndeterminate = !isAllSelected && validCartItems.some(item => selectedCartItemIds.includes(item.id));
+
+  const storeGroups = React.useMemo(() => {
+    const groupsMap = new Map<string, { groupKey: string; storeId?: number; storeName: string; items: CartItem[] }>();
+
+    cart.forEach(item => {
+      const sId = getValidStoreId(item);
+      const groupKey = sId !== undefined ? `store-${sId}` : `missing-${item.id ?? item.product.id}`;
+      const sName = sId !== undefined ? getStoreName(item) : "Cửa hàng không xác định";
+      if (!groupsMap.has(groupKey)) {
+        groupsMap.set(groupKey, { groupKey, storeId: sId, storeName: sName, items: [] });
+      }
+      groupsMap.get(groupKey)!.items.push(item);
+    });
+
+    return Array.from(groupsMap.values()).map(group => {
+      const groupValidItems = group.items.filter((item): item is CartItem & { id: number } => item.id !== undefined);
+      const selectedInGroup = groupValidItems.filter(item => selectedCartItemIds.includes(item.id));
+      const allSelected = groupValidItems.length > 0 && selectedInGroup.length === groupValidItems.length;
+      const someSelected = selectedInGroup.length > 0 && selectedInGroup.length < groupValidItems.length;
+
+      const groupSelectedSubtotal = selectedInGroup.reduce((sum, item) => {
+        const lineAmount = item.lineEffectiveAmount !== undefined
+          ? item.lineEffectiveAmount
+          : item.lineBaseAmount !== undefined
+            ? item.lineBaseAmount
+            : (item.effectiveUnitPrice ?? item.product.price) * item.quantity;
+        return sum + lineAmount;
+      }, 0);
+
+      return {
+        ...group,
+        validItems: groupValidItems,
+        selectedCount: selectedInGroup.length,
+        allSelected,
+        someSelected,
+        selectedSubtotal: groupSelectedSubtotal
+      };
+    });
+  }, [cart, selectedCartItemIds]);
+
+  const selectedStoreCount = React.useMemo(() => {
+    const selectedItems = cart.filter(item => item.id !== undefined && selectedCartItemIds.includes(item.id));
+    const validStoreIds = selectedItems
+      .map(getValidStoreId)
+      .filter((id): id is number => id !== undefined);
+    return new Set(validStoreIds).size;
+  }, [cart, selectedCartItemIds]);
 
   const selectedSubtotal = cart
     .filter(item => item.id !== undefined && selectedCartItemIds.includes(item.id))
@@ -126,6 +221,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       setSelectedCartItemIds([]);
     } else {
       setSelectedCartItemIds(validCartItems.map(i => i.id));
+    }
+  };
+
+  const handleToggleStoreSelect = (groupKey: string) => {
+    const group = storeGroups.find(g => g.groupKey === groupKey);
+    if (!group || group.validItems.length === 0) return;
+
+    const storeItemIds = group.validItems.map(i => i.id);
+    if (group.allSelected) {
+      setSelectedCartItemIds(prev => prev.filter(id => !storeItemIds.includes(id)));
+    } else {
+      setSelectedCartItemIds(prev => Array.from(new Set([...prev, ...storeItemIds])));
     }
   };
 
@@ -318,13 +425,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       return;
     }
 
+    const selectedItems = cart.filter(item => item.id !== undefined && selectedCartItemIds.includes(item.id));
+
+    // Check for missing/invalid store metadata on selected items
+    const hasMissingStore = selectedItems.some(item => getValidStoreId(item) === undefined);
+    if (hasMissingStore) {
+      const errText = "Một số sản phẩm đã chọn không có thông tin cửa hàng hợp lệ. Vui lòng bỏ chọn hoặc kiểm tra lại.";
+      setErrorMsg(errText);
+      toast.error(errText);
+      return;
+    }
+
     // PayOS Single-Store Frontend Guard
     if (paymentMethod === "PAYOS") {
-      const selectedItems = cart.filter(item => item.id !== undefined && selectedCartItemIds.includes(item.id));
       const distinctStores = new Set<number>();
       selectedItems.forEach(item => {
-        const sId = item.storeId ?? (item.product.shopId ? Number(item.product.shopId) : undefined);
-        if (sId !== undefined && !isNaN(sId)) {
+        const sId = getValidStoreId(item);
+        if (sId !== undefined) {
           distinctStores.add(sId);
         }
       });
@@ -355,13 +472,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       const orders = await checkoutCart(checkoutPayload);
       
       // PayOS redirect logic
-      if (paymentMethod === "PAYOS" && orders.length > 0) {
+      if (paymentMethod === "PAYOS") {
+        if (!Array.isArray(orders) || orders.length !== 1) {
+          const errText = "Thanh toán PayOS yêu cầu tạo duy nhất một đơn hàng từ một cửa hàng.";
+          setErrorMsg(errText);
+          toast.error(errText);
+          setSubmitting(false);
+          return;
+        }
+
         const payosOrder = orders[0];
         try {
           const data = await OrderService.createPayOSPaymentLink(payosOrder.id);
           if (data && data.checkoutUrl) {
             window.location.href = data.checkoutUrl;
             return;
+          } else {
+            throw new Error("Không tìm thấy liên kết thanh toán từ cổng PayOS.");
           }
         } catch (payosErr: any) {
           toast.error("Không thể tạo liên kết thanh toán PayOS: " + (payosErr.message || payosErr));
@@ -494,108 +621,53 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     {/* Select All Header */}
                     <div className="flex items-center justify-between p-3 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl text-xs">
                       <label className="flex items-center gap-2 cursor-pointer font-semibold select-none text-[var(--gl-text-primary)]">
-                        <input
-                          type="checkbox"
+                        <IndeterminateCheckbox
                           checked={isAllSelected}
+                          indeterminate={isGlobalIndeterminate}
                           onChange={handleToggleSelectAll}
-                          className="w-4 h-4 rounded text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] accent-[var(--gl-accent)] cursor-pointer"
+                          aria-label="Chọn tất cả sản phẩm trong giỏ hàng"
                         />
                         <span>Chọn tất cả ({selectedCartItemIds.length}/{validCartItems.length})</span>
                       </label>
                     </div>
 
-                    {cart.map((item) => (
+                    {/* Store Groups */}
+                    {storeGroups.map((group) => (
                       <div 
-                        key={item.product.id} 
-                        className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-3.5 rounded-2xl flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 text-xs transition-all hover:border-[var(--gl-border-subtle)]"
+                        key={group.groupKey}
+                        className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl p-3.5 space-y-3 shadow-xs"
                       >
-                        {/* Item Selection Checkbox */}
-                        {item.id !== undefined && (
-                          <input
-                            type="checkbox"
-                            checked={selectedCartItemIds.includes(item.id)}
-                            onChange={() => handleToggleItemSelect(item.id)}
-                            className="w-4 h-4 rounded text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] accent-[var(--gl-accent)] cursor-pointer shrink-0"
-                            aria-label={`Chọn sản phẩm ${item.product.name}`}
-                          />
-                        )}
-
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <img
-                            src={getMediaUrl(item.product.image)}
-                            alt={item.product.name}
-                            className="w-12 h-12 shrink-0 object-cover rounded-xl border border-[var(--gl-border-subtle)] bg-[var(--gl-bg-muted)]"
-                            referrerPolicy="no-referrer"
-                            loading="lazy"
-                          />
-                          <div className="space-y-0.5 min-w-0 flex-1">
-                            <span className="font-semibold text-[var(--gl-text-primary)] block truncate" title={item.product.name}>{item.product.name}</span>
-                            {item.onSale && item.effectiveUnitPrice !== undefined ? (
-                              <div className="space-y-0.5 mt-0.5">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-[10px] text-[var(--gl-text-muted)] line-through font-mono">
-                                    {item.baseUnitPrice !== undefined
-                                      ? item.baseUnitPrice.toLocaleString("vi-VN")
-                                      : item.product.price.toLocaleString("vi-VN")}₫
-                                  </span>
-                                  <span className="text-[10px] font-semibold text-[var(--gl-accent)] font-mono">
-                                    {item.effectiveUnitPrice.toLocaleString("vi-VN")}₫
-                                  </span>
-                                  {item.promotionName && (
-                                    <span className="px-1.5 py-0.5 rounded bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] text-[9px] font-bold font-mono">
-                                      {item.promotionName}
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="text-[var(--gl-accent)] font-mono block font-bold">
-                                  {item.lineEffectiveAmount !== undefined
-                                    ? item.lineEffectiveAmount.toLocaleString("vi-VN") + "₫"
-                                    : "Đang cập nhật giá"}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-[var(--gl-text-secondary)] font-mono block mt-0.5 font-semibold">
-                                {item.lineBaseAmount !== undefined
-                                  ? item.lineBaseAmount.toLocaleString("vi-VN") + "₫"
-                                  : item.lineEffectiveAmount !== undefined
-                                    ? item.lineEffectiveAmount.toLocaleString("vi-VN") + "₫"
-                                    : "Đang cập nhật giá"}
-                              </span>
-                            )}
-                          </div>
+                        {/* Store Group Header */}
+                        <div className="flex items-center justify-between border-b border-[var(--gl-border)] pb-2.5 text-xs">
+                          <label className="flex items-center gap-2 cursor-pointer font-bold select-none text-[var(--gl-text-primary)] min-w-0">
+                            <IndeterminateCheckbox
+                              checked={group.allSelected}
+                              indeterminate={group.someSelected}
+                              onChange={() => handleToggleStoreSelect(group.groupKey)}
+                              aria-label={`Chọn tất cả sản phẩm của cửa hàng ${group.storeName}`}
+                            />
+                            <span className="truncate" title={group.storeName}>{group.storeName}</span>
+                            <span className="text-[10px] font-normal text-[var(--gl-text-muted)] shrink-0">
+                              ({group.selectedCount}/{group.validItems.length})
+                            </span>
+                          </label>
+                          <span className="font-mono font-semibold text-[var(--gl-accent)] shrink-0">
+                            {group.selectedSubtotal.toLocaleString("vi-VN")}₫
+                          </span>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
-                          {/* Dec/Inc Quantity buttons */}
-                          <div className="flex items-center bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] rounded-xl overflow-hidden">
-                            <button
-                              type="button"
-                              onClick={() => updateCartQuantity(item.product.id, -1)}
-                              aria-label="Giảm số lượng"
-                              className="min-w-[36px] min-h-[36px] flex items-center justify-center text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
-                            >
-                              <Minus className="h-3.5 w-3.5" />
-                            </button>
-                            <span className="px-2 text-xs text-[var(--gl-text-primary)] font-mono font-semibold select-none min-w-[20px] text-center">{item.quantity}</span>
-                            <button
-                              type="button"
-                              onClick={() => updateCartQuantity(item.product.id, 1)}
-                              aria-label="Tăng số lượng"
-                              className="min-w-[36px] min-h-[36px] flex items-center justify-center text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => removeFromCart(item.product.id)}
-                            aria-label={`Xóa ${item.product.name} khỏi giỏ hàng`}
-                            className="min-w-[36px] min-h-[36px] flex items-center justify-center text-[var(--gl-text-muted)] hover:text-[var(--gl-danger)] hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
-                            title="Xóa khỏi giỏ"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                        {/* Store Group Items */}
+                        <div className="space-y-2.5">
+                          {group.items.map((item) => (
+                            <CartItemRow
+                              key={item.id !== undefined ? `cart-item-${item.id}` : `plant-${item.product.id}`}
+                              item={item}
+                              isSelected={item.id !== undefined && selectedCartItemIds.includes(item.id)}
+                              onToggleSelect={handleToggleItemSelect}
+                              onUpdateQuantity={updateCartQuantity}
+                              onRemove={removeFromCart}
+                            />
+                          ))}
                         </div>
                       </div>
                     ))}
