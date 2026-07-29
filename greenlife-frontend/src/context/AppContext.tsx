@@ -47,6 +47,7 @@ interface AppContextType {
   setCurrentPage: (page: string) => void;
   setSelectedProduct: (product: Product | null) => void;
   switchRole: (role: "customer" | "store" | "admin") => Promise<void>;
+  refreshCurrentUser: () => Promise<User | null>;
   login: (email: string, password?: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
   register: (name: string, email: string, role: "customer" | "store" | "admin", password?: string) => Promise<void>;
@@ -598,6 +599,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser, setCurrentPage]);
 
+  const refreshCurrentUser = useCallback(async (): Promise<User | null> => {
+    try {
+      const user = await AuthService.getCurrentUser();
+      if (user) {
+        setCurrentUser(user);
+      }
+      return user;
+    } catch (err: unknown) {
+      logger.warn("refreshCurrentUser failed:", err);
+      return null;
+    }
+  }, []);
+
   const sendOTP = useCallback(async (email: string) => {
     return await AuthService.sendOTP(email);
   }, []);
@@ -978,9 +992,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const checkoutCart = useCallback(async (payload: any) => {
     const orders = await OrderService.checkoutCart(payload);
-    clearCart();
+    await loadCart();
     return orders;
-  }, [clearCart]);
+  }, [loadCart]);
 
   const toggleWishlist = useCallback(async (productId: number) => {
     if (!currentUser) {
@@ -1200,6 +1214,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentPage,
       setSelectedProduct,
       switchRole,
+      refreshCurrentUser,
       login,
       loginWithGoogle,
       register,
@@ -1241,7 +1256,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createReview,
       updateReview,
       deleteReview,
-      moderateReview
+      moderateReview,
+      refreshCurrentUser
     ]
   );
 

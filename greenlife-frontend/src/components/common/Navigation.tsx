@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Leaf, ShoppingBag, BrainCircuit, Newspaper, User, Settings2, Home, UserCheck, Sun, Moon, MapPin, Menu, X, LogOut, Cpu, Store, Users, Sprout, TrendingUp, Inbox, FileText, Bell, Trash2, MessageSquare, ShieldAlert, Calendar, Tag, Shield } from "lucide-react";
+import { Leaf, ShoppingBag, BrainCircuit, Newspaper, User, Settings2, Home, UserCheck, Sun, Moon, MapPin, Menu, X, LogOut, Cpu, Store, Users, Sprout, TrendingUp, Inbox, FileText, Bell, Trash2, MessageSquare, ShieldAlert, Calendar, Tag, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useAppContext } from "../../context/AppContext";
 import { NotificationSkeleton } from "./Skeleton";
@@ -51,6 +51,32 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   // Scroll-shrink state
   const [isScrolled, setIsScrolled] = useState(false);
+
+  // Desktop horizontal nav scroll affordance
+  const navScrollRef = useRef<HTMLElement>(null);
+  const [showLeftScroll, setShowLeftScroll] = useState(false);
+  const [showRightScroll, setShowRightScroll] = useState(false);
+
+  const checkScrollAffordance = () => {
+    if (navScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = navScrollRef.current;
+      setShowLeftScroll(scrollLeft > 6);
+      setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 6);
+    }
+  };
+
+  useEffect(() => {
+    checkScrollAffordance();
+    window.addEventListener("resize", checkScrollAffordance);
+    return () => window.removeEventListener("resize", checkScrollAffordance);
+  }, [userRole, adminActiveTab, storeActiveTab]);
+
+  const scrollNav = (direction: "left" | "right") => {
+    if (navScrollRef.current) {
+      const amount = direction === "left" ? -220 : 220;
+      navScrollRef.current.scrollBy({ left: amount, behavior: "smooth" });
+    }
+  };
 
   useEffect(() => {
     const onScroll = () => {
@@ -302,36 +328,60 @@ export const Navigation: React.FC<NavigationProps> = ({
               ? "lg:col-span-2 lg:row-start-2 lg:w-full lg:h-full lg:justify-start lg:border-t lg:border-[var(--gl-border-subtle)]"
               : "justify-center"
           }`}>
-            <nav
-              className={`hidden lg:flex items-center gap-1.5 overflow-x-auto whitespace-nowrap py-1 max-w-full gl-nav-scroll ${
-                isAdmin || isStoreOwner ? "justify-start" : "justify-center"
-              }`}
-            >
-              {navItems.filter((item) => item.id !== "customer-view-back").map((item) => {
-                const Icon = item.icon;
-                const isActive = isAdmin
-                  ? (currentPage === "admin-dashboard" && adminActiveTab === item.id)
-                  : isStoreOwner
-                    ? (currentPage === "store-dashboard" && storeActiveTab === item.id)
-                    : (currentPage === item.id);
-                return (
-                  <button
-                    key={item.id}
-                    role="link"
-                    onClick={() => handleNavClick(item.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium cursor-pointer nav-item-animated transition-all whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
-                      isActive
-                        ? "active bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20 shadow-sm"
-                        : "text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)] border border-transparent"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 nav-icon shrink-0" />
-                    <span>{item.label}</span>
-                    {isActive && <span className="nav-active-dot" />}
-                  </button>
-                );
-              })}
-            </nav>
+            <div className="relative flex items-center min-w-0 max-w-full group/nav">
+              {showLeftScroll && (
+                <button
+                  onClick={() => scrollNav("left")}
+                  className="hidden lg:flex absolute left-0 z-10 p-1.5 rounded-full bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] shadow-md transition-all cursor-pointer -translate-x-2 hover:bg-[var(--gl-bg-elevated)]"
+                  aria-label="Cuộn sang trái"
+                >
+                  <ChevronLeft className="w-4 h-4 text-[var(--gl-accent)]" />
+                </button>
+              )}
+
+              <nav
+                ref={navScrollRef}
+                onScroll={checkScrollAffordance}
+                className={`hidden lg:flex items-center gap-1.5 overflow-x-auto whitespace-nowrap py-1 max-w-full gl-nav-scroll scroll-smooth ${
+                  isAdmin || isStoreOwner ? "justify-start" : "justify-center"
+                }`}
+              >
+                {navItems.filter((item) => item.id !== "customer-view-back").map((item) => {
+                  const Icon = item.icon;
+                  const isActive = isAdmin
+                    ? (currentPage === "admin-dashboard" && adminActiveTab === item.id)
+                    : isStoreOwner
+                      ? (currentPage === "store-dashboard" && storeActiveTab === item.id)
+                      : (currentPage === item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      role="link"
+                      onClick={() => handleNavClick(item.id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium cursor-pointer nav-item-animated transition-all whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
+                        isActive
+                          ? "active bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20 shadow-sm"
+                          : "text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)] border border-transparent"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 nav-icon shrink-0" />
+                      <span>{item.label}</span>
+                      {isActive && <span className="nav-active-dot" />}
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {showRightScroll && (
+                <button
+                  onClick={() => scrollNav("right")}
+                  className="hidden lg:flex absolute right-0 z-10 p-1.5 rounded-full bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)] border border-[var(--gl-border)] shadow-md transition-all cursor-pointer translate-x-2 hover:bg-[var(--gl-bg-elevated)]"
+                  aria-label="Cuộn sang phải"
+                >
+                  <ChevronRight className="w-4 h-4 text-[var(--gl-accent)]" />
+                </button>
+              )}
+            </div>
           </div>
             
           {/* Quick Actions & Mobile Controls (Col 3 - Right, shrink-0) */}
@@ -341,9 +391,9 @@ export const Navigation: React.FC<NavigationProps> = ({
             {/* Desktop Quick Actions */}
             <div className="hidden md:flex items-center gap-2 shrink-0">
 
-              {/* Seller Mode Controls: Quay lại mua hàng & Xem cửa hàng */}
+              {/* Seller Mode Controls: Quay lại mua hàng & Xem cửa hàng (visible at lg+ to avoid tablet grid collision) */}
               {isStoreOwner && (
-                <>
+                <div className="hidden lg:flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => {
                       setCurrentPage("shop");
@@ -366,7 +416,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     <Home className="w-4 h-4 shrink-0" />
                     <span>Quay lại mua hàng</span>
                   </button>
-                </>
+                </div>
               )}
             
               {/* Store Indicator */}
@@ -567,9 +617,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                         role="menuitem"
                         onClick={() => {
                           setIsProfileDropdownOpen(false);
-                          if (userRole === "admin") handleNavClick("admin-dashboard");
-                          else if (userRole === "store") handleNavClick("store-dashboard");
-                          else handleNavClick("customer-dashboard");
+                          handleNavClick("customer-dashboard");
                         }}
                           className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--gl-bg-elevated)] hover:text-[var(--gl-text-primary)] transition-colors flex items-center gap-2 cursor-pointer font-medium"
                       >
@@ -649,7 +697,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 {isNotifOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
-                      <div className="absolute right-0 mt-3 w-72 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl shadow-2xl z-50 overflow-hidden text-[var(--gl-text-secondary)]">
+                      <div className="fixed inset-x-3 top-[108px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-3 w-auto sm:w-72 max-w-[calc(100vw-24px)] bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl shadow-2xl z-50 overflow-hidden text-[var(--gl-text-secondary)]">
                         <div className="flex items-center justify-between border-b border-[var(--gl-border)] px-4 py-3 bg-[var(--gl-bg-elevated)]">
                           <span className="font-semibold text-sm text-[var(--gl-text-primary)]">Thông báo</span>
                         {unreadCount > 0 && (
@@ -761,9 +809,9 @@ export const Navigation: React.FC<NavigationProps> = ({
 
         {/* ── Mobile Menu Panel ─────────────────────────────────────────── */}
         {isMobileMenuOpen && (
-          <div ref={mobileMenuRef} className="lg:hidden border-t border-[var(--gl-border)] bg-[var(--gl-bg-surface)] p-4 space-y-3 animate-slide-down relative z-40">
+          <div ref={mobileMenuRef} className="lg:hidden border-t border-[var(--gl-border)] bg-[var(--gl-bg-surface)] p-4 space-y-3 animate-slide-down relative z-40 max-h-[calc(100dvh-110px)] overflow-y-auto overscroll-contain">
             <nav className="flex flex-col gap-1">
-              {navItems.map((item) => {
+              {navItems.filter((item) => item.id !== "customer-view-back").map((item) => {
                 const Icon = item.icon;
                 const isActive = isAdmin
                   ? (currentPage === "admin-dashboard" && adminActiveTab === item.id)
@@ -809,9 +857,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <button
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    if (userRole === "admin") handleNavClick("admin-dashboard");
-                    else if (userRole === "store") handleNavClick("store-dashboard");
-                    else handleNavClick("customer-dashboard");
+                    handleNavClick("customer-dashboard");
                   }}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] hover:bg-[var(--gl-bg-elevated)] w-full text-left cursor-pointer transition-all min-h-[44px]"
                 >

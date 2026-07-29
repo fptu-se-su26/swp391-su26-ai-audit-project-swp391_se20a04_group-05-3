@@ -6,6 +6,8 @@ export class CartService {
     const data = await HttpClient.get("/api/cart", { signal });
     const items: CartItem[] = (data.items || []).map((item: any) => ({
       id: item.id,
+      storeId: item.storeId !== undefined ? item.storeId : (item.store ? item.store.id : undefined),
+      storeName: item.storeName || (item.store ? item.store.name : undefined),
       product: {
         id: String(item.plantId),
         name: item.plantName,
@@ -18,6 +20,7 @@ export class CartService {
         details: [],
         specs: {},
         stock: item.plantStock !== undefined ? item.plantStock : 999,
+        shopId: item.storeId !== undefined ? String(item.storeId) : item.shopId !== undefined ? String(item.shopId) : undefined,
         effectivePrice: item.effectiveUnitPrice !== undefined ? item.effectiveUnitPrice : item.plantPrice,
         discountAmount: item.unitDiscount,
         onSale: item.onSale,
@@ -46,6 +49,8 @@ export class CartService {
     const item = await HttpClient.post("/api/cart/items", { plantId, quantity }, { signal });
     return {
       id: item.id,
+      storeId: item.storeId !== undefined ? item.storeId : (item.store ? item.store.id : undefined),
+      storeName: item.storeName || (item.store ? item.store.name : undefined),
       product: {
         id: String(item.plantId),
         name: item.plantName,
@@ -58,6 +63,7 @@ export class CartService {
         details: [],
         specs: {},
         stock: item.plantStock !== undefined ? item.plantStock : 999,
+        shopId: item.storeId !== undefined ? String(item.storeId) : item.shopId !== undefined ? String(item.shopId) : undefined,
         effectivePrice: item.effectiveUnitPrice !== undefined ? item.effectiveUnitPrice : item.plantPrice,
         discountAmount: item.unitDiscount,
         onSale: item.onSale,
@@ -81,6 +87,8 @@ export class CartService {
     const item = await HttpClient.put(`/api/cart/items/${itemId}`, { quantity }, { signal });
     return {
       id: item.id,
+      storeId: item.storeId !== undefined ? item.storeId : (item.store ? item.store.id : undefined),
+      storeName: item.storeName || (item.store ? item.store.name : undefined),
       product: {
         id: String(item.plantId),
         name: item.plantName,
@@ -93,6 +101,7 @@ export class CartService {
         details: [],
         specs: {},
         stock: item.plantStock !== undefined ? item.plantStock : 999,
+        shopId: item.storeId !== undefined ? String(item.storeId) : item.shopId !== undefined ? String(item.shopId) : undefined,
         effectivePrice: item.effectiveUnitPrice !== undefined ? item.effectiveUnitPrice : item.plantPrice,
         discountAmount: item.unitDiscount,
         onSale: item.onSale,

@@ -2,6 +2,7 @@ import { HttpClient } from "./httpClient";
 import { StoreOrder } from "../types";
 
 export interface CheckoutPayload {
+  cartItemIds: number[];
   addressId?: number | null;
   recipientName?: string;
   recipientPhone?: string;
