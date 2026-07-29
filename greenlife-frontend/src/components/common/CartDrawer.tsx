@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   X, 
   Trash2, 
@@ -17,7 +17,7 @@ import { useAppContext } from "../../context/AppContext";
 import { useCart } from "../../hooks/useCart";
 import { AddressService } from "../../services/addressService";
 import { OrderService } from "../../services/orderService";
-import { UserAddress } from "../../types";
+import { UserAddress, CartItem } from "../../types";
 import { toast } from "react-hot-toast";
 import { EmptyState } from "./EmptyState";
 import { getMediaUrl } from "../../utils/mediaUrl";
@@ -36,6 +36,40 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 }) => {
   const { currentUser, checkoutCart } = useAppContext();
   const { items: cart, cartTotal, cartItemCount, co2OffsetKg, updateCartQuantity, removeFromCart, clearCart } = useCart();
+
+  // Selected cart item IDs state
+  const [selectedCartItemIds, setSelectedCartItemIds] = useState<number[]>([]);
+  const prevCartItemIdsRef = useRef<Set<number>>(new Set());
+  const initializedRef = useRef(false);
+
+  // Sync selectedCartItemIds when cart updates
+  useEffect(() => {
+    const currentItemIds = cart
+      .map(item => item.id)
+      .filter((id): id is number => id !== undefined);
+
+    if (currentItemIds.length === 0) {
+      setSelectedCartItemIds([]);
+      prevCartItemIdsRef.current = new Set();
+      return;
+    }
+
+    if (!initializedRef.current) {
+      setSelectedCartItemIds(currentItemIds);
+      prevCartItemIdsRef.current = new Set(currentItemIds);
+      initializedRef.current = true;
+      return;
+    }
+
+    setSelectedCartItemIds(prev => {
+      const currentSet = new Set(currentItemIds);
+      const pruned = prev.filter(id => currentSet.has(id));
+      const newlyAdded = currentItemIds.filter(id => !prevCartItemIdsRef.current.has(id));
+      return Array.from(new Set([...pruned, ...newlyAdded]));
+    });
+
+    prevCartItemIdsRef.current = new Set(currentItemIds);
+  }, [cart]);
 
   // Checkout flow state (1: Cart items, 2: Shipping Address, 3: Payment/Note)
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -71,6 +105,35 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   // Step 3 state
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "PAYOS">("COD");
   const [note, setNote] = useState("");
+
+  // Selection calculations
+  const validCartItems = cart.filter((item): item is CartItem & { id: number } => item.id !== undefined);
+  const isAllSelected = validCartItems.length > 0 && validCartItems.every(item => selectedCartItemIds.includes(item.id));
+
+  const selectedSubtotal = cart
+    .filter(item => item.id !== undefined && selectedCartItemIds.includes(item.id))
+    .reduce((sum, item) => {
+      const lineAmount = item.lineEffectiveAmount !== undefined
+        ? item.lineEffectiveAmount
+        : item.lineBaseAmount !== undefined
+          ? item.lineBaseAmount
+          : (item.effectiveUnitPrice ?? item.product.price) * item.quantity;
+      return sum + lineAmount;
+    }, 0);
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedCartItemIds([]);
+    } else {
+      setSelectedCartItemIds(validCartItems.map(i => i.id));
+    }
+  };
+
+  const handleToggleItemSelect = (itemId: number) => {
+    setSelectedCartItemIds(prev =>
+      prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+    );
+  };
 
   const handleClose = () => {
     if (submitting) return;
@@ -242,9 +305,36 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       toast.error("Vui lòng đăng nhập trước khi thanh toán.");
       return;
     }
+
+    if (selectedCartItemIds.length === 0) {
+      const msg = "Vui lòng chọn ít nhất một sản phẩm trong giỏ hàng để thanh toán.";
+      setErrorMsg(msg);
+      toast.error(msg);
+      return;
+    }
+
     if (!selectedAddressId) {
       toast.error("Vui lòng chọn hoặc tạo địa chỉ giao hàng.");
       return;
+    }
+
+    // PayOS Single-Store Frontend Guard
+    if (paymentMethod === "PAYOS") {
+      const selectedItems = cart.filter(item => item.id !== undefined && selectedCartItemIds.includes(item.id));
+      const distinctStores = new Set<number>();
+      selectedItems.forEach(item => {
+        const sId = item.storeId ?? (item.product.shopId ? Number(item.product.shopId) : undefined);
+        if (sId !== undefined && !isNaN(sId)) {
+          distinctStores.add(sId);
+        }
+      });
+
+      if (distinctStores.size > 1) {
+        const errorText = "Thanh toán PayOS hiện tại chỉ hỗ trợ sản phẩm từ một cửa hàng trong mỗi lần thanh toán. Vui lòng chọn sản phẩm của một cửa hàng hoặc sử dụng COD.";
+        setErrorMsg(errorText);
+        toast.error(errorText);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -253,6 +343,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     try {
       const selected = addresses.find(a => a.address_id === selectedAddressId);
       const checkoutPayload = {
+        cartItemIds: selectedCartItemIds,
         addressId: selectedAddressId,
         recipientName: selected?.fullname || currentUser.name,
         recipientPhone: selected?.phone || "",
@@ -274,11 +365,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           }
         } catch (payosErr: any) {
           toast.error("Không thể tạo liên kết thanh toán PayOS: " + (payosErr.message || payosErr));
+          setSubmitting(false);
+          return;
         }
       }
 
       setCheckoutComplete(true);
-      clearCart();
     } catch (err: any) {
       setErrorMsg(err.message || "Gặp sự cố khi thực hiện thanh toán.");
     } finally {
@@ -399,11 +491,35 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {/* STEP 1: REVIEW CART */}
                 {!checkoutComplete && step === 1 && cart.length > 0 && (
                   <div className="space-y-4">
+                    {/* Select All Header */}
+                    <div className="flex items-center justify-between p-3 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl text-xs">
+                      <label className="flex items-center gap-2 cursor-pointer font-semibold select-none text-[var(--gl-text-primary)]">
+                        <input
+                          type="checkbox"
+                          checked={isAllSelected}
+                          onChange={handleToggleSelectAll}
+                          className="w-4 h-4 rounded text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] accent-[var(--gl-accent)] cursor-pointer"
+                        />
+                        <span>Chọn tất cả ({selectedCartItemIds.length}/{validCartItems.length})</span>
+                      </label>
+                    </div>
+
                     {cart.map((item) => (
                       <div 
                         key={item.product.id} 
                         className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-3.5 rounded-2xl flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 text-xs transition-all hover:border-[var(--gl-border-subtle)]"
                       >
+                        {/* Item Selection Checkbox */}
+                        {item.id !== undefined && (
+                          <input
+                            type="checkbox"
+                            checked={selectedCartItemIds.includes(item.id)}
+                            onChange={() => handleToggleItemSelect(item.id)}
+                            className="w-4 h-4 rounded text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] accent-[var(--gl-accent)] cursor-pointer shrink-0"
+                            aria-label={`Chọn sản phẩm ${item.product.name}`}
+                          />
+                        )}
+
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <img
                             src={getMediaUrl(item.product.image)}
@@ -518,205 +634,223 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             ))}
                           </div>
                         ) : addresses.length === 0 ? (
-                          <div className="border border-dashed border-[var(--gl-border)] p-6 rounded-2xl text-center text-[var(--gl-text-muted)]">
-                            Chưa có địa chỉ nào được lưu. Vui lòng thêm địa chỉ mới.
+                          <div className="text-center py-8 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl space-y-3">
+                            <MapPin className="w-8 h-8 text-[var(--gl-text-muted)] mx-auto opacity-50" />
+                            <p className="text-xs text-[var(--gl-text-secondary)]">Bạn chưa có địa chỉ giao hàng nào.</p>
+                            <button
+                              type="button"
+                              onClick={() => setShowAddAddressForm(true)}
+                              className="px-4 py-2 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white font-bold rounded-xl text-xs cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                            >
+                              Tạo địa chỉ giao hàng
+                            </button>
                           </div>
                         ) : (
                           <div className="space-y-3">
                             {addresses.map((addr) => (
-                              <div
+                              <label
                                 key={addr.address_id}
-                                onClick={() => setSelectedAddressId(addr.address_id || null)}
-                                className={`p-4 border rounded-2xl cursor-pointer transition-all ${
+                                className={`block p-4 border rounded-2xl cursor-pointer transition-all relative ${
                                   selectedAddressId === addr.address_id
-                                    ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/30"
+                                    ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/20 shadow-xs"
                                     : "border-[var(--gl-border)] bg-[var(--gl-bg-surface)] hover:border-[var(--gl-border-subtle)]"
                                 }`}
                               >
-                                <div className="flex justify-between items-start mb-2">
-                                  <span className="font-bold text-[var(--gl-text-primary)] text-[13px]">{addr.fullname}</span>
-                                  <span className="font-mono text-[var(--gl-text-muted)]">{addr.phone}</span>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="radio"
+                                      name="selectedAddress"
+                                      checked={selectedAddressId === addr.address_id}
+                                      onChange={() => setSelectedAddressId(addr.address_id || null)}
+                                      className="text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] accent-[var(--gl-accent)] cursor-pointer mt-0.5"
+                                    />
+                                    <span className="font-semibold text-[var(--gl-text-primary)]">{addr.fullname}</span>
+                                    {addr.is_default && (
+                                      <span className="px-2 py-0.5 bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] text-[9px] font-bold rounded-full uppercase tracking-wider font-mono">
+                                        Mặc định
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[var(--gl-text-secondary)] font-mono">{addr.phone}</span>
                                 </div>
-                                <p className="text-[var(--gl-text-secondary)] leading-snug">{addr.detail_address}, {addr.ward}, {addr.district}, {addr.province}</p>
-                                
-                                <div className="flex gap-2 mt-2">
-                                  {addr.is_default && (
-                                    <span className="bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold">Mặc định</span>
-                                  )}
-                                </div>
-                              </div>
+                                <p className="mt-2 text-[var(--gl-text-secondary)] text-xs pl-6 leading-relaxed">
+                                  {addr.detail_address}, {addr.ward}, {addr.district}, {addr.province}
+                                </p>
+                              </label>
                             ))}
                           </div>
                         )}
                       </>
                     ) : (
-                      // Add new address form
-                      <form onSubmit={handleCreateAddress} className="bg-[var(--gl-bg-surface)] p-4 border border-[var(--gl-border)] rounded-2xl space-y-3">
-                        <h4 className="font-semibold text-[var(--gl-text-primary)] mb-2 border-b border-[var(--gl-border)] pb-2">Thêm Địa Chỉ Mới</h4>
-                        
+                      /* NEW ADDRESS FORM */
+                      <form onSubmit={handleCreateAddress} className="space-y-3 bg-[var(--gl-bg-surface)] p-4 border border-[var(--gl-border)] rounded-2xl animate-fade-in">
+                        <div className="flex justify-between items-center border-b border-[var(--gl-border)] pb-2 mb-3">
+                          <span className="font-bold text-[var(--gl-text-primary)]">Tạo địa chỉ giao hàng mới</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowAddAddressForm(false)}
+                            className="text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)] text-xs cursor-pointer focus:outline-none"
+                          >
+                            Hủy bỏ
+                          </button>
+                        </div>
+
                         {formError && (
-                          <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-2 text-[var(--gl-danger)] text-[11px] font-mono font-medium animate-slide-down">
-                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.2" />
-                            <span>{formError}</span>
+                          <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-[11px] font-mono">
+                            {formError}
                           </div>
                         )}
 
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] text-[var(--gl-text-muted)] font-mono font-semibold uppercase tracking-wider block">Tên người nhận *</label>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-wider font-mono font-bold">Tên người nhận *</label>
                           <input
                             type="text"
                             required
-                            placeholder="Ví dụ: Nguyễn Văn A"
                             value={addressForm.fullname}
                             onChange={(e) => setAddressForm({ ...addressForm, fullname: e.target.value })}
-                            className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] py-2.5 px-3.5 rounded-xl text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none transition-all text-xs font-semibold"
+                            placeholder="Nguyễn Văn A"
+                            className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] rounded-xl px-3.5 py-2 text-[var(--gl-text-primary)] text-xs focus:outline-none transition-all"
                           />
                         </div>
 
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] text-[var(--gl-text-muted)] font-mono font-semibold uppercase tracking-wider block">Số điện thoại *</label>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-wider font-mono font-bold">Số điện thoại *</label>
                           <input
                             type="tel"
                             required
-                            placeholder="Ví dụ: 09XXXXXXXX"
                             value={addressForm.phone}
-                            onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value.replace(/\D/g, "") })}
-                            className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] py-2.5 px-3.5 rounded-xl text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none transition-all text-xs font-semibold"
+                            onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
+                            placeholder="0912345678"
+                            className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] rounded-xl px-3.5 py-2 text-[var(--gl-text-primary)] text-xs focus:outline-none transition-all font-mono"
                           />
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] text-[var(--gl-text-muted)] font-mono font-semibold uppercase tracking-wider block">Tỉnh / Thành phố *</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-wider font-mono font-bold">Tỉnh / Thành phố *</label>
                             <select
                               value={addressForm.provinceId || ""}
                               onChange={(e) => handleProvinceSelectChange(e.target.value)}
                               disabled={loadingProvinces}
-                              className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] py-2.5 px-3 rounded-xl text-[var(--gl-text-primary)] focus:outline-none transition-all text-xs font-semibold cursor-pointer disabled:opacity-60"
+                              className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] rounded-xl px-3 py-2 text-[var(--gl-text-primary)] text-xs focus:outline-none transition-all"
                             >
-                              <option value="" disabled className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-muted)]">
-                                {loadingProvinces ? "Đang tải dữ liệu địa chỉ..." : "-- Chọn Tỉnh / Thành phố --"}
-                              </option>
-                              {provincesList.map(p => (
-                                <option key={p.id} value={p.id} className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">{p.name}</option>
+                              <option value="">-- Chọn Tỉnh/TP --</option>
+                              {provincesList.map((p) => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
                               ))}
                             </select>
                           </div>
-                          
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] text-[var(--gl-text-muted)] font-mono font-semibold uppercase tracking-wider block">Xã / Phường / Đặc khu *</label>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-wider font-mono font-bold">Phường / Xã *</label>
                             <select
                               value={addressForm.communeCode}
                               onChange={(e) => handleCommuneSelectChange(e.target.value)}
-                              disabled={!addressForm.provinceId || loadingCommunes}
-                              className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] py-2.5 px-3 rounded-xl text-[var(--gl-text-primary)] focus:outline-none transition-all text-xs font-semibold cursor-pointer disabled:opacity-60"
+                              disabled={loadingCommunes || !addressForm.provinceId}
+                              className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] rounded-xl px-3 py-2 text-[var(--gl-text-primary)] text-xs focus:outline-none transition-all"
                             >
-                              <option value="" disabled className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-muted)]">
-                                {!addressForm.provinceId
-                                  ? "-- Vui lòng chọn Tỉnh / Thành phố trước --"
-                                  : loadingCommunes
-                                    ? "Đang tải dữ liệu địa chỉ..."
-                                    : communesList.length === 0
-                                      ? "Dữ liệu xã/phường của tỉnh/thành này chưa có."
-                                      : "-- Chọn Xã / Phường / Đặc khu --"}
-                              </option>
-                              {communesList.map(c => (
-                                <option key={c.code} value={c.code} className="bg-[var(--gl-bg-surface)] text-[var(--gl-text-primary)]">{c.displayName}</option>
+                              <option value="">-- Chọn Phường/Xã --</option>
+                              {communesList.map((c) => (
+                                <option key={c.code} value={c.code}>{c.displayName}</option>
                               ))}
                             </select>
                           </div>
                         </div>
 
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] text-[var(--gl-text-muted)] font-mono font-semibold uppercase tracking-wider block">Địa chỉ chi tiết (Số nhà, tên đường) *</label>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-wider font-mono font-bold">Địa chỉ chi tiết (Số nhà, tên đường...) *</label>
                           <input
                             type="text"
                             required
-                            placeholder="Ví dụ: 123 Lê Lợi"
                             value={addressForm.detailAddress}
                             onChange={(e) => setAddressForm({ ...addressForm, detailAddress: e.target.value })}
-                            className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] py-2.5 px-3.5 rounded-xl text-[var(--gl-text-primary)] placeholder:text-[var(--gl-text-muted)] focus:outline-none transition-all text-xs font-semibold"
+                            placeholder="Số 123 Đường Nguyễn Huệ..."
+                            className="w-full bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] focus:border-[var(--gl-accent)] focus:ring-2 focus:ring-[var(--gl-focus-ring)] rounded-xl px-3.5 py-2 text-[var(--gl-text-primary)] text-xs focus:outline-none transition-all"
                           />
                         </div>
 
-                        <div className="flex items-center gap-2 pt-2 select-none">
+                        <label className="flex items-center gap-2 cursor-pointer pt-1">
                           <input
                             type="checkbox"
-                            id="is-default-checkbox"
                             checked={addressForm.isDefault}
                             onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
-                            className="w-4 h-4 accent-[var(--gl-accent)] cursor-pointer"
+                            className="text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] accent-[var(--gl-accent)] rounded"
                           />
-                          <label htmlFor="is-default-checkbox" className="text-[11px] text-[var(--gl-text-secondary)] cursor-pointer font-medium">Đặt làm địa chỉ mặc định</label>
-                        </div>
+                          <span className="text-xs text-[var(--gl-text-secondary)]">Đặt làm địa chỉ mặc định</span>
+                        </label>
 
-                        <div className="flex gap-3 pt-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowAddAddressForm(false)}
-                            className="flex-1 min-h-[44px] py-3 border border-[var(--gl-border)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-primary)] font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
-                          >
-                            Trở lại
-                          </button>
-                          <button
-                            type="submit"
-                            className="flex-1 min-h-[44px] py-3 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
-                          >
-                            Lưu Địa Chỉ
-                          </button>
-                        </div>
+                        <button
+                          type="submit"
+                          className="w-full mt-2 py-2.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white font-bold rounded-xl text-xs transition-all cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                        >
+                          Lưu địa chỉ
+                        </button>
                       </form>
                     )}
                   </div>
                 )}
 
-                {/* STEP 3: PAYMENT METHOD & NOTES */}
+                {/* STEP 3: PAYMENT METHOD & NOTE */}
                 {!checkoutComplete && step === 3 && (
                   <div className="space-y-4 text-xs">
                     
-                    {/* Selected address review */}
-                    <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-3.5 rounded-2xl space-y-1">
-                      <div className="flex items-center gap-1 text-[10px] text-[var(--gl-text-muted)] uppercase font-mono font-bold">
-                        <MapPin className="w-3.5 h-3.5 text-[var(--gl-accent)]" /> Địa chỉ giao nhận
+                    {/* Address summary */}
+                    <div className="p-3.5 bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] rounded-2xl space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-widest font-mono font-bold">Giao đến</span>
+                        <button
+                          type="button"
+                          onClick={() => setStep(2)}
+                          className="text-[var(--gl-accent)] text-[10px] hover:underline font-mono cursor-pointer"
+                        >
+                          Thay đổi
+                        </button>
                       </div>
-                      <p className="text-[var(--gl-text-primary)] mt-1.5 leading-relaxed font-sans">{getSelectedAddressDetails()}</p>
+                      <p className="text-xs text-[var(--gl-text-primary)] font-medium leading-relaxed">
+                        {getSelectedAddressDetails()}
+                      </p>
                     </div>
 
-                    {/* Payment methods choice */}
+                    {/* Payment methods */}
                     <div className="space-y-2">
-                      <span className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-widest font-mono font-bold block">Hình thức thanh toán</span>
-                      <div className="grid grid-cols-2 gap-3 mt-1.5">
-                        
-                        <div
-                          onClick={() => setPaymentMethod("COD")}
-                          className={`p-4 border rounded-2xl cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5 text-center select-none ${
-                            paymentMethod === "COD"
-                              ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/30 text-[var(--gl-accent)] font-bold shadow-sm"
-                              : "border-[var(--gl-border)] bg-[var(--gl-bg-surface)] hover:border-[var(--gl-border-subtle)] text-[var(--gl-text-secondary)]"
-                          }`}
-                        >
-                          <CreditCard className={`w-5 h-5 ${paymentMethod === "COD" ? "text-[var(--gl-accent)]" : "text-[var(--gl-text-muted)]"}`} />
-                          <span className="font-semibold text-[11px]">Thanh toán COD (Tiền mặt)</span>
-                        </div>
+                      <span className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-widest font-mono font-bold block">Phương thức thanh toán</span>
 
-                        <div
-                          onClick={() => setPaymentMethod("PAYOS")}
-                          className={`p-4 border rounded-2xl cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5 text-center select-none ${
-                            paymentMethod === "PAYOS"
-                              ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/30 text-[var(--gl-accent)] font-bold shadow-sm"
-                              : "border-[var(--gl-border)] bg-[var(--gl-bg-surface)] hover:border-[var(--gl-border-subtle)] text-[var(--gl-text-secondary)]"
-                          }`}
-                        >
-                          <span className={`text-sm font-black tracking-tighter ${paymentMethod === "PAYOS" ? "text-[var(--gl-accent)]" : "text-[var(--gl-text-muted)]"}`}>PayOS</span>
-                          <span className="font-semibold text-[11px]">Cổng PayOS QR</span>
+                      <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${paymentMethod === "COD" ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/20 shadow-xs" : "border-[var(--gl-border)] bg-[var(--gl-bg-surface)] hover:border-[var(--gl-border-subtle)]"}`}>
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          checked={paymentMethod === "COD"}
+                          onChange={() => setPaymentMethod("COD")}
+                          className="text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] accent-[var(--gl-accent)] cursor-pointer mt-1"
+                        />
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-[var(--gl-text-primary)] block">Thanh toán khi nhận hàng (COD)</span>
+                          <span className="text-[11px] text-[var(--gl-text-secondary)] block">Thanh toán tiền mặt cho shipper khi nhận được kiện hàng sinh thái.</span>
                         </div>
+                      </label>
 
-                      </div>
+                      <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${paymentMethod === "PAYOS" ? "border-[var(--gl-accent)] bg-[var(--gl-accent-soft)]/20 shadow-xs" : "border-[var(--gl-border)] bg-[var(--gl-bg-surface)] hover:border-[var(--gl-border-subtle)]"}`}>
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          checked={paymentMethod === "PAYOS"}
+                          onChange={() => setPaymentMethod("PAYOS")}
+                          className="text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] accent-[var(--gl-accent)] cursor-pointer mt-1"
+                        />
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-[var(--gl-text-primary)]">Thanh toán Online PayOS</span>
+                            <span className="px-1.5 py-0.5 bg-sky-500/10 text-sky-500 text-[9px] font-bold font-mono rounded">Nhanh chóng</span>
+                          </div>
+                          <span className="text-[11px] text-[var(--gl-text-secondary)] block">Thanh toán trực tuyến chuyển khoản ngân hàng qua mã QR VietQR PayOS.</span>
+                        </div>
+                      </label>
                     </div>
 
-                    {/* Notes textarea */}
+                    {/* Note input */}
                     <div className="space-y-1.5">
-                      <span className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-widest font-mono font-bold block">Ghi chú giao hàng</span>
+                      <label className="text-[10px] text-[var(--gl-text-muted)] uppercase tracking-widest font-mono font-bold block">Ghi chú đơn hàng (Tùy chọn)</label>
                       <textarea
                         placeholder="Ví dụ: Giao giờ hành chính, gọi trước khi giao, hoặc gửi bảo vệ..."
                         value={note}
@@ -735,7 +869,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <div className="space-y-1.5">
                     <div className="flex justify-between">
                       <span className="text-[var(--gl-text-secondary)] font-medium">Tổng phụ cộng:</span>
-                      <span className="text-[var(--gl-text-primary)] font-mono font-semibold">{cartTotal.toLocaleString("vi-VN")}₫</span>
+                      <span className="text-[var(--gl-text-primary)] font-mono font-semibold">{selectedSubtotal.toLocaleString("vi-VN")}₫</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[var(--gl-text-secondary)] font-medium">Đóng gói hữu cơ:</span>
@@ -743,7 +877,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     </div>
                     <div className="flex justify-between border-t border-[var(--gl-border-subtle)] pt-2.5 font-semibold">
                       <span className="text-[var(--gl-text-primary)]">Tổng cộng giao ước:</span>
-                      <span className="text-[var(--gl-accent)] text-sm font-mono font-bold">{cartTotal.toLocaleString("vi-VN")}₫</span>
+                      <span className="text-[var(--gl-accent)] text-sm font-mono font-bold">{selectedSubtotal.toLocaleString("vi-VN")}₫</span>
                     </div>
                   </div>
 
@@ -760,6 +894,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   {step === 1 && (
                     <button
                       type="button"
+                      disabled={selectedCartItemIds.length === 0}
                       onClick={() => {
                         if (!currentUser) {
                           toast.error("Vui lòng đăng nhập trước khi thanh toán.");
@@ -767,9 +902,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           onClose();
                           return;
                         }
+                        if (selectedCartItemIds.length === 0) {
+                          toast.error("Vui lòng chọn ít nhất một sản phẩm trong giỏ hàng để thanh toán.");
+                          return;
+                        }
                         setStep(2);
                       }}
-                      className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl cursor-pointer transition-all tracking-wider text-[11px] font-mono shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                      className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl cursor-pointer transition-all tracking-wider text-[11px] font-mono shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Chọn Địa Chi Giao Hàng
                       <ArrowRight className="h-4 w-4" />
@@ -818,7 +957,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       </button>
                       <button
                         type="button"
-                        disabled={submitting}
+                        disabled={submitting || selectedCartItemIds.length === 0}
                         onClick={handleCheckoutSubmit}
                         className="flex-1 min-h-[44px] flex items-center justify-center gap-2 py-3.5 bg-[var(--gl-accent)] hover:bg-[var(--gl-accent-hover)] text-white dark:text-emerald-950 font-bold uppercase rounded-xl cursor-pointer transition-all text-[11px] tracking-wider font-mono disabled:opacity-50 disabled:cursor-not-allowed shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
                       >

@@ -34,6 +34,8 @@ export interface CartItem {
   onSale?: boolean;
   promotionId?: number;
   promotionName?: string;
+  storeId?: number;
+  storeName?: string;
 }
 
 export interface DiagnosisLog {
