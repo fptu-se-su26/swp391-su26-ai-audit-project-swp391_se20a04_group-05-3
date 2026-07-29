@@ -15,6 +15,8 @@ public class CartItemResponse {
     private String plantName;
     private BigDecimal plantPrice;
     private String plantImageUrl;
+    private Integer storeId;
+    private String storeName;
     private Integer quantity;
     private Integer plantStock;
     private LocalDateTime addedAt;

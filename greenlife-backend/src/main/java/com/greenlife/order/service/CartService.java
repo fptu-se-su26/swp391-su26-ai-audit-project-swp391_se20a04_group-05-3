@@ -47,7 +47,7 @@ public class CartService {
         List<PromotionPriceRequest> priceRequests = items.stream()
                 .map(item -> new PromotionPriceRequest(
                         item.getPlant().getId(),
-                        item.getPlant().getStore().getId(),
+                        item.getPlant().getStore() != null ? item.getPlant().getStore().getId() : null,
                         item.getQuantity(),
                         item.getPlant().getPrice()
                 ))
@@ -116,7 +116,7 @@ public class CartService {
         CartItem saved = cartItemRepository.save(cartItem);
         List<PromotionPriceRequest> requests = List.of(new PromotionPriceRequest(
             saved.getPlant().getId(),
-            saved.getPlant().getStore().getId(),
+            saved.getPlant().getStore() != null ? saved.getPlant().getStore().getId() : null,
             saved.getQuantity(),
             saved.getPlant().getPrice()
         ));
@@ -155,7 +155,7 @@ public class CartService {
         CartItem saved = cartItemRepository.save(cartItem);
         List<PromotionPriceRequest> requests = List.of(new PromotionPriceRequest(
             saved.getPlant().getId(),
-            saved.getPlant().getStore().getId(),
+            saved.getPlant().getStore() != null ? saved.getPlant().getStore().getId() : null,
             saved.getQuantity(),
             saved.getPlant().getPrice()
         ));
@@ -178,16 +178,20 @@ public class CartService {
     }
 
     private CartItemResponse mapToCartItemResponse(CartItem cartItem) {
+        Plant plant = cartItem != null ? cartItem.getPlant() : null;
+        com.greenlife.store.entity.Store store = plant != null ? plant.getStore() : null;
         return CartItemResponse.builder()
-                .id(cartItem.getId())
-                .plantId(cartItem.getPlant().getId())
-                .plantName(cartItem.getPlant().getName())
-                .plantPrice(cartItem.getPlant().getPrice())
-                .plantImageUrl(cartItem.getPlant().getImageUrl())
-                .quantity(cartItem.getQuantity())
-                .plantStock(cartItem.getPlant().getStock())
-                .addedAt(cartItem.getAddedAt())
-                .updatedAt(cartItem.getUpdatedAt())
+                .id(cartItem != null ? cartItem.getId() : null)
+                .plantId(plant != null ? plant.getId() : null)
+                .plantName(plant != null ? plant.getName() : null)
+                .plantPrice(plant != null ? plant.getPrice() : null)
+                .plantImageUrl(plant != null ? plant.getImageUrl() : null)
+                .storeId(store != null ? store.getId() : null)
+                .storeName(store != null ? store.getName() : null)
+                .quantity(cartItem != null ? cartItem.getQuantity() : null)
+                .plantStock(plant != null ? plant.getStock() : null)
+                .addedAt(cartItem != null ? cartItem.getAddedAt() : null)
+                .updatedAt(cartItem != null ? cartItem.getUpdatedAt() : null)
                 .build();
     }
 

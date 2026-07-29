@@ -213,6 +213,8 @@ public class CartIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.plantId", is(activePlant.getId())))
+                .andExpect(jsonPath("$.storeId", is(store.getId())))
+                .andExpect(jsonPath("$.storeName", is("Cart Test Store")))
                 .andExpect(jsonPath("$.quantity", is(2)));
 
         // Retrieve cart and check details
@@ -221,6 +223,8 @@ public class CartIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(1)))
                 .andExpect(jsonPath("$.items[0].plantName", is("Cart Jade Plant")))
+                .andExpect(jsonPath("$.items[0].storeId", is(store.getId())))
+                .andExpect(jsonPath("$.items[0].storeName", is("Cart Test Store")))
                 .andExpect(jsonPath("$.subtotal", is(200000))); // 100000 * 2
     }
 
