@@ -33,7 +33,7 @@ public class WishlistController {
 
 
     @PostMapping("/{plantId}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<WishlistResponse> addToWishlist(
             @PathVariable Integer plantId,
             @AuthenticationPrincipal UserDetails userDetails
@@ -44,7 +44,7 @@ public class WishlistController {
     }
 
     @DeleteMapping("/{plantId}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<Void> removeFromWishlist(
             @PathVariable Integer plantId,
             @AuthenticationPrincipal UserDetails userDetails
@@ -55,7 +55,7 @@ public class WishlistController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<Page<WishlistResponse>> getWishlist(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -67,7 +67,7 @@ public class WishlistController {
     }
 
     @GetMapping("/check/{plantId}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<WishlistCheckResponse> isFavorited(
             @PathVariable Integer plantId,
             @AuthenticationPrincipal UserDetails userDetails

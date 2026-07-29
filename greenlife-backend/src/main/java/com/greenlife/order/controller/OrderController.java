@@ -31,14 +31,14 @@ public class OrderController {
 
 
     @GetMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<List<OrderResponse>> getMyOrders(@AuthenticationPrincipal UserDetails userDetails) {
         User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(orderService.getCustomerOrders(user.getId()));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<OrderResponse> getOrderDetails(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails
@@ -48,7 +48,7 @@ public class OrderController {
     }
 
     @PutMapping("/{id}/cancel")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<OrderResponse> cancelOrder(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails
@@ -58,7 +58,7 @@ public class OrderController {
     }
 
     @PutMapping("/{id}/received")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<OrderResponse> confirmReceived(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails
@@ -68,7 +68,7 @@ public class OrderController {
     }
 
     @PutMapping("/{id}/return-request")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<OrderResponse> requestReturn(
             @PathVariable Integer id,
             @RequestBody ReturnRequestRequest request,
@@ -79,7 +79,7 @@ public class OrderController {
     }
 
     @PostMapping("/{id}/return-evidence/upload")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<java.util.Map<String, String>> uploadReturnEvidence(
             @PathVariable Integer id,
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,

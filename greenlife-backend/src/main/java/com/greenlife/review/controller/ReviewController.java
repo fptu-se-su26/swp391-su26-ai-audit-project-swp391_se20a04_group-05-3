@@ -36,7 +36,7 @@ public class ReviewController {
 
 
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<ReviewResponse> createReview(
             @Valid @RequestBody ReviewRequest request,
             @AuthenticationPrincipal UserDetails userDetails
@@ -47,7 +47,7 @@ public class ReviewController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<ReviewResponse> updateReview(
             @PathVariable Integer id,
             @Valid @RequestBody ReviewRequest request,
@@ -58,7 +58,7 @@ public class ReviewController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<Void> deleteReview(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails

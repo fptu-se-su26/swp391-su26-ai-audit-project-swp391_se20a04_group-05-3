@@ -30,14 +30,14 @@ public class CartController {
 
 
     @GetMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<CartResponse> getCart(@AuthenticationPrincipal UserDetails userDetails) {
         User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(cartService.getCart(user.getId()));
     }
 
     @PostMapping("/items")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<CartItemResponse> addCartItem(
             @Valid @RequestBody CartItemRequest request,
             @AuthenticationPrincipal UserDetails userDetails
@@ -47,7 +47,7 @@ public class CartController {
     }
 
     @PutMapping("/items/{id}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<CartItemResponse> updateCartItemQuantity(
             @PathVariable Integer id,
             @Valid @RequestBody CartItemUpdateRequest request,
@@ -58,7 +58,7 @@ public class CartController {
     }
 
     @DeleteMapping("/items/{id}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<Void> removeCartItem(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails

@@ -26,7 +26,7 @@ public class BookingController {
     private final CurrentUserResolver currentUserResolver;
 
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<BookingResponse> createBooking(
             @Valid @RequestBody BookingRequest request,
             @AuthenticationPrincipal UserDetails userDetails
@@ -37,7 +37,7 @@ public class BookingController {
     }
 
     @GetMapping("/customer")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<Page<BookingResponse>> getCustomerBookings(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,

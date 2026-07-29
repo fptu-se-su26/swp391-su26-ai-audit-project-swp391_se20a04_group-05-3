@@ -24,21 +24,21 @@ public class CustomerAddressController {
     private final CurrentUserResolver currentUserResolver;
 
     @GetMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<List<AddressResponse>> getAddresses(@AuthenticationPrincipal UserDetails userDetails) {
         User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(addressService.getCustomerAddresses(user.getId()));
     }
 
     @GetMapping("/default")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<AddressResponse> getDefaultAddress(@AuthenticationPrincipal UserDetails userDetails) {
         User user = currentUserResolver.resolveUser(userDetails);
         return ResponseEntity.ok(addressService.getDefaultAddress(user.getId()));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<AddressResponse> createAddress(
             @Valid @RequestBody AddressRequest request,
             @AuthenticationPrincipal UserDetails userDetails
@@ -49,7 +49,7 @@ public class CustomerAddressController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<AddressResponse> updateAddress(
             @PathVariable Integer id,
             @Valid @RequestBody AddressRequest request,
@@ -60,7 +60,7 @@ public class CustomerAddressController {
     }
 
     @PutMapping("/{id}/default")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<AddressResponse> setDefaultAddress(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails
@@ -70,7 +70,7 @@ public class CustomerAddressController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STORE_OWNER')")
     public ResponseEntity<Void> deleteAddress(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserDetails userDetails
