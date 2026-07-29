@@ -978,9 +978,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const checkoutCart = useCallback(async (payload: any) => {
     const orders = await OrderService.checkoutCart(payload);
-    clearCart();
+    await loadCart();
     return orders;
-  }, [clearCart]);
+  }, [loadCart]);
 
   const toggleWishlist = useCallback(async (productId: number) => {
     if (!currentUser) {
