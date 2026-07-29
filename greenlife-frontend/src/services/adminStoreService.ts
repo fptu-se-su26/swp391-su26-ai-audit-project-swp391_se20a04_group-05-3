@@ -4,6 +4,7 @@ export interface StoreResponse {
   id: number;
   ownerId: number;
   ownerName: string;
+  ownerEmail?: string | null;
   name: string;
   phone: string;
   city: string;
