@@ -1,7 +1,7 @@
 import { useAppContext } from "../context/AppContext";
 
 export const useCart = () => {
-  const { cart, cartSubtotal, addToCart, updateCartQuantity, removeFromCart, clearCart } = useAppContext();
+  const { cart, cartSubtotal, addToCart, updateCartQuantity, removeFromCart, clearCart, loadCart } = useAppContext();
 
   // Use the backend-calculated promotional subtotal directly
   const cartTotal = cartSubtotal;
@@ -18,7 +18,8 @@ export const useCart = () => {
     addToCart,
     updateCartQuantity,
     removeFromCart,
-    clearCart
+    clearCart,
+    loadCart
   };
 };
 export default useCart;
