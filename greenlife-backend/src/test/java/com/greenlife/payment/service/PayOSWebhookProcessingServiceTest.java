@@ -54,13 +54,10 @@ public class PayOSWebhookProcessingServiceTest {
     private PromotionReservationLifecycleService promotionReservationLifecycleService;
 
     @Mock
-    private CartItemRepository cartItemRepository;
+    private PayOSOrderFinalizationService payOSOrderFinalizationService;
 
     @InjectMocks
     private PayOSWebhookProcessingService webhookProcessingService;
-
-    @Mock
-    private PayOSStatusReconciliationService reconciliationService;
 
     private PayOSWebhookEvent webhookEvent;
     private PayOSWebhookPayload payload;
@@ -119,6 +116,7 @@ public class PayOSWebhookProcessingServiceTest {
 
         webhookProcessingService.processRegisteredEvent(1L, payload);
 
+        verify(payOSOrderFinalizationService).finalizeVerifiedPaidOrder(order);
         verify(promotionReservationLifecycleService).consumeForOrder(999);
         assertEquals(PaymentTransactionStatus.PAID, paymentTx.getStatus());
         assertEquals(PaymentStatus.PAID, order.getPaymentStatus());
@@ -135,6 +133,7 @@ public class PayOSWebhookProcessingServiceTest {
 
         webhookProcessingService.processRegisteredEvent(1L, payload);
 
+        verify(payOSOrderFinalizationService, never()).finalizeVerifiedPaidOrder(any());
         verify(promotionReservationLifecycleService, never()).consumeForOrder(anyInt());
         verify(paymentTransactionRepository, never()).findAndLockByProviderOrderCode(anyLong());
     }

@@ -46,7 +46,7 @@ public class PayOSStatusReconciliationServiceTest {
     private PromotionReservationLifecycleService promotionReservationLifecycleService;
 
     @Mock
-    private CartItemRepository cartItemRepository;
+    private PayOSOrderFinalizationService payOSOrderFinalizationService;
 
     @InjectMocks
     private PayOSStatusReconciliationService reconciliationService;
@@ -107,10 +107,28 @@ public class PayOSStatusReconciliationServiceTest {
 
         reconciliationService.applyProviderStatus(query, providerData);
 
+        verify(payOSOrderFinalizationService).finalizeVerifiedPaidOrder(order);
         verify(promotionReservationLifecycleService).consumeForOrder(999);
         assertEquals(PaymentTransactionStatus.PAID, paymentTx.getStatus());
         assertEquals(PaymentStatus.PAID, order.getPaymentStatus());
         assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+    }
+
+    @Test
+    void testAlreadyPaidReconciliationDoesNotCallFinalization() {
+        paymentTx.setStatus(PaymentTransactionStatus.PAID);
+        when(paymentTransactionRepository.findAndLockById(500)).thenReturn(Optional.of(paymentTx));
+
+        PreparedPaymentStatusQuery query = new PreparedPaymentStatusQuery(
+                999, 500, 123456L, new BigDecimal("100000"), true, true, null, "CONFIRMED", "link123", null
+        );
+
+        Map<String, Object> providerData = new HashMap<>();
+        providerData.put("status", "PAID");
+
+        reconciliationService.applyProviderStatus(query, providerData);
+
+        verify(payOSOrderFinalizationService, never()).finalizeVerifiedPaidOrder(any());
     }
 
     @Test

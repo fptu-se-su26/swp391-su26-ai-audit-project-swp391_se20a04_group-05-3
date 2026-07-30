@@ -271,9 +271,11 @@ public class CheckoutPricingReservationService {
                 PromotionPriceQuote quote = pair.quote();
                 Plant plant = plantMap.get(item.getPlant().getId());
 
-                // Deduct stock
-                plant.setStock(plant.getStock() - item.getQuantity());
-                plantRepository.save(plant);
+                // Deduct stock for non-PayOS (e.g., COD) orders; PayOS stock is decremented upon verified payment PAID
+                if (!"PAYOS".equalsIgnoreCase(method)) {
+                    plant.setStock(plant.getStock() - item.getQuantity());
+                    plantRepository.save(plant);
+                }
 
                 BigDecimal baseUnitPrice = plant.getPrice().setScale(0, RoundingMode.HALF_UP);
                 BigDecimal storeFundedDiscount = quote.storeFundedUnitDiscount().setScale(0, RoundingMode.HALF_UP);

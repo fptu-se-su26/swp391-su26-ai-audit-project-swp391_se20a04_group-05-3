@@ -23,14 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.greenlife.promotion.service.PromotionReservationLifecycleService;
 
 
-import com.greenlife.order.repository.CartItemRepository;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Processes a registered PayOS webhook event under pessimistic locks.
@@ -47,7 +42,7 @@ public class PayOSWebhookProcessingService {
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final PromotionReservationLifecycleService promotionReservationLifecycleService;
-    private final CartItemRepository cartItemRepository;
+    private final PayOSOrderFinalizationService payOSOrderFinalizationService;
 
 
     /**
@@ -173,6 +168,9 @@ public class PayOSWebhookProcessingService {
             tx.setPaidAt(LocalDateTime.now());
             paymentTransactionRepository.save(tx);
 
+            // Finalize stock and cart items upon verified payment success
+            payOSOrderFinalizationService.finalizeVerifiedPaidOrder(order);
+
             // Update legacy Order compatibility projection
             order.setPaymentStatus(PaymentStatus.PAID);
             order.setStatus(OrderStatus.CONFIRMED);
@@ -181,9 +179,6 @@ public class PayOSWebhookProcessingService {
 
             // Consume promotion budget reservations
             promotionReservationLifecycleService.consumeForOrder(order.getId());
-
-            // Remove purchased cart items upon verified payment success
-            deletePurchasedCartItems(order);
 
             // Publish application events
             eventPublisher.publishEvent(new PaymentEvent(this, order.getId(), order.getCustomer().getId(), true));
@@ -302,6 +297,7 @@ public class PayOSWebhookProcessingService {
         if (isSuccess) {
             log.info("LEGACY_CUTOVER_PAYMENT: Order {} confirmed PAID via legacy webhook event {}. No PaymentTransaction backfill.",
                     order.getId(), event.getId());
+            payOSOrderFinalizationService.finalizeVerifiedPaidOrder(order);
             order.setPaymentStatus(PaymentStatus.PAID);
             order.setStatus(OrderStatus.CONFIRMED);
             order.setUpdatedAt(LocalDateTime.now());
@@ -309,9 +305,6 @@ public class PayOSWebhookProcessingService {
 
             // Consume promotion budget reservations
             promotionReservationLifecycleService.consumeForOrder(order.getId());
-
-            // Remove purchased cart items upon verified payment success
-            deletePurchasedCartItems(order);
 
             eventPublisher.publishEvent(new PaymentEvent(this, order.getId(), order.getCustomer().getId(), true));
             eventPublisher.publishEvent(new OrderStatusEvent(this, order.getId(),
@@ -331,25 +324,11 @@ public class PayOSWebhookProcessingService {
 
     private void ensureLegacyOrderPaidProjection(Order order) {
         if (order.getPaymentStatus() != PaymentStatus.PAID || order.getStatus() != OrderStatus.CONFIRMED) {
+            payOSOrderFinalizationService.finalizeVerifiedPaidOrder(order);
             order.setPaymentStatus(PaymentStatus.PAID);
             order.setStatus(OrderStatus.CONFIRMED);
             order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
-            deletePurchasedCartItems(order);
-        }
-    }
-
-    private void deletePurchasedCartItems(Order order) {
-        if (order == null || order.getCustomer() == null || order.getOrderDetails() == null || order.getOrderDetails().isEmpty()) {
-            return;
-        }
-        List<Integer> plantIds = order.getOrderDetails().stream()
-                .map(detail -> detail.getPlant() != null ? detail.getPlant().getId() : null)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-        if (!plantIds.isEmpty()) {
-            cartItemRepository.deleteByCustomerIdAndPlantIdIn(order.getCustomer().getId(), plantIds);
         }
     }
 
