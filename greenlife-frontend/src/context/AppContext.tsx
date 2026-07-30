@@ -9,7 +9,7 @@ import { ArticleService } from "../services/articleService";
 import { NotificationService } from "../services/notificationService";
 import { CartService } from "../services/cartService";
 import { AddressService } from "../services/addressService";
-import { OrderService } from "../services/orderService";
+import { OrderService, CheckoutPayload } from "../services/orderService";
 import { WishlistService } from "../services/wishlistService";
 import { ReviewService } from "../services/reviewService";
 import { PublicStoreService } from "../services/publicStoreService";
@@ -93,7 +93,7 @@ interface AppContextType {
   clearCart: () => void;
   loadCart: () => Promise<void>;
   removeCartItem: (itemId: number) => Promise<void>;
-  checkoutCart: (payload: any) => Promise<any>;
+  checkoutCart: (payload: CheckoutPayload) => Promise<any>;
   toggleWishlist: (productId: number) => Promise<void>;
 
   // Event dispatchers
@@ -990,7 +990,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCartSubtotal(0);
   }, []);
 
-  const checkoutCart = useCallback(async (payload: any) => {
+  const checkoutCart = useCallback(async (payload: CheckoutPayload) => {
     const orders = await OrderService.checkoutCart(payload);
     await loadCart();
     return orders;

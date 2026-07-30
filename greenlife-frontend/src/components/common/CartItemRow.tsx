@@ -5,17 +5,38 @@ import { getMediaUrl } from "../../utils/mediaUrl";
 
 interface CartItemRowProps {
   item: CartItem;
+  isSelected?: boolean;
+  onToggleSelect?: (itemId: number) => void;
   onUpdateQuantity: (productId: string, offset: number) => void;
   onRemove: (productId: string) => void;
 }
 
 export const CartItemRow: React.FC<CartItemRowProps> = React.memo(({
   item,
+  isSelected,
+  onToggleSelect,
   onUpdateQuantity,
   onRemove
 }) => {
+  const lineAmount = item.lineEffectiveAmount !== undefined
+    ? item.lineEffectiveAmount
+    : item.lineBaseAmount !== undefined
+      ? item.lineBaseAmount
+      : (item.effectiveUnitPrice ?? item.product.price) * item.quantity;
+
   return (
     <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-3 sm:p-3.5 rounded-2xl flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 text-xs transition-all hover:border-[var(--gl-border-subtle)]">
+      {/* Item Checkbox */}
+      {item.id !== undefined && onToggleSelect && (
+        <input
+          type="checkbox"
+          checked={Boolean(isSelected)}
+          onChange={() => onToggleSelect(item.id!)}
+          className="w-4 h-4 rounded text-[var(--gl-accent)] focus:ring-[var(--gl-focus-ring)] accent-[var(--gl-accent)] cursor-pointer shrink-0"
+          aria-label={`Chọn sản phẩm ${item.product.name}`}
+        />
+      )}
+
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <img
           src={getMediaUrl(item.product.image)}
@@ -28,9 +49,31 @@ export const CartItemRow: React.FC<CartItemRowProps> = React.memo(({
           <span className="font-semibold text-[var(--gl-text-primary)] block truncate" title={item.product.name}>
             {item.product.name}
           </span>
-          <span className="text-[var(--gl-accent)] font-mono font-bold block mt-0.5">
-            {(item.product.price * item.quantity).toLocaleString("vi-VN")}₫
-          </span>
+
+          {item.onSale && item.effectiveUnitPrice !== undefined ? (
+            <div className="space-y-0.5 mt-0.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-[var(--gl-text-muted)] line-through font-mono">
+                  {(item.baseUnitPrice !== undefined ? item.baseUnitPrice : item.product.price).toLocaleString("vi-VN")}₫
+                </span>
+                <span className="text-[10px] font-semibold text-[var(--gl-accent)] font-mono">
+                  {item.effectiveUnitPrice.toLocaleString("vi-VN")}₫
+                </span>
+                {item.promotionName && (
+                  <span className="px-1.5 py-0.5 rounded bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] text-[9px] font-bold font-mono">
+                    {item.promotionName}
+                  </span>
+                )}
+              </div>
+              <span className="text-[var(--gl-accent)] font-mono block font-bold">
+                {lineAmount.toLocaleString("vi-VN")}₫
+              </span>
+            </div>
+          ) : (
+            <span className="text-[var(--gl-accent)] font-mono font-bold block mt-0.5">
+              {lineAmount.toLocaleString("vi-VN")}₫
+            </span>
+          )}
         </div>
       </div>
 
