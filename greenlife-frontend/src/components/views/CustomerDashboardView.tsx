@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { logger } from "../../utils/logger";
-import { User, ShoppingBag, Activity, Calendar, MapPin, Mail, Shield, Star, Upload, Trash2, X, AlertCircle, Heart, Copy, ExternalLink, RefreshCw, Check, CreditCard, ArrowLeft, ShoppingCart, Sprout } from "lucide-react";
+import { User, ShoppingBag, Activity, Calendar, MapPin, Mail, Shield, Star, Upload, Trash2, X, AlertCircle, Heart, Copy, ExternalLink, RefreshCw, Check, CreditCard, ArrowLeft, ShoppingCart, Sprout, BookOpen } from "lucide-react";
 import { Appointment, DiagnosisLog } from "../../types";
 import { useAppContext } from "../../context/AppContext";
 import { FeedbackService } from "../../services/feedbackService";
@@ -27,10 +27,15 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
   diagnosisLogs,
   setCurrentPage,
 }) => {
-  const { currentUser, userLocation, stores } = useAppContext();
+  const { currentUser, userLocation, stores, blogPosts, savedArticleIds, toggleSavedArticle } = useAppContext();
+
+  const savedArticles = useMemo(() => {
+    return blogPosts.filter((b) => savedArticleIds.includes(b.id));
+  }, [blogPosts, savedArticleIds]);
 
   const [orders, setOrders] = useState<any[]>([]);
   const [currentWorkspace, setCurrentWorkspace] = useState<"overview" | "blog">("overview");
+  const [showSavedArticlesWorkspace, setShowSavedArticlesWorkspace] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "shipped" | "completed" | "cancelled">("all");
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<any | null>(null);
@@ -425,8 +430,9 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
         <AuthorBlogWorkspace userRole="CUSTOMER" />
       ) : (
         <>
+
           {/* KPI Overview Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
               { label: "Tổng đơn mua", value: orders.length, icon: ShoppingBag, color: "text-[var(--gl-accent)]", bg: "bg-[var(--gl-accent-soft)]/20 border-[var(--gl-accent)]/20" },
               { label: "Đang vận chuyển", value: orders.filter(o => o.status === "shipped").length, icon: Activity, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
@@ -438,8 +444,23 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
                 icon: Heart,
                 color: "text-[var(--gl-danger)]",
                 bg: "bg-rose-500/10 border-rose-500/20",
-                onClick: () => setShowWishlistWorkspace(prev => !prev),
+                onClick: () => {
+                  setShowWishlistWorkspace(prev => !prev);
+                  setShowSavedArticlesWorkspace(false);
+                },
                 ariaLabel: "Xem sản phẩm yêu thích"
+              },
+              {
+                label: "Bài viết đã lưu",
+                value: savedArticles.length,
+                icon: BookOpen,
+                color: "text-[var(--gl-accent)]",
+                bg: "bg-[var(--gl-accent-soft)]/20 border-[var(--gl-accent)]/20",
+                onClick: () => {
+                  setShowSavedArticlesWorkspace(prev => !prev);
+                  setShowWishlistWorkspace(false);
+                },
+                ariaLabel: "Xem bài viết cẩm nang đã lưu"
               }
             ].map((kpi, idx) => {
               const IconComponent = kpi.icon;
@@ -449,7 +470,7 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
                   type="button"
                   onClick={kpi.onClick}
                   aria-label={kpi.ariaLabel}
-                  className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 shadow-xs transition-all text-left cursor-pointer hover:border-[var(--gl-accent)]/40 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] min-h-[40px] ${kpi.bg} ${showWishlistWorkspace ? "ring-2 ring-[var(--gl-accent)]" : ""}`}
+                  className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 shadow-xs transition-all text-left cursor-pointer hover:border-[var(--gl-accent)]/40 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] min-h-[40px] ${kpi.bg} ${ (kpi.label === "Mục yêu thích" && showWishlistWorkspace) || (kpi.label === "Bài viết đã lưu" && showSavedArticlesWorkspace) ? "ring-2 ring-[var(--gl-accent)]" : ""}`}
                 >
                   <div className="flex justify-between items-start gap-2">
                     <span className="text-[10px] font-mono text-[var(--gl-text-muted)] font-bold uppercase tracking-wider leading-tight">{kpi.label}</span>
@@ -469,7 +490,103 @@ export const CustomerDashboardView: React.FC<CustomerDashboardViewProps> = ({
             })}
           </div>
 
-      {showWishlistWorkspace ? (
+      {showSavedArticlesWorkspace ? (
+        /* Saved Articles Workspace */
+        <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 sm:p-8 rounded-3xl space-y-6 shadow-sm">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[var(--gl-border)] pb-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowSavedArticlesWorkspace(false)}
+                aria-label="Quay lại tổng quan"
+                className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] text-[var(--gl-text-secondary)] hover:text-[var(--gl-text-primary)] rounded-xl border border-[var(--gl-border)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <div>
+                <h3 className="font-display font-bold text-[var(--gl-text-primary)] text-base sm:text-lg flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-[var(--gl-accent)]" />
+                  Bài Viết Cẩm Nang Đã Lưu
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-[var(--gl-accent-soft)] text-[var(--gl-accent)] border border-[var(--gl-accent)]/20">
+                    {savedArticles.length}
+                  </span>
+                </h3>
+                <p className="text-xs text-[var(--gl-text-muted)] mt-0.5">Danh sách các bài viết cẩm nang bạn đã lưu để xem lại sau.</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowSavedArticlesWorkspace(false)}
+              className="px-4 py-2 min-h-[40px] bg-[var(--gl-bg-muted)] hover:bg-[var(--gl-bg-elevated)] border border-[var(--gl-border)] text-[var(--gl-text-secondary)] text-xs font-semibold rounded-xl transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+            >
+              ← Quay lại tổng quan
+            </button>
+          </div>
+
+          {savedArticles.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="Chưa có bài viết đã lưu"
+              description="Lưu những bài viết cẩm nang bạn quan tâm để dễ dàng đọc lại bất cứ lúc nào."
+              action={{
+                label: "Khám phá Cẩm Nang Xanh 🌿",
+                onClick: () => setCurrentPage("blog")
+              }}
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {savedArticles.map((article) => (
+                <div
+                  key={article.id}
+                  className="bg-[var(--gl-bg-muted)] border border-[var(--gl-border)] rounded-2xl overflow-hidden flex flex-col justify-between shadow-xs hover:border-[var(--gl-accent)]/30 transition-all"
+                >
+                  <div className="relative h-40 bg-[var(--gl-bg-surface)] overflow-hidden">
+                    <img
+                      src={article.image}
+                      alt={article.title}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <button
+                      type="button"
+                      onClick={(e) => toggleSavedArticle(article.id, e)}
+                      title="Bỏ lưu bài viết"
+                      className="absolute top-2.5 right-2.5 w-9 h-9 min-w-[40px] min-h-[40px] flex items-center justify-center bg-[var(--gl-bg-surface)]/90 hover:bg-rose-500/10 text-rose-500 border border-rose-500/30 rounded-xl shadow-xs transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-mono text-[var(--gl-text-muted)] block">{article.date} • {article.readTime}</span>
+                      <h4 className="font-bold text-xs text-[var(--gl-text-primary)] line-clamp-2 leading-snug break-words">
+                        {article.title}
+                      </h4>
+                      <p className="text-[11px] text-[var(--gl-text-secondary)] line-clamp-2 leading-relaxed break-words">
+                        {article.summary}
+                      </p>
+                    </div>
+
+                    <div className="pt-3 border-t border-[var(--gl-border)] flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage("blog")}
+                        className="w-full py-2 px-3 min-h-[40px] bg-[var(--gl-accent-soft)] hover:bg-[var(--gl-accent)] text-[var(--gl-accent)] hover:text-white dark:hover:text-emerald-950 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)]"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>Đọc bài viết</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : showWishlistWorkspace ? (
         /* Wishlist Workspace */
         <div className="bg-[var(--gl-bg-surface)] border border-[var(--gl-border)] p-6 sm:p-8 rounded-3xl space-y-6 shadow-sm">
           {/* Header */}

@@ -271,4 +271,20 @@ public class AuthLockoutIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error", containsString("Tài khoản chưa được xác thực email")));
     }
+
+    @Test
+    void testAdminDisciplinaryLockRejectedWithExactMessage() throws Exception {
+        createTestUser(UserStatus.LOCKED, 0, null);
+
+        LoginRequest request = LoginRequest.builder()
+                .email(testEmail)
+                .password("Password123!")
+                .build();
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error", containsString("Tài khoản của bạn đã bị khóa do vi phạm chính sách của GreenLife. Vui lòng liên hệ greenlife.swp@gmail.com để được hỗ trợ.")));
+    }
 }

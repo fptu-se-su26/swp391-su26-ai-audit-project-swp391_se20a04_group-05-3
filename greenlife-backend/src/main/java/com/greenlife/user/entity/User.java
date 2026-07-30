@@ -101,11 +101,15 @@ public class User implements UserDetails {
     @Override
     public boolean isAccountNonLocked() {
         if (status == UserStatus.LOCKED) {
-            if (lockoutEnd == null || !lockoutEnd.isAfter(java.time.LocalDateTime.now())) {
-                return true;
+            if (lockoutEnd != null && lockoutEnd.isAfter(java.time.LocalDateTime.now())) {
+                return false;
             }
+            if (lockoutEnd == null) {
+                return false; // Admin disciplinary lock is permanent until unlocked by Admin
+            }
+            return true; // Temporary lockout expired
         }
-        return status != UserStatus.LOCKED;
+        return status != UserStatus.DISABLED;
     }
 
     @Override
@@ -116,9 +120,13 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         if (status == UserStatus.LOCKED) {
-            if (lockoutEnd == null || !lockoutEnd.isAfter(java.time.LocalDateTime.now())) {
-                return true;
+            if (lockoutEnd != null && lockoutEnd.isAfter(java.time.LocalDateTime.now())) {
+                return false;
             }
+            if (lockoutEnd == null) {
+                return false; // Admin disciplinary lock
+            }
+            return true; // LockoutEnd expired
         }
         return status == UserStatus.ACTIVE;
     }

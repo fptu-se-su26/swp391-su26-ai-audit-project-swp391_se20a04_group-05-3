@@ -11,7 +11,7 @@ interface BlogViewProps {
 export const BlogView: React.FC<BlogViewProps> = ({
   initialSearch = "",
 }) => {
-  const { blogPosts, products, setSelectedProduct, setCurrentPage } = useAppContext();
+  const { blogPosts, products, setSelectedProduct, setCurrentPage, savedArticleIds, toggleSavedArticle } = useAppContext();
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const articles = blogPosts;
 
@@ -21,7 +21,6 @@ export const BlogView: React.FC<BlogViewProps> = ({
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [activeArticle, setActiveArticle] = useState<BlogPost | null>(null);
-  const [likedArticles, setLikedArticles] = useState<string[]>([]);
 
   const filteredBlogPosts = useMemo(() => {
     let result = [...articles];
@@ -42,15 +41,6 @@ export const BlogView: React.FC<BlogViewProps> = ({
 
     return result;
   }, [articles, searchQuery, selectedCategory]);
-
-  const toggleLike = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (likedArticles.includes(id)) {
-      setLikedArticles(likedArticles.filter((x) => x !== id));
-    } else {
-      setLikedArticles([...likedArticles, id]);
-    }
-  };
 
   return (
     <div className="space-y-12 pb-20">
@@ -75,8 +65,8 @@ export const BlogView: React.FC<BlogViewProps> = ({
           setSearchQuery={setSearchQuery}
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
-          likedArticles={likedArticles}
-          toggleLike={toggleLike}
+          likedArticles={savedArticleIds}
+          toggleLike={(id, e) => toggleSavedArticle(id, e)}
           onSelectArticle={setActiveArticle}
         />
       )}

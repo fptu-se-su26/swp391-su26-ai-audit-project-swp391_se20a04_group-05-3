@@ -127,6 +127,10 @@ interface AppContextType {
   markAsRead: (id: number) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: number) => Promise<void>;
+
+  // Saved Blog Articles Persistence
+  savedArticleIds: string[];
+  toggleSavedArticle: (id: string, e?: React.MouseEvent) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -193,6 +197,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  // Saved Blog Articles Persistence
+  const [savedArticleIds, setSavedArticleIds] = useState<string[]>([]);
+
+  // Effect to load saved article IDs when currentUser changes
+  useEffect(() => {
+    const key = currentUser ? `greenlife_saved_blog_articles_${currentUser.id}` : `greenlife_saved_blog_articles_guest`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        setSavedArticleIds(JSON.parse(saved));
+      } catch {
+        setSavedArticleIds([]);
+      }
+    } else {
+      setSavedArticleIds([]);
+    }
+  }, [currentUser?.id]);
+
+  const toggleSavedArticle = useCallback((id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSavedArticleIds((prev) => {
+      const isSaved = prev.includes(id);
+      const next = isSaved ? prev.filter((x) => x !== id) : [...prev, id];
+      const key = currentUser ? `greenlife_saved_blog_articles_${currentUser.id}` : `greenlife_saved_blog_articles_guest`;
+      localStorage.setItem(key, JSON.stringify(next));
+      if (!isSaved) {
+        toast.success("Đã lưu bài viết vào hồ sơ!");
+      } else {
+        toast.success("Đã bỏ lưu bài viết.");
+      }
+      return next;
+    });
+  }, [currentUser?.id]);
+
+  // Auth account locked event listener
+  useEffect(() => {
+    const handleAccountLocked = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const msg = customEvent.detail?.message || "Tài khoản của bạn đã bị khóa do vi phạm chính sách của GreenLife. Vui lòng liên hệ greenlife.swp@gmail.com để được hỗ trợ.";
+      toast.error(msg, { duration: 6000 });
+      setCurrentUser(null);
+      setUserRole("customer");
+      setCurrentPageState("auth");
+    };
+
+    window.addEventListener("auth-account-locked", handleAccountLocked);
+    return () => {
+      window.removeEventListener("auth-account-locked", handleAccountLocked);
+    };
+  }, []);
 
   // Persist location
   const setUserLocation = useCallback((loc: { city: string; district: string; address: string }) => {
@@ -1184,7 +1239,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       publicStores,
       publicStoresLoading,
       publicStoresError,
-      reloadPublicStores
+      reloadPublicStores,
+      savedArticleIds,
+      toggleSavedArticle
     }),
     [
       currentUser,
@@ -1195,6 +1252,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       publicStoresLoading,
       publicStoresError,
       reloadPublicStores,
+      savedArticleIds,
+      toggleSavedArticle,
       blogPosts,
       cart,
       cartSubtotal,

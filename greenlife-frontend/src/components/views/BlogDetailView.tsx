@@ -1,7 +1,7 @@
 import React from "react";
 import { logger } from "../../utils/logger";
 import { sanitizeHtml } from "../../utils/sanitizer";
-import { ArrowLeft, BookOpen, Clock, Eye, Tag, BrainCircuit, ArrowRight, User } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock, Eye, Tag, BrainCircuit, ArrowRight, User, Heart } from "lucide-react";
 import { BlogPost, Product } from "../../types";
 import { useAppContext } from "../../context/AppContext";
 import { ArticleService } from "../../services/articleService";
@@ -21,8 +21,9 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
   onSelectProduct,
   onDirectDiagnosis,
 }) => {
-  const { setCurrentPage } = useAppContext();
+  const { setCurrentPage, savedArticleIds, toggleSavedArticle } = useAppContext();
   const [localArticle, setLocalArticle] = React.useState<BlogPost>(article);
+  const isSaved = savedArticleIds.includes(localArticle.id);
 
   React.useEffect(() => {
     setLocalArticle(article);
@@ -70,10 +71,26 @@ export const BlogDetailView: React.FC<BlogDetailViewProps> = ({
           <ArrowLeft className="h-4 w-4" /> Quay lại cẩm nang
         </button>
 
-        <span className="inline-flex gap-2 items-center px-3.5 py-1.5 rounded-full bg-[var(--gl-accent-soft)] border border-[var(--gl-accent)]/20 text-[var(--gl-accent)] font-mono text-[10px] font-bold uppercase tracking-wide">
-          <BookOpen className="h-3.5 w-3.5" />
-          {categoryLabelMap[localArticle.category] || localArticle.category}
-        </span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            aria-label="Lưu bài viết"
+            onClick={(e) => toggleSavedArticle(localArticle.id, e)}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gl-focus-ring)] ${
+              isSaved
+                ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                : "bg-[var(--gl-bg-muted)] border-[var(--gl-border)] text-[var(--gl-text-muted)] hover:text-[var(--gl-text-primary)]"
+            }`}
+          >
+            <Heart className={`h-4 w-4 ${isSaved ? "fill-current" : ""}`} />
+            <span>{isSaved ? "Đã lưu" : "Lưu tin"}</span>
+          </button>
+
+          <span className="inline-flex gap-2 items-center px-3.5 py-1.5 rounded-full bg-[var(--gl-accent-soft)] border border-[var(--gl-accent)]/20 text-[var(--gl-accent)] font-mono text-[10px] font-bold uppercase tracking-wide">
+            <BookOpen className="h-3.5 w-3.5" />
+            {categoryLabelMap[localArticle.category] || localArticle.category}
+          </span>
+        </div>
       </div>
 
       {/* Title & Metadata */}
