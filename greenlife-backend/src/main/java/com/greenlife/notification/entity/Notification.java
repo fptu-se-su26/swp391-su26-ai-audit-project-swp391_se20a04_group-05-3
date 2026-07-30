@@ -28,10 +28,10 @@ public class Notification {
     @Column(name = "type", nullable = false)
     private NotificationType type;
 
-    @Column(name = "title", nullable = false)
+    @Column(name = "title", nullable = false, columnDefinition = "NVARCHAR(200)")
     private String title;
 
-    @Column(name = "message", nullable = false)
+    @Column(name = "message", nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String message;
 
     @Enumerated(EnumType.STRING)
