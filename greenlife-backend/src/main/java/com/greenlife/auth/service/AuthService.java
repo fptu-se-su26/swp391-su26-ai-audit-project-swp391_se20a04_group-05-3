@@ -254,8 +254,16 @@ public class AuthService {
                 }
                 long minutesLeft = java.time.Duration.between(LocalDateTime.now(), user.getLockoutEnd()).toMinutes() + 1;
                 throw new AccountLockedException("Tài khoản của bạn đã bị khóa. Vui lòng thử lại sau " + minutesLeft + " phút.");
-            } else {
+            } else if (user.getLockoutEnd() != null) {
                 shouldUnlock = true;
+            } else {
+                try {
+                    securityAuditService.recordLoginAudit(user, normEmail, false,
+                            metadata.ipAddress(), metadata.userAgent(), LoginFailureReason.ACCOUNT_LOCKED);
+                } catch (Exception e) {
+                    log.warn("Non-critical login audit failed: {}", e.getMessage());
+                }
+                throw new AccountLockedException("Tài khoản của bạn đã bị khóa do vi phạm chính sách của GreenLife. Vui lòng liên hệ greenlife.swp@gmail.com để được hỗ trợ.");
             }
         }
 

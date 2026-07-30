@@ -443,18 +443,20 @@ export const Navigation: React.FC<NavigationProps> = ({
             </button>
 
               {/* Cart */}
-            <button
-              onClick={openCart}
+            {!isAdmin && (
+              <button
+                onClick={openCart}
                 className={`relative ${actionBtnClass} ${cartCount > 0 ? "cart-glow-pulse" : ""} ${animateCart ? "animate-cart-zoom-shake" : ""}`}
-              aria-label="Giỏ hàng"
-            >
+                aria-label="Giỏ hàng"
+              >
                 <ShoppingBag className="h-4.5 w-4.5 text-[var(--gl-accent)]" />
-              {cartCount > 0 && (
+                {cartCount > 0 && (
                   <span key={cartCount} className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--gl-accent)] text-[10px] font-bold text-white border-2 border-[var(--gl-bg-page)] shadow-md animate-badge-pop">
-                  {cartCount}
-                </span>
-              )}
-            </button>
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
 
               {/* Notification Bell */}
             {currentUser && (
@@ -613,19 +615,35 @@ export const Navigation: React.FC<NavigationProps> = ({
                       </span>
                     </div>
                     <div className="py-1">
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          setIsProfileDropdownOpen(false);
-                          handleNavClick("customer-dashboard");
-                        }}
+                      {!isAdmin && (
+                        <button
+                          role="menuitem"
+                          onClick={() => {
+                            setIsProfileDropdownOpen(false);
+                            handleNavClick("customer-dashboard");
+                          }}
                           className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--gl-bg-elevated)] hover:text-[var(--gl-text-primary)] transition-colors flex items-center gap-2 cursor-pointer font-medium"
-                      >
+                        >
                           <User className="w-4 h-4 text-[var(--gl-accent)]" />
-                        Trang cá nhân
-                      </button>
+                          Trang cá nhân
+                        </button>
+                      )}
 
-                      {currentUser.is_seller && userRole === "customer" && (
+                      {isAdmin && (
+                        <button
+                          role="menuitem"
+                          onClick={() => {
+                            setIsProfileDropdownOpen(false);
+                            handleNavClick("overview");
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--gl-bg-elevated)] hover:text-[var(--gl-text-primary)] transition-colors flex items-center gap-2 cursor-pointer font-medium"
+                        >
+                          <Shield className="w-4 h-4 text-[var(--gl-accent)]" />
+                          Bảng Quản Trị Hệ Thống
+                        </button>
+                      )}
+
+                      {!isAdmin && currentUser.is_seller && userRole === "customer" && (
                         <button
                           role="menuitem"
                           onClick={() => {
@@ -634,23 +652,23 @@ export const Navigation: React.FC<NavigationProps> = ({
                             setCurrentPage("store-dashboard");
                             setStoreActiveTab("overview");
                           }}
-                            className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--gl-bg-elevated)] hover:text-[var(--gl-text-primary)] transition-colors flex items-center gap-2 cursor-pointer font-medium"
+                          className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--gl-bg-elevated)] hover:text-[var(--gl-text-primary)] transition-colors flex items-center gap-2 cursor-pointer font-medium"
                         >
-                            <Store className="w-4 h-4 text-[var(--gl-accent)]" />
+                          <Store className="w-4 h-4 text-[var(--gl-accent)]" />
                           Kênh người bán
                         </button>
                       )}
 
-                      {!currentUser.is_seller && userRole === "customer" && (
+                      {!isAdmin && !currentUser.is_seller && userRole === "customer" && (
                         <button
                           role="menuitem"
                           onClick={() => {
                             setIsProfileDropdownOpen(false);
                             setCurrentPage("store-profile-setup");
                           }}
-                            className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--gl-bg-elevated)] hover:text-[var(--gl-text-primary)] transition-colors flex items-center gap-2 cursor-pointer font-medium"
+                          className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--gl-bg-elevated)] hover:text-[var(--gl-text-primary)] transition-colors flex items-center gap-2 cursor-pointer font-medium"
                         >
-                            <Store className="w-4 h-4 text-[var(--gl-accent)]" />
+                          <Store className="w-4 h-4 text-[var(--gl-accent)]" />
                           Đăng ký bán hàng
                         </button>
                       )}
@@ -763,20 +781,22 @@ export const Navigation: React.FC<NavigationProps> = ({
             )}
 
               {/* Mobile Cart */}
-            <button
-              onClick={openCart}
+            {!isAdmin && (
+              <button
+                onClick={openCart}
                 className={`relative p-2.5 rounded-xl bg-[var(--gl-bg-elevated)] hover:bg-[var(--gl-bg-muted)] text-[var(--gl-text-secondary)] border border-[var(--gl-border)] transition-all cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center ${
-                cartCount > 0 ? "cart-glow-pulse" : ""
-              } ${animateCart ? "animate-cart-zoom-shake" : ""}`}
-              aria-label="Giỏ hàng"
-            >
+                  cartCount > 0 ? "cart-glow-pulse" : ""
+                } ${animateCart ? "animate-cart-zoom-shake" : ""}`}
+                aria-label="Giỏ hàng"
+              >
                 <ShoppingBag className="h-5 w-5 text-[var(--gl-accent)]" />
-              {cartCount > 0 && (
+                {cartCount > 0 && (
                   <span key={cartCount} className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--gl-accent)] text-[10px] font-bold text-white border-2 border-[var(--gl-bg-page)] shadow-md animate-badge-pop">
-                  {cartCount}
-                </span>
-              )}
-            </button>
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
             </div>
 
             {/* Hamburger Trigger (visible at < 1024px i.e. mobile & tablet, hidden at >= 1024px) */}

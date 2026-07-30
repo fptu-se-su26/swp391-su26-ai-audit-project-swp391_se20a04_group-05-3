@@ -110,9 +110,11 @@ export class HttpClient {
           const status = response.status;
           const text = await response.text();
           let message = "";
+          let code = "";
           try {
             const parsed = JSON.parse(text);
-            message = parsed.message || parsed.error;
+            message = parsed.message || parsed.error || "";
+            code = parsed.code || "";
           } catch {}
 
           // Error Normalization Mapping
@@ -126,6 +128,16 @@ export class HttpClient {
             else if (status === 429) normalizedMessage = "Quá nhiều yêu cầu, vui lòng thử lại sau";
             else if (status === 500) normalizedMessage = "Máy chủ đang gặp sự cố";
             else normalizedMessage = `Yêu cầu thất bại với mã lỗi ${status}`;
+          }
+
+          if (status === 403) {
+            if (code === "ACCOUNT_LOCKED" || code === "ACCOUNT_DISABLED") {
+              storage.removeItem("greenlife_current_user");
+              AuthService.setAccessToken(null);
+              window.dispatchEvent(new CustomEvent("auth-account-locked", { detail: { message: normalizedMessage } }));
+              window.dispatchEvent(new CustomEvent("auth-unauthorized"));
+              throw new UnauthorizedError(normalizedMessage);
+            }
           }
 
           if (status === 401) {

@@ -60,6 +60,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
                 if (jwtService.isTokenValid(jwt, userDetails)) {
+                    if (!userDetails.isAccountNonLocked() || !userDetails.isEnabled()) {
+                        SecurityContextHolder.clearContext();
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json;charset=UTF-8");
+                        boolean isDisabled = userDetails instanceof com.greenlife.user.entity.User u && u.getStatus() == com.greenlife.user.entity.enums.UserStatus.DISABLED;
+                        if (isDisabled) {
+                            response.getWriter().write("{\"code\":\"ACCOUNT_DISABLED\",\"message\":\"Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ greenlife.swp@gmail.com để được hỗ trợ.\"}");
+                        } else {
+                            response.getWriter().write("{\"code\":\"ACCOUNT_LOCKED\",\"message\":\"Tài khoản của bạn đã bị khóa do vi phạm chính sách của GreenLife. Vui lòng liên hệ greenlife.swp@gmail.com để được hỗ trợ.\"}");
+                        }
+                        return;
+                    }
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
                             null,
