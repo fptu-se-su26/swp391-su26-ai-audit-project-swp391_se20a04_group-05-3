@@ -27,15 +27,6 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
-import com.greenlife.order.repository.CartItemRepository;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 /**
  * Reconciles PayOS provider status into local PaymentTransaction (Phase 8) or legacy Order.
  * <p>
@@ -56,7 +47,7 @@ public class PayOSStatusReconciliationService {
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final PromotionReservationLifecycleService promotionReservationLifecycleService;
-    private final CartItemRepository cartItemRepository;
+    private final PayOSOrderFinalizationService payOSOrderFinalizationService;
 
 
     // ─── STEP A: prepareStatusQuery ───────────────────────────────────────────
@@ -357,6 +348,9 @@ public class PayOSStatusReconciliationService {
 
             paymentTransactionRepository.save(tx);
 
+            // Finalize stock and cart items upon verified payment success
+            payOSOrderFinalizationService.finalizeVerifiedPaidOrder(order);
+
             // Update legacy Order compatibility projection
             order.setPaymentStatus(PaymentStatus.PAID);
             order.setStatus(OrderStatus.CONFIRMED);
@@ -365,9 +359,6 @@ public class PayOSStatusReconciliationService {
 
             // Consume promotion budget reservations
             promotionReservationLifecycleService.consumeForOrder(order.getId());
-
-            // Delete purchased cart items upon verified PAID status
-            deletePurchasedCartItems(order);
 
             // Publish paid events exactly once (race guard: PAID transition gate above is sufficient)
             eventPublisher.publishEvent(new PaymentEvent(this, order.getId(), order.getCustomer().getId(), true));
@@ -519,6 +510,7 @@ public class PayOSStatusReconciliationService {
         switch (providerStatus) {
             case "PAID" -> {
                 log.info("LEGACY_CUTOVER_PAYMENT: Order {} confirmed PAID via status query. No PaymentTransaction backfill.", order.getId());
+                payOSOrderFinalizationService.finalizeVerifiedPaidOrder(order);
                 order.setPaymentStatus(PaymentStatus.PAID);
                 order.setStatus(OrderStatus.CONFIRMED);
                 order.setUpdatedAt(LocalDateTime.now());
@@ -526,13 +518,6 @@ public class PayOSStatusReconciliationService {
 
                 // Consume promotion budget reservations
                 promotionReservationLifecycleService.consumeForOrder(order.getId());
-
-                // Delete purchased cart items upon verified PAID status
-                deletePurchasedCartItems(order);
-
-                eventPublisher.publishEvent(new PaymentEvent(this, order.getId(), order.getCustomer().getId(), true));
-                eventPublisher.publishEvent(new OrderStatusEvent(this, order.getId(),
-                        order.getCustomer().getId(), order.getStore().getOwner().getId(), OrderStatus.CONFIRMED));
             }
             case "CANCELLED", "EXPIRED", "FAILED" -> {
                 order.setPaymentStatus(PaymentStatus.FAILED);
@@ -544,19 +529,6 @@ public class PayOSStatusReconciliationService {
         }
     }
 
-    private void deletePurchasedCartItems(Order order) {
-        if (order == null || order.getCustomer() == null || order.getOrderDetails() == null || order.getOrderDetails().isEmpty()) {
-            return;
-        }
-        List<Integer> plantIds = order.getOrderDetails().stream()
-                .map(detail -> detail.getPlant() != null ? detail.getPlant().getId() : null)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-        if (!plantIds.isEmpty()) {
-            cartItemRepository.deleteByCustomerIdAndPlantIdIn(order.getCustomer().getId(), plantIds);
-        }
-    }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 

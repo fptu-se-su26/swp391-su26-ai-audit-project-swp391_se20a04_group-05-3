@@ -19,6 +19,7 @@ import com.greenlife.payment.payos.dto.PayOSWebhookData;
 import com.greenlife.payment.payos.dto.PayOSWebhookPayload;
 import com.greenlife.payment.repository.PayOSWebhookEventRepository;
 import com.greenlife.payment.repository.PaymentTransactionRepository;
+import com.greenlife.payment.service.PayOSOrderFinalizationService;
 import com.greenlife.payment.service.PayOSWebhookProcessingService;
 import com.greenlife.plant.entity.Plant;
 import com.greenlife.plant.entity.enums.PlantStatus;
@@ -42,6 +43,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
+
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -79,6 +82,8 @@ public class SelectedCartItemPayOSIntegrationTest {
     @InjectMocks private CheckoutPricingReservationService checkoutService;
     @InjectMocks private PayOSWebhookProcessingService webhookProcessingService;
 
+    private PayOSOrderFinalizationService payOSOrderFinalizationService;
+
     private User customer;
     private Store storeA;
     private Store storeB;
@@ -100,6 +105,9 @@ public class SelectedCartItemPayOSIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        payOSOrderFinalizationService = new PayOSOrderFinalizationService(plantRepository, cartItemRepository);
+        ReflectionTestUtils.setField(webhookProcessingService, "payOSOrderFinalizationService", payOSOrderFinalizationService);
+
         customer = User.builder().id(1).fullName("Customer").email("customer@test.com").build();
         storeA = Store.builder().id(10).name("Store A").owner(customer).commissionRate(new BigDecimal("0.10")).build();
         storeB = Store.builder().id(20).name("Store B").owner(customer).commissionRate(new BigDecimal("0.10")).build();
@@ -354,5 +362,64 @@ public class SelectedCartItemPayOSIntegrationTest {
 
         // Verify only cartItemB is deleted immediately for COD
         verify(cartItemRepository, times(1)).deleteAll(List.of(cartItemB));
+        // Verify stock is decremented immediately for COD
+        verify(plantRepository, times(1)).save(argThat(p -> p.getId().equals(102) && p.getStock() == 99));
+    }
+
+    @Test
+    void testPayOSCheckout_DoesNotDecrementStockAndKeepsCart() {
+        when(userRepository.findById(1)).thenReturn(Optional.of(customer));
+        when(cartItemRepository.findByCustomerIdAndIdIn(eq(1), eq(List.of(2)))).thenReturn(List.of(cartItemB));
+        when(plantRepository.findById(102)).thenReturn(Optional.of(plantB));
+
+        PromotionPriceQuote quoteB = createMockQuote(102, 10, 1, new BigDecimal("15000"));
+        when(priceEngineService.calculatePrices(any())).thenReturn(List.of(quoteB));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CheckoutRequest req = CheckoutRequest.builder()
+                .cartItemIds(List.of(2))
+                .recipientName("Recipient")
+                .recipientPhone("0901234567")
+                .shippingAddress("123 Street")
+                .paymentMethod("PAYOS")
+                .build();
+
+        checkoutService.executeCheckoutTransaction(1, req);
+
+        // Verify stock is NOT decremented during PayOS checkout
+        assertEquals(100, plantB.getStock());
+        verify(plantRepository, never()).save(any());
+        // Verify cart items are NOT deleted during PayOS checkout
+        verify(cartItemRepository, never()).deleteAll(any());
+    }
+
+    @Test
+    void testPayOSVerifiedPaid_DecrementsStockAndDeletesCartOnce() {
+        PayOSWebhookEvent event = PayOSWebhookEvent.builder().id(100L).processingStatus(WebhookProcessingStatus.RECEIVED).build();
+        PayOSWebhookData data = new PayOSWebhookData();
+        data.setOrderCode(123456L);
+        data.setAmount(new BigDecimal("15000"));
+        data.setCode("00");
+
+        PayOSWebhookPayload payload = new PayOSWebhookPayload();
+        payload.setSuccess(true);
+        payload.setData(data);
+
+        Order order = Order.builder().id(50).customer(customer).store(storeA).totalAmount(new BigDecimal("15000")).paymentStatus(PaymentStatus.PENDING).status(OrderStatus.PENDING).build();
+        OrderDetail detail = OrderDetail.builder().order(order).plant(plantB).quantity(2).build();
+        order.setOrderDetails(List.of(detail));
+
+        PaymentTransaction tx = PaymentTransaction.builder().id(200).order(order).amount(new BigDecimal("15000")).status(PaymentTransactionStatus.PENDING).provider(PaymentProvider.PAYOS).paymentMethod(PaymentMethod.PAYOS).providerOrderCode(123456L).build();
+
+        when(webhookEventRepository.findAndLockById(100L)).thenReturn(Optional.of(event));
+        when(paymentTransactionRepository.findAndLockByProviderOrderCode(123456L)).thenReturn(Optional.of(tx));
+
+        webhookProcessingService.processRegisteredEvent(100L, payload);
+
+        // Verify stock decremented by purchased quantity (100 - 2 = 98)
+        assertEquals(98, plantB.getStock());
+        verify(plantRepository, times(1)).save(plantB);
+        // Verify cart deletion occurs
+        verify(cartItemRepository, times(1)).deleteByCustomerIdAndPlantIdIn(1, List.of(102));
     }
 }

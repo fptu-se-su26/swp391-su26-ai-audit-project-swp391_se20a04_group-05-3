@@ -3,12 +3,15 @@ import { CheckCircle2, XCircle, ArrowRight, RefreshCw } from "lucide-react";
 import { OrderService } from "../../services/orderService";
 import { toast } from "react-hot-toast";
 
+import { useAppContext } from "../../context/AppContext";
+
 interface PaymentStatusViewProps {
   type: "success" | "cancel";
   setCurrentPage: (page: string) => void;
 }
 
 export const PaymentStatusView: React.FC<PaymentStatusViewProps> = ({ type, setCurrentPage }) => {
+  const { loadCart } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [statusData, setStatusData] = useState<any>(null);
 
@@ -21,6 +24,9 @@ export const PaymentStatusView: React.FC<PaymentStatusViewProps> = ({ type, setC
     try {
       const res = await OrderService.getPayOSPaymentStatus(orderCode);
       setStatusData(res);
+      if (res && res.paymentStatus === "PAID") {
+        await loadCart();
+      }
     } catch (err: any) {
       toast.error("Không thể tải trạng thái đơn hàng: " + (err.message || err));
     } finally {
